@@ -369,6 +369,77 @@ ul {
     text-align: left;
 }
 
+@media (max-width: 767px) {
+
+    /* Altura fija más compacta */
+    .hero__carousel {
+        height: 420px;
+        overflow: hidden;
+    }
+
+    .hero__slide {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hero__content {
+        padding: 20px 20px 0;
+        text-align: center;
+        max-width: 100%;
+    }
+
+    /* Subtítulo reducido */
+    .hero__subtitle {
+        font-size: 0.7rem;
+        margin-bottom: 4px;
+    }
+
+    /* Título principal más pequeño */
+    .hero__title {
+        font-size: 1.4rem;
+        margin-bottom: 10px;
+    }
+
+    /* Dos columnas para las características que quedan */
+    .hero__features {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 15px;
+        margin-bottom: 15px;
+    }
+
+    .hero__feature {
+        font-size: 0.75rem;
+        gap: 4px;
+    }
+
+    .hero__feature-icon {
+        font-size: 1rem;
+    }
+
+    /* Ocultamos solo las características 3 y 4 en el primer slide (móvil) */
+    .hero__slide:first-child .hero__feature:nth-child(3),
+    .hero__slide:first-child .hero__feature:nth-child(4) {
+        display: none;
+    }
+
+    /* Botón con espacio suficiente respecto a los puntos */
+    .hero__btn {
+        margin-top: 2px;
+        margin-bottom: 55px;
+    }
+
+    /* Puntos más abajo y ligeramente más pequeños */
+    .hero__carousel-indicators {
+        bottom: 8px;
+    }
+
+    .hero__carousel-dot::after {
+        width: 10px;
+        height: 10px;
+    }
+}
+
 @media (min-width: 768px) {
     .hero__content {
         max-width: 50%;
@@ -983,34 +1054,8 @@ ul {
 
 .citas-calendar-panel {
     padding: 20px;
-}
-
-/* Grid del Calendario */
-.citas-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 5px;
-    margin-top: 20px;
-}
-
-.citas-cal-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.citas-cal-day {
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: #666;
-    margin-bottom: 2px;
-}
-
-.citas-cal-date {
-    font-size: 1rem;
-    font-weight: bold;
-    color: #3B49A3;
-    margin-bottom: 15px;
+    overflow-x: auto;
+    max-width: 100%;
 }
 
 .citas-time-btn {
@@ -1445,11 +1490,14 @@ ul {
 
 .citas-calendar-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(85px, 1fr));
+    /* ancho mínimo por columna */
     border: 1px solid #e0f0f0;
     border-top: none;
     border-radius: 0 0 8px 8px;
     overflow-x: auto;
+    /* scroll horizontal */
+    -webkit-overflow-scrolling: touch;
 }
 
 .calendar-day {
@@ -1504,6 +1552,8 @@ ul {
     cursor: pointer;
     transition: all 0.2s ease;
     min-height: 36px;
+    white-space: nowrap;
+    /* evita que el texto se divida en varias líneas */
 }
 
 .time-slot:hover {
@@ -1799,6 +1849,9 @@ ul {
     margin-top: auto;
     padding-top: 12px;
     border-top: 1px solid #f0f4fa;
+    flex-wrap: wrap;
+    /* permite que bajen a la siguiente línea si no hay espacio */
+    gap: 6px;
 }
 
 /* Badge de Stock */
@@ -2425,8 +2478,15 @@ ul {
 }
 
 @keyframes perfilSlideIn {
-    from { opacity: 0; transform: translateY(-20px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0)    scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* Header */
@@ -2617,8 +2677,15 @@ ul {
 }
 
 @keyframes fadeInMsg {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ==========================================================================
@@ -2719,7 +2786,7 @@ ul {
 .salud-card {
     background: var(--white, #fff);
     border-radius: 14px;
-    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.07);
     padding: 28px 28px 12px;
     min-height: 420px;
     max-width: 900px;
@@ -2785,7 +2852,9 @@ ul {
     border-radius: 6px;
 }
 
-.salud-item:last-child { border-bottom: none; }
+.salud-item:last-child {
+    border-bottom: none;
+}
 
 .salud-item:hover {
     background: #f8faff;
@@ -2965,7 +3034,9 @@ ul {
     border-bottom: 1px solid #f0f0f0;
 }
 
-.salud-med:last-child { border-bottom: none; }
+.salud-med:last-child {
+    border-bottom: none;
+}
 
 .salud-med__nombre {
     font-size: 0.85rem;
@@ -2981,6 +3052,7 @@ ul {
         flex-direction: column;
         padding: 0;
     }
+
     .salud-sidenav {
         width: 100%;
         display: flex;
@@ -2989,13 +3061,140 @@ ul {
         border-bottom: 1px solid var(--border-color, #e8eaf0);
         padding: 8px 0;
     }
-    .salud-sidenav__title { display: none; }
-    .salud-sidenav__list  { display: flex; width: 100%; }
-    .salud-sidenav__list li { flex: 1; }
-    .salud-sidenav__btn   { justify-content: center; padding: 10px; font-size: 0.82rem; }
-    .salud-panel { padding: 16px 14px; }
-    .salud-card  { padding: 18px 14px 12px; min-height: auto; max-width: 100%; }
-    .salud-lista { grid-template-columns: 1fr; }
-    .salud-detalle { max-width: 100%; }
-    .salud-item__nombre { white-space: normal; }
+
+    .salud-sidenav__title {
+        display: none;
+    }
+
+    .salud-sidenav__list {
+        display: flex;
+        width: 100%;
+    }
+
+    .salud-sidenav__list li {
+        flex: 1;
+    }
+
+    .salud-sidenav__btn {
+        justify-content: center;
+        padding: 10px;
+        font-size: 0.82rem;
+    }
+
+    .salud-panel {
+        padding: 16px 14px;
+    }
+
+    .salud-card {
+        padding: 18px 14px 12px;
+        min-height: auto;
+        max-width: 100%;
+    }
+
+    .salud-lista {
+        grid-template-columns: 1fr;
+    }
+
+    .salud-detalle {
+        max-width: 100%;
+    }
+
+    .salud-item__nombre {
+        white-space: normal;
+    }
+}
+
+/* =========================================
+   AJUSTES MÓVIL GENERALES Y CALENDARIO
+   ========================================= */
+@media (max-width: 480px) {
+    .medicine-card__stock {
+        font-size: 0.68rem;
+    }
+
+    .medicine-card__price {
+        font-size: 0.95rem;
+    }
+}
+
+/* Ajustes móviles para el calendario de citas */
+@media (max-width: 640px) {
+
+    /* Tarjeta del médico más compacta */
+    .citas-doctor-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        padding: 15px;
+    }
+
+    .citas-doctor-summary>div:first-child {
+        margin-bottom: 0;
+    }
+
+    .citas-doctor-summary img {
+        width: 60px !important;
+        height: 60px !important;
+    }
+
+    .citas-doctor-summary h3,
+    .citas-doctor-summary p {
+        margin-bottom: 0 !important;
+        font-size: 0.9rem;
+    }
+
+    .citas-doctor-summary>div:last-child {
+        display: none;
+        /* ocultamos dirección y precio en móvil */
+    }
+
+    /* Mostrar solo una columna y centrarla */
+    .citas-calendar-grid {
+        display: flex;
+        justify-content: center;
+        overflow-x: visible;
+        border: none;
+    }
+
+    .calendar-day {
+        display: block !important;
+        width: 100%;
+        max-width: 320px;
+        margin: 0 auto;
+        border-right: none !important;
+    }
+
+    /* Botones de hora más grandes */
+    .time-slot {
+        font-size: 1rem;
+        padding: 14px 10px;
+        min-height: 48px;
+        margin-bottom: 6px;
+        border-radius: 8px;
+    }
+
+    /* Ocultar navegación de semana (ya que mostramos un solo día) */
+    .citas-calendar-header {
+        justify-content: center;
+    }
+
+    .citas-day-nav-mobile {
+        display: flex !important;
+    }
+
+    /* Ocultar los botones de cambiar semana (ya usamos los de día) */
+    .citas-calendar-header button {
+        display: none;
+    }
+
+    .citas-calendar-header {
+        justify-content: center;
+    }
+
+    #btn-confirmar-cita {
+        width: 100%;
+        margin-top: 15px;
+    }
 }
