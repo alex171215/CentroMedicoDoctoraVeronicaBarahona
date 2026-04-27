@@ -36,7 +36,6 @@ const app = {
     init: function () {
         this.iniciarMenuMovil();
         this.iniciarCarrusel();
-        this.iniciarSeleccionMedicos();
         this.iniciarSesionUsuario();
         this.iniciarCarruselEspecialistas();
         this.renderizarEspecialidadesHome();
@@ -69,9 +68,10 @@ const app = {
         const usuarioLogueado = localStorage.getItem('usuarioLogueado');
         const btnAuth = document.getElementById('btn-auth');
         const navMiSalud = document.getElementById('nav-mi-salud');
+        const bottomAuthItem = document.getElementById('bottom-auth-item'); // NUEVO
 
+        // Actualizar botón del header (escritorio)
         if (btnAuth) {
-            // Limpiamos listeners antiguos clonando el botón
             const nuevoBtnAuth = btnAuth.cloneNode(true);
             btnAuth.parentNode.replaceChild(nuevoBtnAuth, btnAuth);
 
@@ -85,7 +85,6 @@ const app = {
                 if (navMiSalud) navMiSalud.style.display = 'none';
             }
 
-            // Enrutamiento real
             nuevoBtnAuth.addEventListener('click', (e) => {
                 e.preventDefault();
                 const yaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
@@ -95,6 +94,19 @@ const app = {
                     app.navegar('login');
                 }
             });
+        }
+
+        // NUEVO: Actualizar botón en barra inferior
+        if (bottomAuthItem) {
+            if (usuarioLogueado === 'true') {
+                bottomAuthItem.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i><span>Perfil</span>';
+                bottomAuthItem.setAttribute('aria-label', 'Ir a Mi Perfil');
+                bottomAuthItem.onclick = () => app.perfil.abrirModal();
+            } else {
+                bottomAuthItem.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i><span>Entrar</span>';
+                bottomAuthItem.setAttribute('aria-label', 'Iniciar Sesión');
+                bottomAuthItem.onclick = () => app.navegar('login');
+            }
         }
     },
 
@@ -324,45 +336,6 @@ const app = {
     },
 
     // ======================================================================
-    // 3. FLUJO DE TAREAS (Reducción de pasos - Eficiencia)
-    // ======================================================================
-    iniciarSeleccionMedicos: function () {
-        // Simulamos la interacción con las tarjetas de especialistas
-        // Buscamos todos los botones de "Agendar" dentro de los especialistas
-        const botonesAgendar = document.querySelectorAll('.doctor-card .btn');
-
-        botonesAgendar.forEach(boton => {
-            boton.addEventListener('click', (e) => {
-                e.preventDefault();
-
-                // Navegar hacia arriba en el DOM para buscar la tarjeta contenedora
-                const tarjeta = boton.closest('.doctor-card');
-                if (!tarjeta) return;
-
-                // Extraer información
-                const nombreMedico = tarjeta.querySelector('.doctor-card__name')?.textContent || 'Médico';
-                const especialidad = tarjeta.querySelector('.doctor-card__specialty')?.textContent || 'Especialidad';
-
-                // Guardar en la memoria del navegador temporalmente
-                const seleccion = {
-                    medico: nombreMedico.trim(),
-                    especialidad: especialidad.trim()
-                };
-
-                sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify(seleccion));
-
-                console.log("Datos de cita guardados para autocompletar:", seleccion);
-
-                // Redirigir a la vista de citas (Lógica para la fase 2)
-                alert(`Redirigiendo a agendamiento con: ${nombreMedico} - ${especialidad}`);
-
-                // En la versión final haríamos:
-                // document.querySelector('.bottom-nav__item:nth-child(2)').click(); 
-            });
-        });
-    },
-
-    // ======================================================================
     // 4. CARRUSEL DE ESPECIALISTAS (Control manual)
     // ======================================================================
     iniciarCarruselEspecialistas: function () {
@@ -515,10 +488,30 @@ const app = {
             // así el DOM no está vacío si el usuario hace clic en "Volver".
             this.renderizarPasoEspecialidades();
 
+            // Verificar si el usuario acaba de iniciar sesión desde el paso 3 de citas
+            const citaDesdeLogin = sessionStorage.getItem('cita_desde_login');
+            sessionStorage.removeItem('cita_desde_login'); // Se consume una sola vez
+
             const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
             let preCita = null;
             try { preCita = JSON.parse(preCitaStr); } catch (e) { }
             const preEspecialidad = sessionStorage.getItem('especialidad_seleccionada');
+
+            if (citaDesdeLogin === 'true' && preCita && preCita.medico) {
+                // Restaurar horaSeleccionada desde sessionStorage si aún no está en memoria
+                if (!this.horaSeleccionada) {
+                    const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada');
+                    if (horaGuardada) this.horaSeleccionada = horaGuardada;
+                }
+
+                if (this.horaSeleccionada) {
+                    // Saltamos directamente a la pantalla de confirmación (paso 4)
+                    this.pasoActual = 2; // necesario para que prepararResumenFinal no proteste
+                    this.prepararResumenFinal(true);
+                    this.mostrarPaso(4);
+                    return; // Salimos de iniciarFlujo sin ejecutar el resto
+                }
+            }
 
             if (preCita && preCita.medico) {
                 const esp = preEspecialidad || preCita.especialidad;
@@ -852,6 +845,17 @@ const app = {
             historial.push(nuevaCita);
             localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
 
+            // Guardar la cita como ocupada para evitar que otro usuario la tome
+            const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
+            ocupadas.push({
+                medico: nombreMedico,
+                especialidad: especialidad,
+                fecha: fecha,
+                hora: hora,
+                fechaHora: fechaHoraStr   // "Lunes 27 de abril, 07:40"
+            });
+            localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
+
             // 3. Renderizar en pantalla de éxito
             document.getElementById('resumen-doctor-name').textContent = nombreMedico;
             document.getElementById('resumen-doctor-specialty').textContent = especialidad;
@@ -917,6 +921,8 @@ const app = {
         // ======================================================================
         fechaBaseCalendario: new Date(),
 
+        diaSeleccionadoMobile: 0,   // 0 = Lunes, 1 = Martes, …, 5 = Sábado
+
         // Mapeo de duración (minutos) por especialidad
         duracionesPorEspecialidad: {
             "TRAUMATOLOGÍA": 60, "PSICOLOGÍA": 60,
@@ -957,48 +963,69 @@ const app = {
             const diasNombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
             let html = '';
 
+            const esMobile = window.innerWidth <= 640;
+            const diaActivo = this.diaSeleccionadoMobile;
+            const labelDiaMobile = document.getElementById('citas-day-label-mobile');
+            if (labelDiaMobile && esMobile) {
+                const diaSelect = new Date(lunes);
+                diaSelect.setDate(lunes.getDate() + diaActivo);
+                const nombreDia = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][diaSelect.getDay()];
+                labelDiaMobile.textContent = `${nombreDia} ${diaSelect.getDate()} de ${meses[diaSelect.getMonth()]}`;
+            }
+
             for (let i = 0; i < 6; i++) {
-                const dia = new Date(lunes);
-                dia.setDate(lunes.getDate() + i);
-                const esSabado = (i === 5);
-                const esPasado = dia < ahora && dia.toDateString() !== ahora.toDateString();
 
-                const diaNum = dia.getDate();
-                const mesCorto = meses[dia.getMonth()];
-                const esHoy = dia.toDateString() === ahora.toDateString();
-                const headerClass = esHoy ? 'calendar-day-header calendar-day-header--today' : 'calendar-day-header';
+                if (!esMobile || (esMobile && i === diaActivo)) {
+                    const dia = new Date(lunes);
+                    dia.setDate(lunes.getDate() + i);
+                    const esSabado = (i === 5);
+                    const esPasado = dia < ahora && dia.toDateString() !== ahora.toDateString();
 
-                html += `<div class="calendar-day${esPasado ? ' calendar-day--past' : ''}">`;
-                html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
-                html += `<div class="calendar-slots">`;
+                    const diaNum = dia.getDate();
+                    const mesCorto = meses[dia.getMonth()];
+                    const esHoy = dia.toDateString() === ahora.toDateString();
+                    const headerClass = esHoy ? 'calendar-day-header calendar-day-header--today' : 'calendar-day-header';
 
-                if (esPasado) {
-                    html += `<span class="time-slot time-slot--unavailable">No disponible</span>`;
-                } else {
-                    // Reglas de negocio: L-V 07:00 hasta 16:30 | Sab 08:00 hasta 12:30
-                    const inicioMin = esSabado ? 8 * 60 : 7 * 60;           // 07:00 o 08:00
-                    const corteMin = esSabado ? 12 * 60 + 30 : 16 * 60 + 30; // 12:30 o 16:30
+                    html += `<div class="calendar-day${esPasado ? ' calendar-day--past' : ''}">`;
+                    html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
+                    html += `<div class="calendar-slots">`;
 
-                    for (let m = inicioMin; m <= corteMin; m += duracion) {
-                        const hh = Math.floor(m / 60);
-                        const mm = m % 60;
-                        const horaStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+                    if (esPasado) {
+                        html += `<span class="time-slot time-slot--unavailable">No disponible</span>`;
+                    } else {
+                        // Reglas de negocio: L-V 07:00 hasta 16:30 | Sab 08:00 hasta 12:30
+                        const inicioMin = esSabado ? 8 * 60 : 7 * 60;           // 07:00 o 08:00
+                        const corteMin = esSabado ? 12 * 60 + 30 : 16 * 60 + 30; // 12:30 o 16:30
 
-                        const slotDate = new Date(dia);
-                        slotDate.setHours(hh, mm, 0, 0);
-                        const yaPaso = slotDate <= ahora;
+                        for (let m = inicioMin; m <= corteMin; m += duracion) {
+                            const hh = Math.floor(m / 60);
+                            const mm = m % 60;
+                            const horaStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 
-                        const label = `${diasNombres[i]} ${diaNum} de ${mesCorto}, ${horaStr}`;
+                            const slotDate = new Date(dia);
+                            slotDate.setHours(hh, mm, 0, 0);
+                            const yaPaso = slotDate <= ahora;
 
-                        if (yaPaso) {
-                            html += `<button class="time-slot time-slot--past" disabled>${horaStr}</button>`;
-                        } else {
-                            html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}')">${horaStr}</button>`;
+                            const label = `${diasNombres[i]} ${diaNum} de ${mesCorto}, ${horaStr}`;
+
+                            // Verificar si esta hora ya está ocupada para el médico actual
+                            const medicoActual = document.getElementById('citas-doctor-name')?.textContent || '';
+                            const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
+                            const estaOcupada = ocupadas.some(cita => {
+                                return cita.medico === medicoActual && cita.fechaHora === label;
+                            });
+
+                            if (yaPaso || estaOcupada) {
+                                html += `<button class="time-slot time-slot--past" disabled>${horaStr}</button>`;
+                            } else {
+                                html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}')">${horaStr}</button>`;
+                            }
                         }
                     }
+
+                    html += `</div></div>`;
                 }
 
-                html += `</div></div>`;
             }
 
             grid.innerHTML = html;
@@ -1013,6 +1040,19 @@ const app = {
             this.generarCalendario();
         },
 
+        cambiarDiaMobile(direccion) {
+            this.diaSeleccionadoMobile += direccion;
+            // Cruzar límites de la semana (Lunes 0 – Sábado 5)
+            if (this.diaSeleccionadoMobile < 0) {
+                this.fechaBaseCalendario.setDate(this.fechaBaseCalendario.getDate() - 7);
+                this.diaSeleccionadoMobile = 5; // sábado de la semana anterior
+            } else if (this.diaSeleccionadoMobile > 5) {
+                this.fechaBaseCalendario.setDate(this.fechaBaseCalendario.getDate() + 7);
+                this.diaSeleccionadoMobile = 0; // lunes de la semana siguiente
+            }
+            this.generarCalendario();
+        },
+
         seleccionarHora(boton, label) {
             // Heurística #1: feedback inmediato — remover selección anterior en TODO el grid
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => {
@@ -1022,12 +1062,14 @@ const app = {
             // Marcar únicamente el botón pulsado
             boton.classList.add('time-slot--selected');
             this.horaSeleccionada = label;
+            sessionStorage.setItem('cita_hora_seleccionada', label);
 
             // Habilitar "Confirmar Cita" solo cuando hay selección activa
             const btnConfirmar = document.getElementById('btn-confirmar-cita');
             if (btnConfirmar) {
                 btnConfirmar.style.opacity = '1';
                 btnConfirmar.style.pointerEvents = 'auto';
+                btnConfirmar.disabled = false;  // ← nuevo
             }
         },
 
@@ -1037,6 +1079,7 @@ const app = {
             if (btnConfirmar) {
                 btnConfirmar.style.opacity = '0.5';
                 btnConfirmar.style.pointerEvents = 'none';
+                btnConfirmar.disabled = true;   // ← nuevo
             }
         },
 
@@ -1815,9 +1858,15 @@ const app = {
                 localStorage.setItem('usuarioActivo', JSON.stringify(usuarioEncontrado || { nombres: "Usuario de Prueba", identificacion: identificacion }));
 
                 app.iniciarSesionUsuario(); // Actualiza el botón del header
-                app.navegar('home');        // Redirige
-            } else {
-                this._mostrarError('login-password', 'Credenciales incorrectas. Verifica tus datos o regístrate.');
+
+                // Si el usuario viene del flujo de agendamiento de citas, volvemos allí
+                const citaEnCurso = sessionStorage.getItem('reservaCita_preseleccion');
+                if (citaEnCurso) {
+                    sessionStorage.setItem('cita_desde_login', 'true');
+                    app.navegar('citas');
+                } else {
+                    app.navegar('home');
+                }
             }
         }
     },

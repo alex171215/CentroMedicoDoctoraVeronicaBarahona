@@ -76,7 +76,7 @@
                     <div class="hero__image-bg"
                         style="background-image: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%), url('assets/img/diapositiva1.png');"
                         role="img" aria-label="Doctora atendiendo a paciente"></div>
-                    <div class="hero__content" style="padding-left: 300px; max-width: 1000px; width: 100%;">
+                    <div class="hero__content">
                         <p class="hero__subtitle">TU SALUD ES NUESTRA PRIORIDAD</p>
                         <h1 class="hero__title">
                             <span class="hero__title-light">ATENCIÓN MÉDICA</span>
@@ -127,7 +127,7 @@
                     <div class="hero__image-bg"
                         style="background-image: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%), url('assets/img/Diapositiva2.png');"
                         role="img" aria-label="Atención médica integral"></div>
-                    <div class="hero__content" style="padding-left: 200px; padding-top: 130px;">
+                    <div class="hero__content">
                         <p class="hero__subtitle">ATENCIÓN INTEGRAL</p>
                         <h1 class="hero__title">
                             <span class="hero__title-bold">MÁS DE 10 ESPECIALIDADES A TU SERVICIO</span>
@@ -1053,6 +1053,21 @@
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </button>
                                 </div>
+
+                                <!-- Navegación de día en móvil -->
+                                <div class="citas-day-nav-mobile"
+                                    style="display: none; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <button onclick="app.citas.cambiarDiaMobile(-1)" class="calendar-nav-btn"
+                                        aria-label="Día anterior">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                    <span id="citas-day-label-mobile"
+                                        style="font-weight: bold; color: #3B49A3; font-size: 0.9rem;"></span>
+                                    <button onclick="app.citas.cambiarDiaMobile(1)" class="calendar-nav-btn"
+                                        aria-label="Día siguiente">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                </div>
                                 <div class="citas-calendar-grid" id="citas-calendar-grid">
                                     <!-- Inyectado por JS -->
                                 </div>
@@ -1167,7 +1182,7 @@
         </section>
     </main>
 
-    <footer class="footer" id="site-footer" class="footer" role="contentinfo">
+    <footer class="footer" id="site-footer" role="contentinfo">
         <div class="container">
             <div class="footer__grid">
                 <div class="footer__col footer__col--quality" id="mision">
@@ -1233,6 +1248,10 @@
         <a href="javascript:void(0)" onclick="app.navegar('farmacia')" class="bottom-nav__item">
             <i class="fa-solid fa-pills" aria-hidden="true"></i>
             <span>Farmacia</span>
+        </a>
+        <a href="javascript:void(0)" id="bottom-auth-item" class="bottom-nav__item" aria-label="Iniciar Sesión">
+            <i class="fa-regular fa-user" aria-hidden="true"></i>
+            <span>Entrar</span>
         </a>
     </nav>
 
