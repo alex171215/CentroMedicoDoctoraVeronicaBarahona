@@ -76,8 +76,21 @@ const app = {
             btnAuth.parentNode.replaceChild(nuevoBtnAuth, btnAuth);
 
             if (usuarioLogueado === 'true') {
-                nuevoBtnAuth.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i> Mi Perfil';
-                nuevoBtnAuth.setAttribute('aria-label', 'Ir a Mi Perfil');
+                let nombreMostrar = 'Mi Perfil';
+                try {
+                    const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
+                    if (userActivo) {
+                        const nom1 = (userActivo.nombre1 || userActivo.nombre_1 || '').trim();
+                        const ape1 = (userActivo.apellido1 || userActivo.apellido_1 || '').trim();
+                        if (nom1) {
+                            nombreMostrar = ape1 ? `${nom1} ${ape1}` : nom1;
+                            if (nombreMostrar.length > 22) nombreMostrar = nombreMostrar.substring(0, 20) + '…';
+                        }
+                    }
+                } catch (e) { }
+
+                nuevoBtnAuth.innerHTML = `<i class="fa-regular fa-user" aria-hidden="true"></i> ${nombreMostrar}`;
+                nuevoBtnAuth.setAttribute('aria-label', `Ver perfil de ${nombreMostrar}`);
                 if (navMiSalud) navMiSalud.style.display = 'list-item';
             } else {
                 nuevoBtnAuth.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión';
@@ -99,8 +112,21 @@ const app = {
         // NUEVO: Actualizar botón en barra inferior
         if (bottomAuthItem) {
             if (usuarioLogueado === 'true') {
-                bottomAuthItem.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i><span>Perfil</span>';
-                bottomAuthItem.setAttribute('aria-label', 'Ir a Mi Perfil');
+                let nombreCorto = 'Perfil';
+                try {
+                    const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
+                    if (userActivo) {
+                        const nom1 = (userActivo.nombre1 || userActivo.nombre_1 || '').trim();
+                        const ape1 = (userActivo.apellido1 || userActivo.apellido_1 || '').trim();
+                        if (nom1) {
+                            nombreCorto = ape1 ? `${nom1} ${ape1}` : nom1;
+                            if (nombreCorto.length > 18) nombreCorto = nombreCorto.substring(0, 16) + '…';
+                        }
+                    }
+                } catch (e) { }
+
+                bottomAuthItem.innerHTML = `<i class="fa-regular fa-user" aria-hidden="true"></i><span>${nombreCorto}</span>`;
+                bottomAuthItem.setAttribute('aria-label', `Ver perfil de ${nombreCorto}`);
                 bottomAuthItem.onclick = () => app.perfil.abrirModal();
             } else {
                 bottomAuthItem.innerHTML = '<i class="fa-regular fa-user" aria-hidden="true"></i><span>Entrar</span>';
@@ -154,7 +180,7 @@ const app = {
         }
 
         // 1. Actualizar estado activo en menú de escritorio
-        const vistasPrincipales = ['home', 'especialistas', 'farmacia'];
+        const vistasPrincipales = ['home', 'especialistas', 'farmacia', 'contacto', 'citas'];
         const aplicaLinea = vistasPrincipales.includes(vistaId);
 
         const navLinks = document.querySelectorAll('.header__nav-link');
@@ -164,9 +190,15 @@ const app = {
 
             if (aplicaLinea) {
                 const onclickAttr = link.getAttribute('onclick');
-                if (onclickAttr && onclickAttr.includes(`'${vistaId}'`)) {
-                    link.classList.add('header__nav-link--active');
-                    link.setAttribute('aria-current', 'page');
+                if (onclickAttr) {
+                    // Para "citas", también activamos el enlace que dispara agendarCitaGeneral()
+                    if (vistaId === 'citas' && onclickAttr.includes('agendarCita')) {
+                        link.classList.add('header__nav-link--active');
+                        link.setAttribute('aria-current', 'page');
+                    } else if (onclickAttr.includes(`'${vistaId}'`)) {
+                        link.classList.add('header__nav-link--active');
+                        link.setAttribute('aria-current', 'page');
+                    }
                 }
             }
         });
@@ -234,6 +266,8 @@ const app = {
                     const vSalud = document.getElementById('view-mi-salud');
                     if (vSalud) vSalud.style.display = 'block';
                     if (app.salud) app.salud.inicializar();
+                } else if (vistaId === 'contacto') {
+                    if (vistaActiva) vistaActiva.style.display = 'block';
                 } else {
                     vistaActiva.style.display = 'block';
                 }
@@ -345,10 +379,47 @@ const app = {
 
         if (!grid || !prevBtn || !nextBtn) return;
 
-        // Determinar cantidad a scrollear basado en el ancho de la tarjeta + gap
         const getScrollAmount = () => {
             const card = grid.querySelector('.doctor-card');
             return card ? card.offsetWidth + 25 : 350;
+        };
+
+        // Actualizar visibilidad de flechas según posición del scroll
+        const updateNavButtons = () => {
+            const maxScroll = grid.scrollWidth - grid.clientWidth;
+            const tolerance = 2; // px de margen para evitar parpadeos
+
+            if (maxScroll <= 0) {
+                // No hay desbordamiento: esconder ambas flechas
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                return;
+            }
+
+            // Flecha izquierda visible solo si no estamos al inicio
+            prevBtn.style.display = grid.scrollLeft > tolerance ? 'flex' : 'none';
+            // Flecha derecha visible solo si no estamos al final
+            nextBtn.style.display = grid.scrollLeft < maxScroll - tolerance ? 'flex' : 'none';
+        };
+
+        // Asegurar que las dimensiones estén listas antes de la primera verificación
+        const initUpdate = () => {
+            updateNavButtons();
+
+            // Escuchar la carga de imágenes para recalcular si es necesario
+            const images = grid.querySelectorAll('img');
+            if (images.length > 0) {
+                let loadedCount = 0;
+                images.forEach(img => {
+                    if (img.complete) loadedCount++;
+                    else {
+                        img.addEventListener('load', () => {
+                            loadedCount++;
+                            if (loadedCount === images.length) updateNavButtons();
+                        }, { once: true });
+                    }
+                });
+            }
         };
 
         nextBtn.addEventListener('click', () => {
@@ -358,6 +429,12 @@ const app = {
         prevBtn.addEventListener('click', () => {
             grid.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
         });
+
+        grid.addEventListener('scroll', updateNavButtons);
+        window.addEventListener('resize', updateNavButtons);
+
+        // Llamada inicial con un pequeño retraso para que el DOM se haya renderizado
+        setTimeout(initUpdate, 100);
     },
 
     // ======================================================================
@@ -550,7 +627,14 @@ const app = {
             const medicos = db.cartera_especialistas.filter(e => e.especialidad === especialidad && e.doctor);
 
             if (medicos.length === 1) {
-                this.prepararResumenMedico(medicos[0].doctor.nombre_completo, especialidad, medicos[0].imagen_url);
+                const med = medicos[0];
+                // ✅ NUEVO: guardar pre-selección para que el login sepa que hay cita en curso
+                sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
+                    medico: med.doctor.nombre_completo,
+                    especialidad: especialidad,
+                    imagen_url: med.imagen_url
+                }));
+                this.prepararResumenMedico(med.doctor.nombre_completo, especialidad, med.imagen_url);
                 this.mostrarPaso(2);
                 this.generarCalendario();
             } else if (medicos.length > 1) {
@@ -997,7 +1081,11 @@ const app = {
                         const inicioMin = esSabado ? 8 * 60 : 7 * 60;           // 07:00 o 08:00
                         const corteMin = esSabado ? 12 * 60 + 30 : 16 * 60 + 30; // 12:30 o 16:30
 
+                        let slotCount = 0;                     // ← NUEVO: contador de slots por día
+                        const maxSlots = 8;                   // ← NUEVO: máximo visible
                         for (let m = inicioMin; m <= corteMin; m += duracion) {
+                            if (slotCount >= maxSlots) break;  // ← NUEVO: detener al llegar a 10
+
                             const hh = Math.floor(m / 60);
                             const mm = m % 60;
                             const horaStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -1020,6 +1108,7 @@ const app = {
                             } else {
                                 html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}')">${horaStr}</button>`;
                             }
+                            slotCount++;
                         }
                     }
 
@@ -1582,6 +1671,18 @@ const app = {
             const lista = [];
             categorias.forEach(cat => {
                 const nombreCat = (cat.categoria || 'OTROS').trim();
+                // Lista de categorías que requieren receta médica (prototipo)
+                const categoriasConReceta = [
+                    'ANTIBIOTICOS PEDIATRICOS',
+                    'ANTIBIOTICOS ADULTOS',
+                    'DERMATOLOGIA',
+                    'OFTALMOLOGIA',
+                    'GINECOLOGIA',
+                    'NEBULIZACIONES',
+                    'COLESTEROL y TRIGLICERIDOS',
+                    'ENDOCRINOLOGIA'
+                ];
+                const requiereReceta = categoriasConReceta.includes(nombreCat);
                 (cat.productos || []).forEach(rawProd => {
                     const parsed = this._parsearProducto(rawProd);
                     const stock = this._stockAleatorio();
@@ -1593,7 +1694,8 @@ const app = {
                         presentacion: parsed.presentacion,
                         precio: precio,
                         stock: stock,
-                        imagen: this._imagenProducto(parsed.comercial, parsed.presentacion)
+                        imagen: this._imagenProducto(parsed.comercial, parsed.presentacion),
+                        requiereReceta: requiereReceta
                     });
                 });
             });
@@ -1604,10 +1706,9 @@ const app = {
         // 8.5 — Renderizado de Menú Desplegable (Resolución Ley de Hick)
         // ------------------------------------------------------------------
         _renderizarChips(categorias) {
-            const select = document.getElementById('farmacia-select-cat');
-            if (!select) return;
+            const container = document.getElementById('farmacia-chips');
+            if (!container) return;
 
-            // IHC PARCHE: Chunking (Agrupación para vencer la Ley de Hick)
             const grupos = {
                 "PEDIATRÍA": ["ANTIPIRETICOS – ANTIINFLAMATORIOS PEDIATRICOS", "MUCOLITICOS - ANTIHISTAMINICOS - EXPECTORANTES PEDIATRICOS", "ANTIBIOTICOS PEDIATRICOS", "ANTIPARASITARIOS PEDIATRICOS", "VITAMINAS PEDIATRICOS", "LECHES"],
                 "ADULTOS": ["ANTIPIRETICOS - ANTIINFLAMATORIOS ADULTOS", "ANTIHISTAMINICOS - MUCOLITICOS - ANTIGRIPALES ADULTOS", "ANTIBIOTICOS ADULTOS", "ANTIPARASITARIOS ADULTOS", "VITAMINAS ADULTOS"],
@@ -1615,20 +1716,17 @@ const app = {
                 "OTROS": ["OTROS"]
             };
 
-            let html = `<option value="TODAS">Filtrar por: Todas las categorías</option>`;
-
+            let html = `<a class="farmacia-sidebar__item farmacia-sidebar__item--active" data-cat="TODAS" onclick="app.farmacia._filtrarPorCategoria('TODAS')">Todas</a>`;
             for (const [nombreGrupo, catsDelGrupo] of Object.entries(grupos)) {
                 const catsValidas = catsDelGrupo.filter(c => categorias.includes(c));
-                if (catsValidas.length > 0) {
-                    html += `<optgroup label="––– ${nombreGrupo} –––">`;
-                    catsValidas.forEach(cat => {
-                        const nombreMostrar = this._nombresCortosCat[cat] || cat;
-                        html += `<option value="${cat}">${nombreMostrar}</option>`;
-                    });
-                    html += `</optgroup>`;
-                }
+                if (catsValidas.length === 0) continue;
+                html += `<h4 class="farmacia-sidebar__group-title">${nombreGrupo}</h4>`;
+                catsValidas.forEach(cat => {
+                    const nombreMostrar = this._nombresCortosCat[cat] || cat;
+                    html += `<a class="farmacia-sidebar__item" data-cat="${cat}" onclick="app.farmacia._filtrarPorCategoria('${cat}')">${nombreMostrar}</a>`;
+                });
             }
-            select.innerHTML = html;
+            container.innerHTML = html;
         },
 
         // ------------------------------------------------------------------
@@ -1653,25 +1751,29 @@ const app = {
             const tope = this._paginaActual * this._itemsPorPagina;
             const productosPagina = this._resultadosActuales.slice(0, tope);
 
-            grid.innerHTML = productosPagina.map(p => {
-                const stockInfo = this._claseStock(p.stock);
+            grid.innerHTML = productosPagina.map((p, idx) => {
+                const agotado = p.stock === 0;
+                const stockSimple = agotado ? 'Agotado' : 'Disponible';
+                const stockClase = agotado ? 'stock-out' : 'stock-high'; // o podrías tener 'stock-disponible'
+                const cardClass = agotado ? 'medicine-card medicine-card--agotado' : 'medicine-card';
+
                 return `
-                <article class="medicine-card" title="${p.comercial}">
-                    <div class="medicine-card__img-wrap">
-                        <img class="medicine-card__img" src="${p.imagen}" alt="${p.comercial}" loading="lazy"
-                            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                        <span class="medicine-card__img-placeholder" style="display:none;"><i class="fa-solid fa-pills"></i></span>
-                    </div>
-                    <div class="medicine-card__body">
-                        <p class="medicine-card__name">${p.comercial}</p>
-                        <p class="medicine-card__generic">${p.generico}</p>
-                        ${p.presentacion ? `<p class="medicine-card__generic" style="font-size:0.72rem;margin-top:2px;">${p.presentacion}</p>` : ''}
-                        <div class="medicine-card__footer">
-                            <span class="medicine-card__stock ${stockInfo.clase}">${stockInfo.texto}</span>
-                            <span class="medicine-card__price">$${p.precio.toFixed(2)}</span>
+                    <article class="${cardClass}" title="${p.comercial}" onclick="${agotado ? '' : `app.farmacia.abrirModalMedicamento('${p.comercial}', '${p.generico}', '${p.presentacion || ''}', '${p.precio.toFixed(2)}', '${p.stock}', '${p.requiereReceta}', '${p.imagen}')`}" style="cursor:${agotado ? 'default' : 'pointer'};">
+                        <div class="medicine-card__img-wrap">
+                            <img class="medicine-card__img" src="${p.imagen}" alt="${p.comercial}" loading="lazy"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                            <span class="medicine-card__img-placeholder" style="display:none;"><i class="fa-solid fa-pills"></i></span>
+                           ${p.requiereReceta ? `<span class="medicine-card__cat-badge medicine-card__cat-badge--rx">Requiere receta</span>` : ''}
                         </div>
-                    </div>
-                </article>`;
+                        <div class="medicine-card__body">
+                            <p class="medicine-card__name">${p.comercial}</p>
+                            <p class="medicine-card__generic">${p.generico}</p>
+                            <div class="medicine-card__footer">
+                                <span class="medicine-card__stock ${stockClase}">${stockSimple}</span>
+                                <span class="medicine-card__price">$${p.precio.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </article>`;
             }).join('');
 
             // Mostrar/Ocultar el botón "Cargar Más" si hay más productos que los mostrados
@@ -1692,6 +1794,11 @@ const app = {
             this._categoriaActiva = cat;
             const query = (document.getElementById('farmacia-buscador')?.value || '').trim();
             this._aplicarFiltros(query, cat);
+
+            // Actualizar clase activa en chips
+            document.querySelectorAll('.farmacia-sidebar__item').forEach(item => {
+                item.classList.toggle('farmacia-sidebar__item--active', item.dataset.cat === cat);
+            });
         },
 
         // ------------------------------------------------------------------
@@ -1751,6 +1858,36 @@ const app = {
             this._renderizarChips(categorias);
             this._aplicarFiltros('', 'TODAS');
             this._iniciarBuscador();
+            // Cerrar modal de medicamento al hacer clic fuera
+            const modalMed = document.getElementById('modal-medicamento');
+            if (modalMed) {
+                modalMed.addEventListener('click', (e) => {
+                    if (e.target === modalMed) this.cerrarModalMedicamento();
+                });
+            }
+        },
+
+        abrirModalMedicamento(comercial, generico, presentacion, precio, stock, requiereReceta, imagen) {
+            document.getElementById('modal-med-title').textContent = comercial;
+            document.getElementById('modal-med-generic').textContent = generico;
+            document.getElementById('modal-med-presentacion').textContent = presentacion || '—';
+            document.getElementById('modal-med-precio').textContent = `$${precio}`;
+            const stockMsg = stock === '0' ? 'Agotado' : `${stock} unidades`;
+            document.getElementById('modal-med-stock').textContent = stockMsg;
+            document.getElementById('modal-med-img').src = imagen;
+            const recetaEl = document.getElementById('modal-med-receta');
+            if (recetaEl) {
+                recetaEl.style.display = (requiereReceta === 'true') ? 'flex' : 'none';
+            }
+            document.getElementById('modal-medicamento').style.display = 'flex';
+            setTimeout(() => {
+                const closeBtn = document.querySelector('#modal-medicamento .modal-close');
+                if (closeBtn) closeBtn.focus();
+            }, 100);
+        },
+
+        cerrarModalMedicamento() {
+            document.getElementById('modal-medicamento').style.display = 'none';
         }
     },
 
@@ -1859,14 +1996,18 @@ const app = {
 
                 app.iniciarSesionUsuario(); // Actualiza el botón del header
 
-                // Si el usuario viene del flujo de agendamiento de citas, volvemos allí
+                // DECISIÓN ÚNICA: ¿viene de un flujo de agendamiento?
                 const citaEnCurso = sessionStorage.getItem('reservaCita_preseleccion');
-                if (citaEnCurso) {
+                const especialidadEnCurso = sessionStorage.getItem('especialidad_seleccionada');
+
+                if (citaEnCurso || especialidadEnCurso) {
                     sessionStorage.setItem('cita_desde_login', 'true');
                     app.navegar('citas');
                 } else {
-                    app.navegar('home');
+                    app.navegar('mi-salud');   // ← antes decía 'home'
                 }
+            } else {
+                this._mostrarError('login-password', 'Usuario o contraseña incorrectos.');
             }
         }
     },
@@ -2632,6 +2773,8 @@ const app = {
                 lista[idx] = { ...lista[idx], ...u };
                 localStorage.setItem('sanitas_usuarios', JSON.stringify(lista));
             }
+            // Refrescar el botón del header y barra inferior con el nuevo nombre
+            app.iniciarSesionUsuario();
 
             // 3. Mostrar mensaje de éxito y volver al perfil tras 1.5s
             const msg = document.getElementById('edit-success-msg');

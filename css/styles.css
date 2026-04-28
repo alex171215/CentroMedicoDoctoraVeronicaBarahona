@@ -278,8 +278,8 @@ ul {
     background-color: var(--white);
     box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.08);
     z-index: 1000;
-    padding: 12px 0;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    padding: 8px 0;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 768px) {
@@ -293,9 +293,9 @@ ul {
     flex-direction: column;
     align-items: center;
     color: var(--text-main);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
-    gap: 4px;
+    gap: 3px;
     transition: color 0.3s;
 }
 
@@ -441,10 +441,34 @@ ul {
 }
 
 @media (min-width: 768px) {
+
+    /* Estilos base para todas las diapositivas */
     .hero__content {
-        max-width: 50%;
-        padding: 60px 20px;
+        max-width: 60%;
+        /* Aumentamos el ancho máximo */
+        padding: 60px 40px 60px 130px;
         margin: 0;
+    }
+
+    /* Diapositiva 1: más a la derecha y más ancha */
+    .hero__slide:nth-child(1) .hero__content {
+        padding-left: 500px;
+        max-width: 65%;
+        /* Un poco más ancha para que el texto respire */
+    }
+
+    /* Diapositiva 2: se deja con padding izquierdo reducido */
+    .hero__slide:nth-child(2) .hero__content {
+        padding-left: 200px;
+        max-width: 50%;
+        /* Valor original */
+    }
+
+    /* Diapositiva 3: más abajo y también más ancha */
+    .hero__slide:nth-child(3) .hero__content {
+        padding-top: 120px;
+        padding-left: 180px;
+        max-width: 60%;
     }
 }
 
@@ -655,17 +679,23 @@ ul {
 
 .doctors__nav-btn {
     display: none;
+    /* ocultos por defecto en móviles */
+    align-items: center;
+    /* centrar el icono siempre */
+    justify-content: center;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 60px;
-    height: 60px;
+    width: 44px;
+    /* más pequeño en móvil */
+    height: 44px;
     background-color: var(--white);
     border: 1px solid var(--border-color);
     border-radius: 50%;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     color: var(--text-main);
-    font-size: 1.5rem;
+    font-size: 1.2rem;
+    /* icono más chico */
     cursor: pointer;
     z-index: 10;
     transition: all 0.3s ease;
@@ -673,9 +703,10 @@ ul {
 
 @media (min-width: 768px) {
     .doctors__nav-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        width: 60px;
+        /* tamaño original en escritorio */
+        height: 60px;
+        font-size: 1.5rem;
     }
 }
 
@@ -891,8 +922,8 @@ ul {
 
 .footer__grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 40px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 60px;
 }
 
 @media (min-width: 768px) {
@@ -1712,6 +1743,13 @@ ul {
     user-select: none;
 }
 
+.farmacia-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
 .farmacia-chip:hover {
     border-color: var(--action-color);
     color: var(--action-color);
@@ -1813,6 +1851,16 @@ ul {
     border-radius: 50px;
     text-transform: uppercase;
     backdrop-filter: blur(4px);
+}
+
+/* Badge de "Requiere receta" (Rx) */
+.medicine-card__cat-badge--rx {
+    top: 10px;
+    right: 10px;
+    left: auto;
+    background: #fef9e7;
+    color: #c47f0a;
+    border: 1px solid #f9e79f;
 }
 
 /* Cuerpo de la tarjeta */
@@ -3046,6 +3094,20 @@ ul {
     text-transform: uppercase;
 }
 
+/* Tarjeta agotada */
+.medicine-card--agotado {
+    filter: grayscale(1);
+    opacity: 0.7;
+    pointer-events: none;
+    cursor: default;
+    box-shadow: none;
+}
+
+.medicine-card--agotado:hover {
+    transform: none;
+    box-shadow: 0 2px 10px rgba(59, 73, 163, 0.05);
+}
+
 /* ── Responsive ──────────────── */
 @media (max-width: 640px) {
     .salud-container {
@@ -3197,4 +3259,262 @@ ul {
         width: 100%;
         margin-top: 15px;
     }
+}
+
+/* ==========================================================================
+   SECCIÓN CONTACTO (Mejora visual)
+   ========================================================================== */
+.contacto-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .contacto-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.contacto-col-info {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.contacto-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.contacto-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.contacto-card h3 {
+    color: #0DA99F;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+}
+
+.contacto-card h3 i {
+    font-size: 1.2rem;
+}
+
+.contacto-card p {
+    margin-bottom: 12px;
+    color: #333;
+}
+
+.contacto-horario {
+    font-size: 0.9rem;
+    color: #555 !important;
+}
+
+.contacto-card .btn {
+    margin-top: 5px;
+    width: fit-content;
+}
+
+.contacto-telefono {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    color: #3B49A3;
+    text-decoration: none;
+    margin-bottom: 12px;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.contacto-telefono i {
+    font-size: 1.3rem;
+    color: #25D366;
+    /* WhatsApp verde */
+}
+
+.contacto-telefono.secundario i {
+    color: #0DA99F;
+}
+
+.contacto-telefono:hover {
+    color: #0DA99F;
+}
+
+.contacto-col-mapa {
+    height: 100%;
+    min-height: 400px;
+}
+
+.contacto-mapa-wrapper {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    height: 100%;
+    min-height: 450px;
+}
+
+.contacto-mapa-wrapper iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Footer – Ajustes para 4 columnas */
+.footer__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    /* Cuatro columnas iguales */
+    gap: 40px;
+}
+
+@media (max-width: 992px) {
+    .footer__grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .footer__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.footer__col--brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.footer__tagline {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+}
+
+.footer__col--links .footer__nav {
+    gap: 10px;
+}
+
+.footer__col--social .footer__social {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 0;
+}
+
+/* Barra legal separada */
+.footer__legal {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+}
+
+.footer__legal .footer__copyright {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+/* Evitar salto de línea en horario del footer */
+.footer__horario {
+    white-space: nowrap;
+}
+
+.footer__address-list li {
+    white-space: nowrap;
+    /* evita cortes en dirección y teléfono también */
+}
+
+/* ==========================================================================
+   FARMACIA – Layout con panel lateral de categorías
+   ========================================================================== */
+.farmacia-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    /* sidebar fijo, contenido flexible */
+    gap: 30px;
+    align-items: start;
+    margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+    .farmacia-layout {
+        grid-template-columns: 1fr;
+        /* En móvil, sidebar arriba */
+    }
+
+    .farmacia-sidebar {
+        display: none;
+        /* Oculto por defecto en móvil */
+    }
+
+    /* Se podría añadir un botón de filtros para mostrar/ocultar */
+}
+
+/* Panel lateral */
+.farmacia-sidebar {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border-color);
+    align-self: start;
+    position: sticky;
+    top: 120px;
+    /* para que al hacer scroll no desaparezca */
+}
+
+.farmacia-sidebar__title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e8edf5;
+}
+
+.farmacia-sidebar__group-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--action-color);
+    margin: 15px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.farmacia-sidebar__item {
+    display: block;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.farmacia-sidebar__item:hover {
+    background: var(--bg-main);
+    color: var(--action-color);
+}
+
+.farmacia-sidebar__item--active {
+    background: var(--action-color);
+    color: var(--white);
+    font-weight: 600;
 }
