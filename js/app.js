@@ -237,6 +237,9 @@ const app = {
             if (hero) hero.style.display = 'block';
             if (locations) locations.style.display = 'block';
             if (doctors) doctors.style.display = 'block';
+            // Resetear la posición del carrusel de especialidades al inicio
+            const doctorsGrid = document.getElementById('doctors-carousel');
+            if (doctorsGrid) doctorsGrid.scrollLeft = 0;
         } else {
             if (hero) hero.style.display = 'none';
             if (locations) locations.style.display = 'none';
