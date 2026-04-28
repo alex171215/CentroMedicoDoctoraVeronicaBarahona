@@ -450,11 +450,19 @@ ul {
         margin: 0;
     }
 
-    /* Diapositiva 1: más a la derecha y más ancha */
+    /* Diapositiva 1: más amplia y con features en una sola línea */
     .hero__slide:nth-child(1) .hero__content {
-        padding-left: 400px;
-        max-width: 80%;
-        /* Un poco más ancha para que el texto respire */
+        padding-left: 350px;
+        padding-top: 40px;
+        padding-bottom: 40px;
+        max-width: 85%;
+    }
+
+    .hero__slide:nth-child(1) .hero__features {
+        grid-template-columns: repeat(4, 1fr);
+        /* una sola línea horizontal */
+        gap: 15px;
+        margin-bottom: 20px;
     }
 
     /* Diapositiva 2: se deja con padding izquierdo reducido */
