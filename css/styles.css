@@ -453,7 +453,7 @@ ul {
     /* Diapositiva 1: más a la derecha y más ancha */
     .hero__slide:nth-child(1) .hero__content {
         padding-left: 500px;
-        max-width: 70%;
+        max-width: 80%;
         /* Un poco más ancha para que el texto respire */
     }
 
