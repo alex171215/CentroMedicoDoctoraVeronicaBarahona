@@ -283,11 +283,16 @@
                     <!-- Contenido principal -->
                     <div class="farmacia-main">
                         <!-- Buscador -->
-                        <div class="farmacia-search" role="search" style="margin-bottom: 25px;">
+                        <div class="farmacia-search" role="search"
+                            style="margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
                             <i class="fa-solid fa-magnifying-glass farmacia-search__icon" aria-hidden="true"></i>
                             <input type="search" id="farmacia-buscador" class="farmacia-search__input"
                                 placeholder="Busca por medicamento o componente (Ej. Paracetamol)..."
                                 aria-label="Buscar medicamentos" autocomplete="off">
+                            <button id="btn-filtros-mobile" class="btn-filtros-mobile"
+                                aria-label="Filtrar por categoría">
+                                <i class="fa-solid fa-sliders"></i> <span>Filtrar</span>
+                            </button>
                         </div>
 
                         <!-- Grid de Productos -->
@@ -308,6 +313,27 @@
                             <i class="fa-solid fa-box-open farmacia-empty__icon" aria-hidden="true"></i>
                             <p class="farmacia-empty__text">No se encontraron productos para tu búsqueda.</p>
                             <p class="farmacia-empty__sub">Intenta con otro nombre o categoría.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de filtros para móvil -->
+                <div id="modal-filtros-mobile" class="modal-overlay farmacia-modal-filtros" style="display:none;"
+                    role="dialog" aria-modal="true" aria-labelledby="modal-filtros-title">
+                    <div class="filtros-bottom-sheet">
+                        <div class="filtros-bottom-sheet__header">
+                            <h3 id="modal-filtros-title">Categorías</h3>
+                            <button class="modal-close" aria-label="Cerrar filtros"
+                                onclick="app.farmacia.cerrarModalFiltros()">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="filtros-bottom-sheet__body" id="farmacia-filtros-modal-list">
+                            <!-- Se copia aquí la lista del sidebar -->
+                        </div>
+                        <div class="filtros-bottom-sheet__footer">
+                            <button class="btn btn--action" onclick="app.farmacia.cerrarModalFiltros()">Mostrar
+                                resultados</button>
                         </div>
                     </div>
                 </div>
@@ -701,7 +727,6 @@
                             class="salud-det__val"></span></div>
                     <div id="modal-med-receta"
                         style="margin-top: 15px; padding: 8px 12px; background: #fef9e7; border-left: 4px solid #f39c12; display: none;">
-                        <i class="fa-solid fa-prescription" style="color: #f39c12;"></i>
                         <span style="font-weight: 600; color: #c47f0a;">Requiere receta médica</span>
                     </div>
                 </div>
