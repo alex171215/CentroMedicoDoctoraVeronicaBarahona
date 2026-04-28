@@ -664,7 +664,7 @@ const app = {
                 else if (espLower.includes('pediatr'))
                     imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
                 else if (espLower.includes('odontolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=400&q=80';
+                    imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
                 else if (espLower.includes('ginec')) {
                     if (nombreLower.includes('marcela') && nombreLower.includes('pantoja')) {
                         imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
@@ -1210,11 +1210,22 @@ const app = {
                 }
 
                 // Celular: mensaje diferenciado
+                // Celular: mensaje diferenciado según el error
                 if (celOk) {
                     this._setEstadoCampo(cel, 'error-celular', true);
                 } else if (celVal.length > 0) {
-                    this._setEstadoCampo(cel, 'error-celular', false,
-                        'El celular debe empezar con 09 y tener 10 dígitos.');
+                    let mensajeCel = '';
+                    if (celVal.length !== 10) {
+                        mensajeCel = 'El celular debe tener 10 dígitos.';
+                    } else if (!/^09/.test(celVal)) {
+                        mensajeCel = 'El celular debe empezar con 09. Ej: 0991234567.';
+                    } else if (/^0{10}$/.test(celVal)) {
+                        mensajeCel = 'Ingresa un número de celular válido (no pueden ser todos ceros).';
+                    } else {
+                        // Fallback por si acaso
+                        mensajeCel = 'El celular debe empezar con 09 y tener 10 dígitos.';
+                    }
+                    this._setEstadoCampo(cel, 'error-celular', false, mensajeCel);
                 }
             }
 
@@ -1409,7 +1420,7 @@ const app = {
                     else if (espLower.includes('pediatr'))
                         imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
                     else if (espLower.includes('odontolog'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=400&q=80';
+                        imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
                     else if (espLower.includes('ginec')) {
                         if (nombreMed.toLowerCase().includes('marcela') && nombreMed.toLowerCase().includes('pantoja')) {
                             imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
@@ -1492,7 +1503,7 @@ const app = {
                 else if (espLower.includes('pediatr'))
                     imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
                 else if (espLower.includes('odontolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=400&q=80';
+                    imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
                 else if (espLower.includes('ginec')) {
                     if (nombreMed.toLowerCase().includes('marcela') && nombreMed.toLowerCase().includes('pantoja')) {
                         imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
@@ -1856,6 +1867,34 @@ const app = {
 
             this._categoriaActiva = 'TODAS';
             this._renderizarChips(categorias);
+
+            // Copiar contenido al modal de filtros móvil
+            const modalList = document.getElementById('farmacia-filtros-modal-list');
+            const sidebarList = document.getElementById('farmacia-chips');
+            if (modalList && sidebarList) {
+                modalList.innerHTML = sidebarList.innerHTML;
+                // Reasignar eventos onclick de los enlaces duplicados
+                modalList.querySelectorAll('.farmacia-sidebar__item').forEach(item => {
+                    const cat = item.getAttribute('data-cat');
+                    if (cat) {
+                        item.setAttribute('onclick', `app.farmacia._filtrarPorCategoria('${cat}')`);
+                    }
+                });
+            }
+
+            // Abrir modal al pulsar el botón de filtros
+            const btnFiltrosMobile = document.getElementById('btn-filtros-mobile');
+            if (btnFiltrosMobile) {
+                btnFiltrosMobile.addEventListener('click', () => this.abrirModalFiltros());
+            }
+
+            // Cerrar modal al hacer clic fuera del contenido
+            const modalFiltros = document.getElementById('modal-filtros-mobile');
+            if (modalFiltros) {
+                modalFiltros.addEventListener('click', (e) => {
+                    if (e.target === modalFiltros) this.cerrarModalFiltros();
+                });
+            }
             this._aplicarFiltros('', 'TODAS');
             this._iniciarBuscador();
             // Cerrar modal de medicamento al hacer clic fuera
@@ -1888,6 +1927,18 @@ const app = {
 
         cerrarModalMedicamento() {
             document.getElementById('modal-medicamento').style.display = 'none';
+        },
+
+        // Abrir modal de filtros en móvil
+        abrirModalFiltros() {
+            const modal = document.getElementById('modal-filtros-mobile');
+            if (modal) modal.style.display = 'flex';
+        },
+
+        // Cerrar modal de filtros
+        cerrarModalFiltros() {
+            const modal = document.getElementById('modal-filtros-mobile');
+            if (modal) modal.style.display = 'none';
         }
     },
 
@@ -2259,11 +2310,27 @@ const app = {
                 /* ── TELÉFONO CELULAR ── */
                 case 'reg-celular': {
                     const val = (document.getElementById(id)?.value || '').trim();
-                    if (!/^09\d{8}$/.test(val)) {
-                        this._mostrarError(id,
-                            "El número celular debe tener 10 dígitos y empezar con '09' (Ej: 0991234567).");
+                    if (val.length === 0) {
+                        this._mostrarError(id, 'El número celular es requerido.');
                         return false;
                     }
+                    if (val.length !== 10) {
+                        this._mostrarError(id, 'El celular debe tener 10 dígitos.');
+                        return false;
+                    }
+                    if (!/^09/.test(val)) {
+                        this._mostrarError(id, 'El celular debe empezar con 09. Ej: 0991234567.');
+                        return false;
+                    }
+                    if (/^0{10}$/.test(val)) {
+                        this._mostrarError(id, 'Ingresa un número de celular válido (no pueden ser todos ceros).');
+                        return false;
+                    }
+                    if (!/^\d{10}$/.test(val)) {
+                        this._mostrarError(id, 'El celular solo puede contener números.');
+                        return false;
+                    }
+                    // Si pasa todas las validaciones
                     this._marcarExito(id);
                     return true;
                 }
