@@ -176,6 +176,8 @@ const app = {
 
         // 1. History API (Heurística #4: Estándares)
         if (pushState) {
+            // Previene recarga si ya existe el mismo estado
+            if (window.location.hash === '#' + vistaId) return;
             history.pushState({ vista: vistaId }, '', '#' + vistaId);
         }
 
