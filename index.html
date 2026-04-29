@@ -36,7 +36,8 @@
         <!-- Navegación principal -->
         <nav class="header__main" aria-label="Navegación principal">
             <div class="header__main-container">
-                <a href="javascript:void(0)" onclick="app.navegar('home')" class="header__logo" aria-label="Inicio">
+                <a href="javascript:void(0)" onclick="event.preventDefault(); app.navegar('home')" class="header__logo"
+                    aria-label="Inicio">
                     <span class="header__logo-text">
                         <img src="assets/img/Logo.png" alt="Logo Centro Médico" class="header__logo-img">
                         <span class="header__logo-words">Centro Médico Familiar<br><strong>Dra. Verónica
