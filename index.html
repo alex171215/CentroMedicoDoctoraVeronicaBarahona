@@ -14,6 +14,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 </head>
 
@@ -168,6 +169,74 @@
                 </p>
             </div>
         </section>
+
+        <!-- ===================================================
+             Widget: Consulta de Cita para Invitados
+             =================================================== -->
+        <section id="widget-invitado" class="widget-invitado" aria-labelledby="widget-invitado-titulo">
+            <div class="widget-invitado__inner">
+                <div class="widget-invitado__icon" aria-hidden="true">
+                    <i class="fa-regular fa-calendar-check"></i>
+                </div>
+                <h2 id="widget-invitado-titulo" class="widget-invitado__titulo">Consulta tu cita médica</h2>
+                <p class="widget-invitado__desc">Ingresa tus datos para verificar el estado de tu cita agendada.</p>
+                <div class="widget-invitado__fields">
+                    <div class="widget-invitado__field">
+                        <label for="widget-cedula" class="widget-invitado__label">Cédula</label>
+                        <input type="text" id="widget-cedula" class="widget-invitado__input"
+                            placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10"
+                            aria-required="true" aria-describedby="widget-cedula-error" autocomplete="off">
+                        <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
+                            style="display:none;"></span>
+                    </div>
+                    <div class="widget-invitado__field">
+                        <label for="widget-codigo" class="widget-invitado__label">Código de Cita</label>
+                        <input type="text" id="widget-codigo" class="widget-invitado__input"
+                            placeholder="Ej: CITA-0001" maxlength="20"
+                            aria-required="true" aria-describedby="widget-codigo-error" autocomplete="off">
+                        <span id="widget-codigo-error" class="widget-invitado__error" role="alert"
+                            style="display:none;"></span>
+                    </div>
+                </div>
+                <button type="button" id="btn-consultar-cita" class="btn btn--action widget-invitado__btn">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar
+                </button>
+            </div>
+        </section>
+
+        <!-- Modal: Resultado de Consulta de Cita -->
+        <div id="modal-consulta-cita" class="modal-overlay modal-consulta" style="display:none;"
+            role="dialog" aria-modal="true" aria-labelledby="modal-consulta-title">
+            <div class="modal-content modal-consulta__content">
+                <button class="modal-close" aria-label="Cerrar modal" onclick="app.widgetInvitado.cerrarModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="modal-consulta__icon" aria-hidden="true">
+                    <i class="fa-solid fa-calendar-check"></i>
+                </div>
+                <h3 id="modal-consulta-title" class="modal-consulta__title">Detalle de tu Cita</h3>
+                <div class="modal-consulta__body">
+                    <div class="modal-consulta__row">
+                        <span class="modal-consulta__label"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Fecha</span>
+                        <span id="modal-consulta-fecha" class="modal-consulta__val">—</span>
+                    </div>
+                    <div class="modal-consulta__row">
+                        <span class="modal-consulta__label"><i class="fa-regular fa-clock" aria-hidden="true"></i> Hora</span>
+                        <span id="modal-consulta-hora" class="modal-consulta__val">—</span>
+                    </div>
+                    <div class="modal-consulta__row">
+                        <span class="modal-consulta__label"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i> Especialidad</span>
+                        <span id="modal-consulta-especialidad" class="modal-consulta__val">—</span>
+                    </div>
+                    <div class="modal-consulta__row">
+                        <span class="modal-consulta__label"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> Médico</span>
+                        <span id="modal-consulta-medico" class="modal-consulta__val">—</span>
+                    </div>
+                </div>
+                <button type="button" class="btn btn--action modal-consulta__close-btn"
+                    onclick="app.widgetInvitado.cerrarModal()">Entendido</button>
+            </div>
+        </div>
 
         <!-- Doctors Section -->
         <section class="doctors" id="especialistas" aria-labelledby="doctors-heading">
@@ -1278,8 +1347,22 @@
                             <h2 style="color: #3B49A3; margin-bottom: 15px;">¡Su cita ha sido agendada con
                                 éxito!</h2>
 
+                            <!-- Código de Cita destacado -->
+                            <div id="resumen-codigo-wrap"
+                                style="background: linear-gradient(135deg, #3B49A3, #2d3a8c); border-radius: 10px; padding: 20px; margin: 20px 0; color: #fff;">
+                                <p style="font-size: 0.8rem; margin-bottom: 8px; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px;">
+                                    Código de Consulta</p>
+                                <p id="resumen-codigo-cita"
+                                    style="font-size: 2rem; font-weight: 800; letter-spacing: 4px; font-family: 'Montserrat', monospace; margin: 0;">
+                                    —</p>
+                            </div>
+                            <p style="font-size: 0.82rem; color: #c0392b; font-weight: 600; margin-bottom: 20px;">
+                                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                Guarde este código para consultar o cancelar su cita.
+                            </p>
+
                             <div
-                                style="background: #FAFCFE; border: 1px solid #e0f0f0; border-radius: 8px; padding: 25px; margin-top: 30px; text-align: left;">
+                                style="background: #FAFCFE; border: 1px solid #e0f0f0; border-radius: 8px; padding: 25px; margin-top: 10px; text-align: left;">
                                 <h3
                                     style="color: #3B49A3; margin-bottom: 15px; border-bottom: 2px solid #0DA99F; display: inline-block; padding-bottom: 5px;">
                                     Detalles de la Cita</h3>
@@ -1293,8 +1376,15 @@
                                         id="resumen-paciente"></span></p>
                             </div>
 
-                            <button onclick="app.navegar('home')" class="btn btn--action"
-                                style="margin-top: 30px; font-weight: bold;">Volver al Inicio</button>
+                            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 30px;">
+                                <button onclick="app.navegar('home')" class="btn btn--action"
+                                    style="font-weight: bold;">Volver al Inicio</button>
+                                <button id="btn-descargar-pdf" class="btn btn--accent"
+                                    onclick="app.citas.descargarComprobantePDF()"
+                                    style="font-weight: bold;">
+                                    <i class="fa-solid fa-download" aria-hidden="true"></i> Descargar Comprobante
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // CONFIGURACIÓN DEL PROTOTIPO (Usuario de prueba para evaluación)
 // ======================================================================
 (function inyectarUsuarioPrueba() {
@@ -40,6 +40,7 @@ const app = {
         this.iniciarCarruselEspecialistas();
         this.renderizarEspecialidadesHome();
         app.login.inicializar();
+        app.widgetInvitado.inicializar();
         // 2. Escucha del evento 'popstate'
         window.addEventListener('popstate', (event) => {
             if (event.state && event.state.vista) {
@@ -133,6 +134,12 @@ const app = {
                 bottomAuthItem.setAttribute('aria-label', 'Iniciar Sesión');
                 bottomAuthItem.onclick = () => app.navegar('login');
             }
+        }
+
+        // WIDGET INVITADO: Ocultar si hay sesión, mostrar si es invitado
+        const widgetInvitado = document.getElementById('widget-invitado');
+        if (widgetInvitado) {
+            widgetInvitado.style.display = (usuarioLogueado === 'true') ? 'none' : 'block';
         }
     },
 
@@ -239,6 +246,11 @@ const app = {
             if (hero) hero.style.display = 'block';
             if (locations) locations.style.display = 'block';
             if (doctors) doctors.style.display = 'block';
+            // Widget invitado: mostrar solo si no hay usuario logueado
+            const widgetInv = document.getElementById('widget-invitado');
+            if (widgetInv) {
+                widgetInv.style.display = (localStorage.getItem('usuarioLogueado') === 'true') ? 'none' : 'block';
+            }
             // Resetear la posición del carrusel de especialidades al inicio
             const doctorsGrid = document.getElementById('doctors-carousel');
             if (doctorsGrid) doctorsGrid.scrollLeft = 0;
@@ -246,6 +258,9 @@ const app = {
             if (hero) hero.style.display = 'none';
             if (locations) locations.style.display = 'none';
             if (doctors) doctors.style.display = 'none';
+            // Widget invitado: ocultar en cualquier vista que no sea Home
+            const widgetInvOcultar = document.getElementById('widget-invitado');
+            if (widgetInvOcultar) widgetInvOcultar.style.display = 'none';
 
             const vistaActiva = document.getElementById(`view-${vistaId}`);
             if (vistaActiva) {
@@ -850,6 +865,19 @@ const app = {
             }
         },
 
+        // Utilidad: Generar código único de cita (6 chars alfanuméricos con prefijo)
+        generarCodigoCita() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Sin I/O/0/1 para evitar confusión
+            let codigo = '';
+            for (let i = 0; i < 4; i++) {
+                codigo += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return 'CIT-' + codigo;
+        },
+
+        // Variable temporal para guardar el código de la cita actual (para el PDF)
+        _ultimoCodigoCita: '',
+
         prepararResumenFinal(logueado) {
             const especialidad = sessionStorage.getItem('especialidad_seleccionada') || document.getElementById('citas-doctor-specialty').textContent;
 
@@ -888,24 +916,28 @@ const app = {
 
             // Detección del Nombre del Paciente
             let paciente = "Paciente";
+            let cedulaPaciente = "";
             if (logueado) {
                 try {
                     const userActivoStr = localStorage.getItem('usuarioActivo');
                     if (userActivoStr) {
                         const user = JSON.parse(userActivoStr);
                         paciente = `${user.nombre_1 || ''} ${user.nombre_2 || ''} ${user.apellido_1 || ''} ${user.apellido_2 || ''}`.replace(/\s+/g, ' ').trim() || "Paciente";
+                        cedulaPaciente = user.identificacion || "";
                     }
                 } catch (e) { }
             } else {
                 // Soportamos los IDs requeridos (cita-nombres/apellidos) o el actual (citas-nombres)
                 const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
                 const inputApellidos = document.getElementById('cita-apellidos');
+                const inputCedula = document.getElementById('citas-cedula');
 
                 let n = inputNombres ? inputNombres.value : '';
                 let a = inputApellidos ? inputApellidos.value : '';
                 let nombreForm = `${n} ${a}`.trim();
 
                 if (nombreForm) paciente = nombreForm;
+                if (inputCedula) cedulaPaciente = inputCedula.value.trim();
             }
 
             // Construir la cita con los datos reales de los pasos anteriores
@@ -917,12 +949,19 @@ const app = {
                 hora = timePart;
             }
 
+            // Generar código de cita
+            const codigoCita = this.generarCodigoCita();
+            this._ultimoCodigoCita = codigoCita;
+
             const nuevaCita = {
                 id: 'C' + Date.now(),
+                codigo: codigoCita,
                 medico: nombreMedico,
                 especialidad: especialidad,
                 fecha: fecha,
                 hora: hora,
+                paciente: paciente,
+                cedula: cedulaPaciente,
                 lugar: 'Centro Médico Familiar Dra. Verónica Barahona',
                 lugar_direccion: 'Tumbaco - Quito',
                 seguro: 'Particular',
@@ -933,6 +972,18 @@ const app = {
             let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas')) || [];
             historial.push(nuevaCita);
             localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
+
+            // 2b. Persistencia en sanitas_citas (para consulta desde widget de invitados)
+            let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            citasPublicas.push({
+                codigo: codigoCita,
+                cedula: cedulaPaciente,
+                medico: nombreMedico,
+                especialidad: especialidad,
+                fecha: fecha,
+                hora: hora
+            });
+            localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
 
             // Guardar la cita como ocupada para evitar que otro usuario la tome
             const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
@@ -950,14 +1001,95 @@ const app = {
             document.getElementById('resumen-doctor-specialty').textContent = especialidad;
             document.getElementById('resumen-fecha').textContent = fechaHora;
             document.getElementById('resumen-paciente').textContent = paciente;
+            document.getElementById('resumen-codigo-cita').textContent = codigoCita;
 
             // 4. Limpieza de Sesión: Limpiar preselección de citas
             sessionStorage.removeItem('reservaCita_preseleccion');
             sessionStorage.removeItem('especialidad_seleccionada');
         },
+
+        // ── Descarga de Comprobante PDF ──
+        descargarComprobantePDF() {
+            const medico = document.getElementById('resumen-doctor-name')?.textContent || '—';
+            const especialidad = document.getElementById('resumen-doctor-specialty')?.textContent || '—';
+            const fechaHora = document.getElementById('resumen-fecha')?.textContent || '—';
+            const paciente = document.getElementById('resumen-paciente')?.textContent || '—';
+            const codigo = this._ultimoCodigoCita || document.getElementById('resumen-codigo-cita')?.textContent || '—';
+
+            // Construir HTML del ticket
+            const ticketHTML = `
+                <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; color: #333;">
+                    <!-- Encabezado -->
+                    <div style="text-align: center; border-bottom: 3px solid #0DA99F; padding-bottom: 20px; margin-bottom: 20px;">
+                        <h1 style="font-size: 1.4rem; color: #3B49A3; margin: 0 0 4px 0;">Centro Médico Familiar</h1>
+                        <h2 style="font-size: 1.1rem; color: #0DA99F; margin: 0 0 8px 0; font-weight: 600;">Dra. Verónica Barahona</h2>
+                        <p style="font-size: 0.75rem; color: #888; margin: 0;">Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador</p>
+                        <p style="font-size: 0.75rem; color: #888; margin: 2px 0 0 0;">Tel: 099 890 8034</p>
+                    </div>
+
+                    <!-- Título -->
+                    <h3 style="text-align: center; color: #3B49A3; font-size: 1.1rem; margin-bottom: 20px;">COMPROBANTE DE CITA MÉDICA</h3>
+
+                    <!-- Código destacado -->
+                    <div style="background: #3B49A3; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 24px; color: #fff;">
+                        <p style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px 0; opacity: 0.8;">Código de Consulta</p>
+                        <p style="font-size: 1.8rem; font-weight: 800; letter-spacing: 4px; margin: 0;">${codigo}</p>
+                    </div>
+
+                    <!-- Detalles -->
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px 0; color: #888; width: 120px; font-weight: 600;">Paciente</td>
+                            <td style="padding: 10px 0; font-weight: 700;">${paciente}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px 0; color: #888; font-weight: 600;">Médico</td>
+                            <td style="padding: 10px 0; font-weight: 700;">${medico}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px 0; color: #888; font-weight: 600;">Especialidad</td>
+                            <td style="padding: 10px 0; font-weight: 700;">${especialidad}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; color: #888; font-weight: 600;">Fecha y Hora</td>
+                            <td style="padding: 10px 0; font-weight: 700;">${fechaHora}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Nota -->
+                    <div style="margin-top: 24px; padding: 12px; background: #fef9e7; border-left: 4px solid #FDAD34; font-size: 0.78rem; color: #666;">
+                        <strong style="color: #c47f0a;">Importante:</strong> Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.
+                    </div>
+
+                    <!-- Pie -->
+                    <p style="text-align: center; font-size: 0.7rem; color: #aaa; margin-top: 24px; border-top: 1px solid #eee; padding-top: 12px;">
+                        Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}
+                    </p>
+                </div>
+            `;
+
+            // Crear elemento temporal
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = ticketHTML;
+            document.body.appendChild(tempDiv);
+
+            // Opciones de html2pdf
+            const opciones = {
+                margin: 10,
+                filename: `Cita_Medica_${codigo}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opciones).from(tempDiv).save().then(() => {
+                document.body.removeChild(tempDiv);
+            }).catch(() => {
+                document.body.removeChild(tempDiv);
+            });
+        },
         actualizarBarraProgreso() {
             const indicator = document.getElementById('citas-progress-indicator');
-            if (!indicator) return;
             const estaLogueado = localStorage.getItem('usuarioLogueado');
 
             let hitos = [];
@@ -3195,6 +3327,129 @@ const app = {
                 document.getElementById('salud-recetas-header').style.display = 'block';
                 document.getElementById('salud-recetas-lista').style.display = 'block';
             }
+        }
+    },
+
+    // ======================================================================
+    // 13. WIDGET INVITADO — Consulta de Cita para usuarios no logueados
+    // ======================================================================
+    widgetInvitado: {
+        _validadoresIniciados: false,
+
+        inicializar() {
+            if (this._validadoresIniciados) return;
+            this._validadoresIniciados = true;
+
+            const inputCedula = document.getElementById('widget-cedula');
+            const inputCodigo = document.getElementById('widget-codigo');
+            const btnConsultar = document.getElementById('btn-consultar-cita');
+
+            // Solo dígitos en cédula
+            if (inputCedula) {
+                inputCedula.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.replace(/\D/g, '');
+                });
+
+                // Validación on blur
+                inputCedula.addEventListener('blur', () => {
+                    const val = inputCedula.value.trim();
+                    const errorSpan = document.getElementById('widget-cedula-error');
+                    if (val.length === 0) {
+                        inputCedula.classList.remove('input-error', 'input-success');
+                        if (errorSpan) errorSpan.style.display = 'none';
+                    } else if (val.length !== 10 || !/^\d{10}$/.test(val)) {
+                        inputCedula.classList.add('input-error');
+                        inputCedula.classList.remove('input-success');
+                        if (errorSpan) { errorSpan.textContent = 'La cédula debe tener 10 dígitos.'; errorSpan.style.display = 'block'; }
+                    } else if (app.citas && !app.citas.validarCedulaEcuatoriana(val)) {
+                        inputCedula.classList.add('input-error');
+                        inputCedula.classList.remove('input-success');
+                        if (errorSpan) { errorSpan.textContent = 'La cédula ingresada no es válida.'; errorSpan.style.display = 'block'; }
+                    } else {
+                        inputCedula.classList.remove('input-error');
+                        inputCedula.classList.add('input-success');
+                        if (errorSpan) errorSpan.style.display = 'none';
+                    }
+                });
+            }
+
+            if (inputCodigo) {
+                // Validación on blur
+                inputCodigo.addEventListener('blur', () => {
+                    const val = inputCodigo.value.trim();
+                    const errorSpan = document.getElementById('widget-codigo-error');
+                    if (val.length === 0) {
+                        inputCodigo.classList.remove('input-error', 'input-success');
+                        if (errorSpan) errorSpan.style.display = 'none';
+                    } else if (val.length < 4) {
+                        inputCodigo.classList.add('input-error');
+                        inputCodigo.classList.remove('input-success');
+                        if (errorSpan) { errorSpan.textContent = 'El código debe tener al menos 4 caracteres.'; errorSpan.style.display = 'block'; }
+                    } else {
+                        inputCodigo.classList.remove('input-error');
+                        inputCodigo.classList.add('input-success');
+                        if (errorSpan) errorSpan.style.display = 'none';
+                    }
+                });
+            }
+
+            // Botón Consultar
+            if (btnConsultar) {
+                btnConsultar.addEventListener('click', () => {
+                    this.consultar();
+                });
+            }
+        },
+
+        consultar() {
+            const cedula = (document.getElementById('widget-cedula')?.value || '').trim();
+            const codigo = (document.getElementById('widget-codigo')?.value || '').trim();
+            let valido = true;
+
+            // Forzar blur para que los mensajes aparezcan
+            document.getElementById('widget-cedula')?.dispatchEvent(new Event('blur'));
+            document.getElementById('widget-codigo')?.dispatchEvent(new Event('blur'));
+
+            // Validar cédula
+            if (cedula.length !== 10 || !/^\d{10}$/.test(cedula)) {
+                valido = false;
+            } else if (app.citas && !app.citas.validarCedulaEcuatoriana(cedula)) {
+                valido = false;
+            }
+
+            // Validar código
+            if (codigo.length < 4) {
+                valido = false;
+            }
+
+            if (!valido) return;
+
+            // Buscar en las citas guardadas en localStorage
+            const citasGuardadas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            const citaEncontrada = citasGuardadas.find(
+                c => c.cedula === cedula && c.codigo === codigo
+            );
+
+            if (citaEncontrada) {
+                document.getElementById('modal-consulta-fecha').textContent = citaEncontrada.fecha || '—';
+                document.getElementById('modal-consulta-hora').textContent = citaEncontrada.hora || '—';
+                document.getElementById('modal-consulta-especialidad').textContent = citaEncontrada.especialidad || '—';
+                document.getElementById('modal-consulta-medico').textContent = citaEncontrada.medico || '—';
+            } else {
+                document.getElementById('modal-consulta-fecha').textContent = '—';
+                document.getElementById('modal-consulta-hora').textContent = '—';
+                document.getElementById('modal-consulta-especialidad').textContent = 'No encontrada';
+                document.getElementById('modal-consulta-medico').textContent = '—';
+            }
+
+            // Abrir modal
+            const modal = document.getElementById('modal-consulta-cita');
+            if (modal) modal.style.display = 'flex';
+        },
+
+        cerrarModal() {
+            const modal = document.getElementById('modal-consulta-cita');
+            if (modal) modal.style.display = 'none';
         }
     }
 };
