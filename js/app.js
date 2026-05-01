@@ -1,4 +1,4 @@
-﻿// ======================================================================
+// ======================================================================
 // CONFIGURACIÓN DEL PROTOTIPO (Usuario de prueba para evaluación)
 // ======================================================================
 (function inyectarUsuarioPrueba() {
@@ -865,7 +865,7 @@ const app = {
             }
         },
 
-        // Utilidad: Generar código único de cita (6 chars alfanuméricos con prefijo)
+        // Utilidad: Generar código único de cita (4 chars alfanuméricos con prefijo)
         generarCodigoCita() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Sin I/O/0/1 para evitar confusión
             let codigo = '';
@@ -883,38 +883,21 @@ const app = {
 
             // Detección del Nombre del Médico
             let nombreMedico = '';
-
-            // Prioridad 1: Variable de estado
-            if (this.medicoSeleccionado) {
-                nombreMedico = this.medicoSeleccionado;
-            }
-
-            // Prioridad 2: Leyendo la interfaz (resumen de agendamiento)
+            if (this.medicoSeleccionado) nombreMedico = this.medicoSeleccionado;
             if (!nombreMedico) {
                 const medicoUI = document.getElementById('citas-doctor-name');
-                if (medicoUI && medicoUI.textContent.trim()) {
-                    nombreMedico = medicoUI.textContent.trim();
-                }
+                if (medicoUI && medicoUI.textContent.trim()) nombreMedico = medicoUI.textContent.trim();
             }
-
-            // Prioridad 3: SessionStorage (pre-selección)
             if (!nombreMedico) {
                 try {
                     const preCita = JSON.parse(sessionStorage.getItem('reservaCita_preseleccion'));
-                    if (preCita && preCita.medico) {
-                        nombreMedico = preCita.medico;
-                    }
+                    if (preCita && preCita.medico) nombreMedico = preCita.medico;
                 } catch (e) { }
             }
-
-            // Prevención de Errores: Fallback
-            if (!nombreMedico) {
-                nombreMedico = "Médico Especialista";
-            }
+            if (!nombreMedico) nombreMedico = "Médico Especialista";
 
             const fechaHora = this.horaSeleccionada;
 
-            // Detección del Nombre del Paciente
             let paciente = "Paciente";
             let cedulaPaciente = "";
             if (logueado) {
@@ -927,7 +910,6 @@ const app = {
                     }
                 } catch (e) { }
             } else {
-                // Soportamos los IDs requeridos (cita-nombres/apellidos) o el actual (citas-nombres)
                 const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
                 const inputApellidos = document.getElementById('cita-apellidos');
                 const inputCedula = document.getElementById('citas-cedula');
@@ -935,12 +917,10 @@ const app = {
                 let n = inputNombres ? inputNombres.value : '';
                 let a = inputApellidos ? inputApellidos.value : '';
                 let nombreForm = `${n} ${a}`.trim();
-
                 if (nombreForm) paciente = nombreForm;
                 if (inputCedula) cedulaPaciente = inputCedula.value.trim();
             }
 
-            // Construir la cita con los datos reales de los pasos anteriores
             const fechaHoraStr = this.horaSeleccionada;
             let fecha = fechaHoraStr, hora = '';
             if (fechaHoraStr && fechaHoraStr.includes(',')) {
@@ -949,7 +929,7 @@ const app = {
                 hora = timePart;
             }
 
-            // Generar código de cita
+            // Generar código interno (no se muestra al usuario)
             const codigoCita = this.generarCodigoCita();
             this._ultimoCodigoCita = codigoCita;
 
@@ -985,108 +965,202 @@ const app = {
             });
             localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
 
-            // Guardar la cita como ocupada para evitar que otro usuario la tome
+            // Guardar la cita como ocupada
             const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
             ocupadas.push({
                 medico: nombreMedico,
                 especialidad: especialidad,
                 fecha: fecha,
                 hora: hora,
-                fechaHora: fechaHoraStr   // "Lunes 27 de abril, 07:40"
+                fechaHora: fechaHoraStr
             });
             localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
 
-            // 3. Renderizar en pantalla de éxito
+            // 3. Renderizar en pantalla de éxito (sin código)
             document.getElementById('resumen-doctor-name').textContent = nombreMedico;
             document.getElementById('resumen-doctor-specialty').textContent = especialidad;
             document.getElementById('resumen-fecha').textContent = fechaHora;
             document.getElementById('resumen-paciente').textContent = paciente;
-            document.getElementById('resumen-codigo-cita').textContent = codigoCita;
+            // Ya no se usa resumen-codigo-cita, así que no lo asignamos
 
-            // 4. Limpieza de Sesión: Limpiar preselección de citas
+            // 4. Limpieza de Sesión
             sessionStorage.removeItem('reservaCita_preseleccion');
             sessionStorage.removeItem('especialidad_seleccionada');
         },
 
-        // ── Descarga de Comprobante PDF ──
+        _generarTicketHTML(medico, especialidad, fechaHora, paciente) {
+            return `
+                <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px; text-align: center; font-family: sans-serif; box-sizing: border-box;">
+                    <div style="margin-bottom: 20px;">
+                        <h1 style="font-size: 1.8rem; color: #3B49A3; margin: 0 0 5px 0;">Centro Médico Familiar</h1>
+                        <h2 style="font-size: 1.3rem; color: #0DA99F; margin: 0 0 10px 0;">Dra. Verónica Barahona</h2>
+                        <p style="font-size: 1rem; color: #555; margin: 0;">Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador</p>
+                        <p style="font-size: 1rem; color: #555; margin: 5px 0 0 0;">Tel: 099 890 8034</p>
+                    </div>
+                    <h3 style="color: #3B49A3; font-size: 1.4rem; margin-bottom: 30px; border-bottom: 2px solid #0DA99F; padding-bottom: 10px; display: inline-block;">COMPROBANTE DE CITA MÉDICA</h3>
+                    <div style="text-align: left; margin: 0 auto 30px auto; max-width: 400px; font-size: 1.1rem; line-height: 1.6; color: #333;">
+                        <p style="margin: 0 0 10px 0;"><strong>Fecha y Hora:</strong> ${fechaHora}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Médico:</strong> ${medico}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Especialidad:</strong> ${especialidad}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Paciente:</strong> ${paciente}</p>
+                    </div>
+                    <div style="background: #fef9e7; border-left: 4px solid #FDAD34; padding: 15px; font-size: 0.9rem; color: #666; text-align: left; max-width: 600px; margin: 0 auto;">
+                        <strong style="color: #c47f0a;">Importante:</strong> Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.
+                    </div>
+                    <p style="font-size: 0.8rem; color: #aaa; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+                        Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}
+                    </p>
+                </div>
+            `;
+        },
+
+        // ── Descarga de Comprobante PDF (IFRAME – infalible) ──
+        // ── Descarga de Comprobante PDF (jsPDF nativo, sin html2canvas) ──
         descargarComprobantePDF() {
             const medico = document.getElementById('resumen-doctor-name')?.textContent || '—';
             const especialidad = document.getElementById('resumen-doctor-specialty')?.textContent || '—';
             const fechaHora = document.getElementById('resumen-fecha')?.textContent || '—';
             const paciente = document.getElementById('resumen-paciente')?.textContent || '—';
-            const codigo = this._ultimoCodigoCita || document.getElementById('resumen-codigo-cita')?.textContent || '—';
 
-            // Construir HTML del ticket
-            const ticketHTML = `
-                <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; color: #333;">
-                    <!-- Encabezado -->
-                    <div style="text-align: center; border-bottom: 3px solid #0DA99F; padding-bottom: 20px; margin-bottom: 20px;">
-                        <h1 style="font-size: 1.4rem; color: #3B49A3; margin: 0 0 4px 0;">Centro Médico Familiar</h1>
-                        <h2 style="font-size: 1.1rem; color: #0DA99F; margin: 0 0 8px 0; font-weight: 600;">Dra. Verónica Barahona</h2>
-                        <p style="font-size: 0.75rem; color: #888; margin: 0;">Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador</p>
-                        <p style="font-size: 0.75rem; color: #888; margin: 2px 0 0 0;">Tel: 099 890 8034</p>
-                    </div>
+            try {
+                // Acceso universal a jsPDF (funciona con la librería standalone cargada)
+                const { jsPDF } = window.jspdf || window;
+                const doc = new jsPDF('p', 'mm', 'letter');
 
-                    <!-- Título -->
-                    <h3 style="text-align: center; color: #3B49A3; font-size: 1.1rem; margin-bottom: 20px;">COMPROBANTE DE CITA MÉDICA</h3>
+                const pageWidth = 215.9;
+                const margin = 25;
+                let y = margin;
 
-                    <!-- Código destacado -->
-                    <div style="background: #3B49A3; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 24px; color: #fff;">
-                        <p style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px 0; opacity: 0.8;">Código de Consulta</p>
-                        <p style="font-size: 1.8rem; font-weight: 800; letter-spacing: 4px; margin: 0;">${codigo}</p>
-                    </div>
+                // Encabezado
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(18);
+                doc.setTextColor(59, 73, 163);
+                doc.text('Centro Médico Familiar', pageWidth / 2, y, { align: 'center' });
+                y += 10;
 
-                    <!-- Detalles -->
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 10px 0; color: #888; width: 120px; font-weight: 600;">Paciente</td>
-                            <td style="padding: 10px 0; font-weight: 700;">${paciente}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 10px 0; color: #888; font-weight: 600;">Médico</td>
-                            <td style="padding: 10px 0; font-weight: 700;">${medico}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 10px 0; color: #888; font-weight: 600;">Especialidad</td>
-                            <td style="padding: 10px 0; font-weight: 700;">${especialidad}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 0; color: #888; font-weight: 600;">Fecha y Hora</td>
-                            <td style="padding: 10px 0; font-weight: 700;">${fechaHora}</td>
-                        </tr>
-                    </table>
+                doc.setFontSize(13);
+                doc.setTextColor(13, 169, 159);
+                doc.text('Dra. Verónica Barahona', pageWidth / 2, y, { align: 'center' });
+                y += 7;
 
-                    <!-- Nota -->
-                    <div style="margin-top: 24px; padding: 12px; background: #fef9e7; border-left: 4px solid #FDAD34; font-size: 0.78rem; color: #666;">
-                        <strong style="color: #c47f0a;">Importante:</strong> Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.
-                    </div>
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(85, 85, 85);
+                doc.text('Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador', pageWidth / 2, y, { align: 'center' });
+                y += 5;
+                doc.text('Tel: 099 890 8034', pageWidth / 2, y, { align: 'center' });
+                y += 12;
 
-                    <!-- Pie -->
-                    <p style="text-align: center; font-size: 0.7rem; color: #aaa; margin-top: 24px; border-top: 1px solid #eee; padding-top: 12px;">
-                        Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}
-                    </p>
-                </div>
-            `;
+                // Línea separadora
+                doc.setDrawColor(13, 169, 159);
+                doc.setLineWidth(0.5);
+                doc.line(margin, y, pageWidth - margin, y);
+                y += 8;
 
-            // Crear elemento temporal
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = ticketHTML;
-            document.body.appendChild(tempDiv);
+                // Título
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(59, 73, 163);
+                doc.text('COMPROBANTE DE CITA MÉDICA', pageWidth / 2, y, { align: 'center' });
+                y += 12;
 
-            // Opciones de html2pdf
-            const opciones = {
-                margin: 10,
-                filename: `Cita_Medica_${codigo}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
-            };
+                // Detalles
+                const leftX = margin + 10;
+                const valueX = leftX + 45;
+                doc.setFontSize(12);
+                doc.setTextColor(33, 33, 33);
 
-            html2pdf().set(opciones).from(tempDiv).save().then(() => {
-                document.body.removeChild(tempDiv);
-            }).catch(() => {
-                document.body.removeChild(tempDiv);
-            });
+                const campos = [
+                    { label: 'Fecha y Hora:', value: fechaHora },
+                    { label: 'Médico:', value: medico },
+                    { label: 'Especialidad:', value: especialidad },
+                    { label: 'Paciente:', value: paciente }
+                ];
+                campos.forEach(campo => {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(campo.label, leftX, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(campo.value, valueX, y);
+                    y += 10;
+                });
+
+                y += 6;
+
+                // Nota
+                doc.setFillColor(254, 249, 231);
+                doc.rect(margin, y, pageWidth - 2 * margin, 20, 'F');
+                doc.setDrawColor(253, 173, 52);
+                doc.setLineWidth(1.2);
+                doc.line(margin, y, margin, y + 20);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(196, 127, 10);
+                doc.text('Importante:', margin + 6, y + 6);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(102, 102, 102);
+                const nota = doc.splitTextToSize(
+                    'Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.',
+                    pageWidth - 2 * margin - 12
+                );
+                doc.text(nota, margin + 6, y + 12);
+                y += 28;
+
+                // Pie
+                doc.setFontSize(9);
+                doc.setTextColor(170);
+                doc.text(`Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}`, pageWidth / 2, y, { align: 'center' });
+
+                doc.save('Cita_Medica.pdf');
+            } catch (e) {
+                console.error('Error al generar PDF:', e);
+                alert('Error al generar PDF. Asegúrate de haber cambiado la librería en index.html.');
+            }
+        },
+
+        // ── Imprimir Comprobante Físico ──
+        imprimirComprobante() {
+            const medico = document.getElementById('resumen-doctor-name')?.textContent || '—';
+            const especialidad = document.getElementById('resumen-doctor-specialty')?.textContent || '—';
+            const fechaHora = document.getElementById('resumen-fecha')?.textContent || '—';
+            const paciente = document.getElementById('resumen-paciente')?.textContent || '—';
+
+            const ticketHTML = this._generarTicketHTML(medico, especialidad, fechaHora, paciente);
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Imprimir Comprobante</title>
+                    <style>
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            background: #fff;
+                            display: flex;
+                            justify-content: center;
+                            align-items: flex-start;
+                        }
+                        @media print {
+                            @page { size: letter; margin: 0.5in; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${ticketHTML}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 500);
+                        }
+                    </script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         },
         actualizarBarraProgreso() {
             const indicator = document.getElementById('citas-progress-indicator');
@@ -3341,6 +3415,7 @@ const app = {
             this._validadoresIniciados = true;
 
             const inputCedula = document.getElementById('widget-cedula');
+            const inputFecha = document.getElementById('widget-fecha-cita');
             const inputCodigo = document.getElementById('widget-codigo');
             const btnConsultar = document.getElementById('btn-consultar-cita');
 
@@ -3373,18 +3448,26 @@ const app = {
                 });
             }
 
+            if (inputFecha) {
+                inputFecha.addEventListener('blur', () => {
+                    const val = inputFecha.value.trim();
+                    const errorSpan = document.getElementById('widget-fecha-error');
+                    if (val.length === 0 && (!inputCodigo || !inputCodigo.value.trim())) {
+                        inputFecha.classList.remove('input-success');
+                    } else {
+                        inputFecha.classList.remove('input-error');
+                        inputFecha.classList.add('input-success');
+                        if (errorSpan) errorSpan.style.display = 'none';
+                    }
+                });
+            }
+
             if (inputCodigo) {
-                // Validación on blur
                 inputCodigo.addEventListener('blur', () => {
                     const val = inputCodigo.value.trim();
                     const errorSpan = document.getElementById('widget-codigo-error');
-                    if (val.length === 0) {
-                        inputCodigo.classList.remove('input-error', 'input-success');
-                        if (errorSpan) errorSpan.style.display = 'none';
-                    } else if (val.length < 4) {
-                        inputCodigo.classList.add('input-error');
+                    if (val.length === 0 && (!inputFecha || !inputFecha.value.trim())) {
                         inputCodigo.classList.remove('input-success');
-                        if (errorSpan) { errorSpan.textContent = 'El código debe tener al menos 4 caracteres.'; errorSpan.style.display = 'block'; }
                     } else {
                         inputCodigo.classList.remove('input-error');
                         inputCodigo.classList.add('input-success');
@@ -3403,11 +3486,13 @@ const app = {
 
         consultar() {
             const cedula = (document.getElementById('widget-cedula')?.value || '').trim();
+            const fecha = (document.getElementById('widget-fecha-cita')?.value || '').trim();
             const codigo = (document.getElementById('widget-codigo')?.value || '').trim();
             let valido = true;
 
             // Forzar blur para que los mensajes aparezcan
             document.getElementById('widget-cedula')?.dispatchEvent(new Event('blur'));
+            document.getElementById('widget-fecha-cita')?.dispatchEvent(new Event('blur'));
             document.getElementById('widget-codigo')?.dispatchEvent(new Event('blur'));
 
             // Validar cédula
@@ -3417,8 +3502,12 @@ const app = {
                 valido = false;
             }
 
-            // Validar código
-            if (codigo.length < 4) {
+            // Validar al menos fecha o codigo
+            if (!fecha && !codigo) {
+                const errorSpan = document.getElementById('widget-fecha-error');
+                if (errorSpan) { errorSpan.textContent = 'Debe ingresar Fecha o Código.'; errorSpan.style.display = 'block'; }
+                document.getElementById('widget-fecha-cita')?.classList.add('input-error');
+                document.getElementById('widget-codigo')?.classList.add('input-error');
                 valido = false;
             }
 
@@ -3427,7 +3516,7 @@ const app = {
             // Buscar en las citas guardadas en localStorage
             const citasGuardadas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
             const citaEncontrada = citasGuardadas.find(
-                c => c.cedula === cedula && c.codigo === codigo
+                c => c.cedula === cedula && (c.fecha === fecha || c.codigo === codigo)
             );
 
             if (citaEncontrada) {
