@@ -3830,3 +3830,86 @@ ul {
     min-width: 160px;
     border-radius: 10px;
 }
+
+/* ==========================================================================
+   BOTONES COMPROBANTE – Paso Confirmación
+   ========================================================================== */
+.btn-comprobante {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 28px;
+    /* holgura táctil */
+    min-height: 48px;
+    min-width: 48px;
+    /* Ley de Fitts */
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border: 2px solid transparent;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+
+/* Volver al Inicio (color corporativo principal) */
+.btn-comprobante--volver {
+    background-color: var(--action-color);
+    color: #fff;
+    border-color: var(--action-color);
+}
+
+.btn-comprobante--volver:hover {
+    background-color: #0b8f87;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(13, 169, 159, 0.3);
+}
+
+/* Descargar PDF (acento naranja) */
+.btn-comprobante--pdf {
+    background-color: var(--accent-color);
+    color: #fff;
+    border-color: var(--accent-color);
+}
+
+.btn-comprobante--pdf:hover {
+    background-color: #e59a2a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(253, 173, 52, 0.4);
+}
+
+/* Imprimir (tono neutro elegante) */
+.btn-comprobante--imprimir {
+    background-color: #fff;
+    color: var(--text-main);
+    border-color: var(--border-color);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.btn-comprobante--imprimir:hover {
+    background-color: #f5f7fa;
+    border-color: var(--action-color);
+    color: var(--action-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Ajuste para móvil: botones full-width si son pequeños */
+@media (max-width: 480px) {
+    .btn-comprobante {
+        flex: 1;
+        min-width: 0;
+        padding: 13px 16px;
+    }
+}
+
+.comprobante-botones {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 30px;
+}
