@@ -5,7 +5,7 @@
     // Si no existe la base de datos de usuarios, la creamos
     if (!localStorage.getItem('sanitas_usuarios')) {
         const usuarioDemo = [{
-            identificacion: "1715811293", // Cédula de prueba (ya validada)
+            identificacion: "1722959465", // Cédula de prueba (ya validada)
             password: "admin",           // Contraseña simple
             nombre_1: "Paúl",
             nombre_2: "Alexander",
@@ -41,6 +41,10 @@ const app = {
         this.renderizarEspecialidadesHome();
         app.login.inicializar();
         app.widgetInvitado.inicializar();
+
+        // ── Bloque A: Inyectar límites de fecha (hoy → hoy + 2 meses) en todos los date inputs ──
+        this._aplicarLimitesFechaGlobal();
+
         // 2. Escucha del evento 'popstate'
         window.addEventListener('popstate', (event) => {
             if (event.state && event.state.vista) {
@@ -60,6 +64,123 @@ const app = {
         }
 
         console.log("Sistema del Centro Médico inicializado correctamente.");
+    },
+
+    // ── Bloque A: Utilidad de límites de fecha (H5 – Prevención de errores) ──
+    obtenerRangosFecha() {
+        const hoy = new Date();
+
+        const fechaHoy = hoy.toISOString().split('T')[0];
+
+        const maxCitas = new Date(hoy.getFullYear(), hoy.getMonth() + 2, hoy.getDate());
+        const en2Meses = maxCitas.toISOString().split('T')[0];
+
+        const minNac = new Date(hoy.getFullYear() - 90, hoy.getMonth(), hoy.getDate());
+        const hace90Anios = minNac.toISOString().split('T')[0];
+
+        const maxNac = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
+        const hace18Anios = maxNac.toISOString().split('T')[0];
+
+        return { hoy: fechaHoy, en2Meses, hace90Anios, hace18Anios };
+    },
+
+    _aplicarLimitesFechaGlobal() {
+        const rangos = this.obtenerRangosFecha();
+
+        // Aplicar a TODOS los inputs date del sistema
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        dateInputs.forEach(input => {
+            if (input.id === 'reg-fecha-nac') {
+                // Bloque B: Registro de Cuenta (hace 90 años a hace 18 años)
+                input.setAttribute('min', rangos.hace90Anios);
+                input.setAttribute('max', rangos.hace18Anios);
+            } else {
+                // Bloque B: Agendamiento y Buscador (hoy a en 2 meses)
+                input.setAttribute('min', rangos.hoy);
+                input.setAttribute('max', rangos.en2Meses);
+            }
+        });
+    },
+
+    // ── Bloque C: Limpieza de privacidad del widget de invitados ──
+    _limpiarWidgetInvitado() {
+        const inputCedula = document.getElementById('widget-cedula');
+        const inputFecha = document.getElementById('widget-fecha-cita');
+        const errorCedula = document.getElementById('widget-cedula-error');
+        const errorFecha = document.getElementById('widget-fecha-error');
+
+        // Limpiar valores
+        if (inputCedula) { inputCedula.value = ''; inputCedula.classList.remove('input-error', 'input-success'); }
+        if (inputFecha) { inputFecha.value = ''; inputFecha.classList.remove('input-error', 'input-success'); }
+
+        // Ocultar mensajes de error activos
+        if (errorCedula) { errorCedula.textContent = ''; errorCedula.style.display = 'none'; }
+        if (errorFecha) { errorFecha.textContent = ''; errorFecha.style.display = 'none'; }
+    },
+
+    // ── Utilidad: Sincronizar cancelación entre stores (sanitas_mis_citas ↔ sanitas_citas) ──
+    _sincronizarCancelacion(cita) {
+        // Sincronizar hacia sanitas_citas (store público)
+        const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+        const matchPublico = citasPublicas.find(cp => {
+            if (cita.id_cita && cp.id_cita === cita.id_cita) return true;
+            return cp.cedula === cita.cedula && cp.medico === cita.medico &&
+                cp.hora === cita.hora && (cp.fecha === cita.fecha || cp.codigo === cita.codigo);
+        });
+        if (matchPublico) {
+            matchPublico.estado = 'Cancelada';
+            localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+        }
+
+        // Sincronizar hacia sanitas_mis_citas (store del dashboard)
+        const misCitas = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+        const matchPrivado = misCitas.find(mc => {
+            if (cita.id_cita && (mc.id_cita === cita.id_cita || mc.id === cita.id_cita || mc._id === cita.id_cita)) return true;
+            return mc.cedula === cita.cedula && mc.medico === cita.medico &&
+                mc.hora === cita.hora && (mc.fecha === cita.fecha || mc.codigo === cita.codigo);
+        });
+        if (matchPrivado) {
+            matchPrivado.estado = 'Cancelada';
+            localStorage.setItem('sanitas_mis_citas', JSON.stringify(misCitas));
+        }
+
+        // Refrescar _citas en memoria del módulo salud
+        if (app.salud && app.salud._citas) {
+            const saludMatch = app.salud._citas.find(sc => {
+                if (cita.id_cita && (sc.id_cita === cita.id_cita || sc.id === cita.id_cita || sc._id === cita.id_cita)) return true;
+                return sc.cedula === cita.cedula && sc.medico === cita.medico &&
+                    sc.hora === cita.hora;
+            });
+            if (saludMatch) {
+                saludMatch.estado = 'Cancelada';
+            }
+        }
+
+        // Fix SSOT: Reconstruir sanitas_citas_ocupadas basado estrictamente en sanitas_citas
+        const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        let nuevasOcupadas = [];
+        citasPublicas.forEach(c => {
+            if (c.estado !== 'Cancelada') {
+                let d = new Date(); // fallback
+                if (c.fecha && c.fecha.includes('-')) {
+                    const [year, month, day] = c.fecha.split('-');
+                    d = new Date(year, month - 1, day);
+                }
+                const diaNombre = diasNombres[d.getDay()];
+                const mesNombre = meses[d.getMonth()];
+                const fechaHoraFormato = `${diaNombre} ${d.getDate()} de ${mesNombre}, ${c.hora}`;
+
+                nuevasOcupadas.push({
+                    medico: c.medico,
+                    especialidad: c.especialidad,
+                    fecha: c.fecha,
+                    hora: c.hora,
+                    fechaHora: fechaHoraFormato
+                });
+            }
+        });
+        localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(nuevasOcupadas));
     },
 
     // ======================================================================
@@ -178,13 +299,16 @@ const app = {
         });
     },
 
-    navegar: function (vistaId, pushState = true) {
+    navegar: function (vistaId, pushState = true, force = false) {
         console.log(`Navegando a la vista: ${vistaId}`);
 
         // 1. History API (Heurística #4: Estándares)
-        if (pushState) {
+        if (!force && pushState) {
             // Previene recarga si ya existe el mismo estado
             if (window.location.hash === '#' + vistaId) return;
+            history.pushState({ vista: vistaId }, '', '#' + vistaId);
+        } else if (pushState) {
+            // Forzar siempre el pushState
             history.pushState({ vista: vistaId }, '', '#' + vistaId);
         }
 
@@ -236,6 +360,9 @@ const app = {
         if (this.login && typeof this.login.resetearFormulario === 'function') {
             this.login.resetearFormulario();
         }
+
+        // ── Bloque C: Privacidad – Limpiar widget de invitados al navegar ──
+        this._limpiarWidgetInvitado();
 
         // Mostrar u ocultar componentes principales
         const hero = document.querySelector('.hero');
@@ -844,8 +971,7 @@ const app = {
             if (this.pasoActual === 2) {
                 const estaLogueado = localStorage.getItem('usuarioLogueado');
                 if (estaLogueado) {
-                    this.prepararResumenFinal(true);
-                    this.mostrarPaso(4);
+                    this._verificarColisionYContinuar(true);
                 } else {
                     this.mostrarPaso(3);
                     // Iniciar validadores del Paso 3 (invitado) la primera vez
@@ -860,10 +986,283 @@ const app = {
             } else if (this.pasoActual === 3) {
                 // Validar antes de avanzar (guard)
                 if (!this.validarPaso3(true)) return;
-                this.prepararResumenFinal(false);
-                this.mostrarPaso(4);
+                this._verificarColisionYContinuar(false);
             }
         },
+
+        _verificarColisionYContinuar(logueado) {
+            let cedulaPaciente = "";
+            if (logueado) {
+                try {
+                    const userActivoStr = localStorage.getItem('usuarioActivo');
+                    if (userActivoStr) {
+                        const user = JSON.parse(userActivoStr);
+                        cedulaPaciente = user.identificacion || "";
+                    }
+                } catch (e) { }
+            } else {
+                const inputCedula = document.getElementById('citas-cedula');
+                if (inputCedula) cedulaPaciente = inputCedula.value.trim();
+            }
+
+            const fechaHoraStr = this.horaSeleccionada;
+            let fecha = fechaHoraStr, hora = '';
+            if (fechaHoraStr && fechaHoraStr.includes(',')) {
+                const [datePart, timePart] = fechaHoraStr.split(', ');
+                fecha = datePart; // Ej: "10 de Mayo de 2026"
+                hora = timePart;  // Ej: "10:00"
+            }
+            const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso');
+
+            // Verificar si es modificación
+            const modCtxStr = sessionStorage.getItem('cita_modificacion');
+            let modCtx = null;
+            try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
+
+            // Buscar en sanitas_citas si ya existe una cita para esta cédula, en esta fecha y hora, que NO esté cancelada
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+
+            const citaColision = citasPublicas.find(c =>
+                c.cedula === cedulaPaciente &&
+                c.fecha === fechaISO &&
+                c.hora === hora &&
+                c.estado !== 'Cancelada'
+            );
+
+            // Excepción: Si está modificando, ignorar colisión consigo mismo
+            let esColisionMismaCita = false;
+            if (citaColision && modCtx) {
+                if (modCtx.cedula === citaColision.cedula && modCtx.fechaVieja === citaColision.fecha && modCtx.horaVieja === citaColision.hora) {
+                    esColisionMismaCita = true;
+                }
+            }
+
+            if (citaColision && !esColisionMismaCita) {
+                // Mostrar Modal de Colisión
+                this._mostrarModalColision(citaColision, fecha, hora, fechaISO);
+                return;
+            }
+
+            // Si no hay colisión, continuamos normalmente
+            this.prepararResumenFinal(logueado);
+            this.mostrarPaso(4);
+        },
+
+        // Dentro de app.citas
+
+        _mostrarModalColision(cita, fecha, hora, fechaISO) {
+            let modal = document.getElementById('modal-colision-cita');
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = 'modal-colision-cita';
+            modal.className = 'modal-overlay';
+            modal.setAttribute('role', 'alertdialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'modal-colision-title');
+            modal.style.display = 'flex';
+            // Bloquear interacción con el fondo
+            modal.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+            });
+
+            // Construir mensaje enriquecido
+            const nombreMedico = cita.medico || 'Médico';
+            const especialidad = cita.especialidad || 'la especialidad';
+
+            modal.innerHTML = `
+                <div class="modal-content modal-colision-content" id="colision-content-inner">
+                    <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true"></i>
+                    <h2 id="modal-colision-title" class="modal-colision-title">Conflicto de Horario Detectado</h2>
+                    <p class="modal-colision-text">
+                        Ya tienes una cita agendada en <strong>${especialidad}</strong> con el/la <strong>${nombreMedico}</strong> para el <strong>${fecha}</strong> a las <strong>${hora}</strong>.
+                        El sistema no permite duplicidad de horarios para un mismo paciente.
+                    </p>
+                    <div class="modal-colision-actions">
+                        <!-- Botón Principal: Elegir otra hora -->
+                        <button id="btn-colision-otra" class="btn btn--primary btn-full-width btn-margin-bottom">
+                            Elegir otra hora
+                        </button>
+
+                        <!-- Botón secundario: Gestionar cita previa -->
+                        <button id="btn-gestionar-cita" class="btn btn--outline btn-full-width">
+                            <i class="fa-solid fa-gear" aria-hidden="true" style="margin-right: 8px;"></i> Gestionar cita anterior
+                        </button>
+                        <p class="text-warning-small">(⚠️ Abandonarás esta pantalla y perderás la selección actual)</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Asignar eventos manualmente para acceder a la variable cita sin riesgo de inyección
+            document.getElementById('btn-colision-otra').addEventListener('click', () => {
+                this.cerrarModalColision();
+                this.resetearSeleccionOtraHora();
+            });
+
+            document.getElementById('btn-gestionar-cita').addEventListener('click', () => {
+                this._mostrarConfirmacionGestion(cita, fecha, hora, fechaISO);
+            });
+        },
+
+        // Agregar justo después de _mostrarModalColision
+
+        _mostrarConfirmacionGestion(cita, fecha, hora, fechaISO) {
+            this._citaEnConflicto = cita;   // ← guardar referencia
+
+            const modal = document.getElementById('modal-colision-cita');
+            if (!modal) return;
+            const contentDiv = modal.querySelector('#colision-content-inner');
+            if (!contentDiv) return;
+
+            this._colisionOriginalHtml = contentDiv.innerHTML;
+
+            contentDiv.innerHTML = `
+                <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+                <h2 style="margin-bottom: 15px; color: var(--text-main);">¿Ir a la cita anterior?</h2>
+                <p class="modal-colision-text" style="color: var(--gray-text); margin-bottom: 20px;">
+                    Si vas a gestionar tu cita anterior, la reserva actual se descartará. ¿Deseas continuar?
+                </p>
+                <div class="modal-colision-actions">
+                    <button id="btn-volver-opciones" class="btn btn--outline btn-full-width btn-margin-bottom">
+                        Cancelar (Volver a las opciones)
+                    </button>
+                    <button id="btn-ir-cita-anterior" class="btn btn--primary btn-full-width">
+                        Sí, ir a mi cita anterior
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('btn-volver-opciones').addEventListener('click', () => {
+                this._restaurarModalColision();
+            });
+
+            document.getElementById('btn-ir-cita-anterior').addEventListener('click', () => {
+                this.cerrarModalColision();
+                this.gestionarConflicto(cita.codigo || '', cita.cedula, fechaISO, cita.id_cita);
+            });
+        },
+
+        _restaurarModalColision() {
+            const contentDiv = document.getElementById('colision-content-inner');
+            if (contentDiv && this._colisionOriginalHtml) {
+                contentDiv.innerHTML = this._colisionOriginalHtml;
+
+                // Reasignar eventos con la cita guardada
+                const cita = this._citaEnConflicto;
+                document.getElementById('btn-colision-otra').addEventListener('click', () => {
+                    this.cerrarModalColision();
+                    this.resetearSeleccionOtraHora();
+                });
+
+                document.getElementById('btn-gestionar-cita').addEventListener('click', () => {
+                    this._mostrarConfirmacionGestion(cita, '', '', '');   // fecha/hora no se usan en el mensaje de confirmación
+                });
+            }
+        },
+
+        mostrarConfirmacionCancelacion(idCita, callback) {
+            let modal = document.getElementById('modal-confirmar-cancelacion');
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = 'modal-confirmar-cancelacion';
+            modal.className = 'modal-overlay';
+            modal.setAttribute('role', 'alertdialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.style.display = 'flex';
+
+            modal.innerHTML = `
+                <div class="modal-content modal-colision-content">
+                    <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e74c3c;"></i>
+                    <h2 class="modal-colision-title">Cancelar Cita</h2>
+                    <p class="modal-colision-text">
+                        ¿Estás seguro de que deseas cancelar esta cita?
+                    </p>
+                    <div class="modal-colision-actions">
+                        <button id="btn-cancelar-no" class="btn btn--outline btn-full-width btn-margin-bottom">
+                            No, mantener cita
+                        </button>
+                        <button id="btn-cancelar-si" class="btn btn--primary btn-full-width" style="background-color: var(--status-red, #e74c3c); border-color: var(--status-red, #e74c3c);">
+                            Sí, cancelar cita
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            document.getElementById('btn-cancelar-no').addEventListener('click', () => {
+                modal.remove();
+            });
+
+            document.getElementById('btn-cancelar-si').addEventListener('click', () => {
+                modal.remove();
+                if (typeof callback === 'function') callback(idCita);
+            });
+        },
+
+        cerrarModalColision() {
+            const modal = document.getElementById('modal-colision-cita');
+            if (modal) modal.remove();
+        },
+
+        resetearSeleccionOtraHora() {
+            // Limpiar selección de hora
+            this._bloquearConfirmar();
+            document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
+            // Regresar al paso 2 si estaba en el 3
+            if (this.pasoActual === 3) {
+                this.mostrarPaso(2);
+            }
+        },
+
+        gestionarConflicto(codigo, cedula, fechaISO, idCita) {
+            // 1. Limpiar flujo actual (igual que antes)
+            this.horaSeleccionada = null;
+            this.fechaISOSeleccionada = null;
+            sessionStorage.removeItem('cita_hora_seleccionada');
+            sessionStorage.removeItem('cita_fecha_iso');
+            document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
+            this._bloquearConfirmar();
+
+            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+
+            if (!estaLogueado) {
+                // Guardar el id de la cita para abrir su detalle automáticamente
+                app.widgetInvitado._pendingDetailId = idCita;
+
+                app.navegar('home');
+
+                setTimeout(() => {
+                    const inputCedula = document.getElementById('widget-cedula');
+                    const inputFecha = document.getElementById('widget-fecha-cita');
+                    if (inputCedula && inputFecha) {
+                        inputCedula.value = cedula;
+                        inputFecha.value = fechaISO;
+                        inputCedula.classList.remove('input-error');
+                        inputFecha.classList.remove('input-error');
+                        if (app.widgetInvitado && typeof app.widgetInvitado.consultar === 'function') {
+                            app.widgetInvitado.consultar();
+                        }
+                    }
+                }, 100);
+            } else {
+                // Logueado: guardar deep link y navegar
+                if (idCita) {
+                    sessionStorage.setItem('abrir_detalle_pendiente', JSON.stringify({
+                        id_cita: idCita,
+                        codigo: codigo,
+                        cedula: cedula,
+                        fechaISO: fechaISO
+                    }));
+                }
+
+                app.navegar('mi-salud');
+            }
+        },
+
 
         // Utilidad: Generar código único de cita (4 chars alfanuméricos con prefijo)
         generarCodigoCita() {
@@ -932,9 +1331,11 @@ const app = {
             // Generar código interno (no se muestra al usuario)
             const codigoCita = this.generarCodigoCita();
             this._ultimoCodigoCita = codigoCita;
+            const idCitaUnico = 'C' + Date.now().toString();
 
             const nuevaCita = {
-                id: 'C' + Date.now(),
+                id: idCitaUnico,
+                id_cita: idCitaUnico,
                 codigo: codigoCita,
                 medico: nombreMedico,
                 especialidad: especialidad,
@@ -947,34 +1348,140 @@ const app = {
                 seguro: 'Particular',
                 estado: 'Próxima'
             };
+            // ── Verificar si es una MODIFICACIÓN de cita existente ──
+            const modCtxStr = sessionStorage.getItem('cita_modificacion');
+            let modCtx = null;
+            try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
 
-            // 2. Persistencia en el "Historial de Mis Citas"
-            let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas')) || [];
-            historial.push(nuevaCita);
-            localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
+            if (modCtx) {
+                // MODO MODIFICACIÓN: Actualizar registros existentes en vez de crear nuevos (SSOT)
+                const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || fecha;
 
-            // 2b. Persistencia en sanitas_citas (para consulta desde widget de invitados)
-            let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            citasPublicas.push({
-                codigo: codigoCita,
-                cedula: cedulaPaciente,
-                medico: nombreMedico,
-                especialidad: especialidad,
-                fecha: fecha,
-                hora: hora
-            });
-            localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+                // Actualizar en sanitas_citas (store público)
+                let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                let indexP = -1;
 
-            // Guardar la cita como ocupada
-            const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
-            ocupadas.push({
-                medico: nombreMedico,
-                especialidad: especialidad,
-                fecha: fecha,
-                hora: hora,
-                fechaHora: fechaHoraStr
-            });
-            localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
+                if (modCtx.id_cita) {
+                    indexP = citasPublicas.findIndex(cp => cp.id_cita === modCtx.id_cita);
+                } else if (modCtx.origen === 'widget' && typeof modCtx.indexPublicas === 'number') {
+                    indexP = modCtx.indexPublicas;
+                } else {
+                    indexP = citasPublicas.findIndex(cp => cp.cedula === modCtx.cedula && cp.medico === modCtx.medico);
+                }
+
+                if (indexP !== -1) {
+                    const citaAntigua = citasPublicas[indexP];
+                    citasPublicas[indexP] = {
+                        ...citaAntigua,
+                        fecha: fechaISO,
+                        hora: hora,
+                        medico: nombreMedico,
+                        especialidad: especialidad
+                    };
+                    localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+                }
+
+                // Actualizar en sanitas_mis_citas (store del dashboard)
+                if (modCtx.id_cita || modCtx.idCita) {
+                    const realId = modCtx.id_cita || modCtx.idCita;
+                    let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+                    const indexH = historial.findIndex(h => (h.id || h._id) === realId || h.id_cita === realId);
+                    if (indexH !== -1) {
+                        const historialAntiguo = historial[indexH];
+                        historial[indexH] = {
+                            ...historialAntiguo,
+                            fecha: fecha,
+                            hora: hora,
+                            medico: nombreMedico,
+                            especialidad: especialidad,
+                            estado: 'Próxima'
+                        };
+                        localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
+                    }
+
+                    // Sincronizar salud._citas en memoria y re-renderizar la vista
+                    if (app.salud && app.salud._citas) {
+                        const indexSalud = app.salud._citas.findIndex(sc => (sc.id || sc._id) === realId || sc.id_cita === realId);
+                        if (indexSalud !== -1) {
+                            app.salud._citas[indexSalud] = {
+                                ...app.salud._citas[indexSalud],
+                                fecha: fecha,
+                                hora: hora,
+                                medico: nombreMedico,
+                                especialidad: especialidad,
+                                estado: 'Próxima'
+                            };
+                            // H1: Re-renderizar la interfaz si estamos en Mi Salud
+                            app.salud.renderizarCitas(app.salud._filtroActual || 'proximas');
+                        }
+                    }
+                }
+
+                // Limpiar contexto de modificación
+                sessionStorage.removeItem('cita_modificacion');
+
+                // ── Fix: Reconstruir sanitas_citas_ocupadas basado estrictamente en sanitas_citas ──
+                const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+                let nuevasOcupadas = [];
+                citasPublicas.forEach(c => {
+                    if (c.estado !== 'Cancelada') {
+                        let d = new Date(); // fallback
+                        if (c.fecha && c.fecha.includes('-')) {
+                            // Crear la fecha en UTC para evitar saltos de zona horaria (Y-M-D -> T00:00:00)
+                            const [year, month, day] = c.fecha.split('-');
+                            d = new Date(year, month - 1, day);
+                        }
+                        const diaNombre = diasNombres[d.getDay()];
+                        const mesNombre = meses[d.getMonth()];
+                        const fechaHoraFormato = `${diaNombre} ${d.getDate()} de ${mesNombre}, ${c.hora}`;
+
+                        nuevasOcupadas.push({
+                            medico: c.medico,
+                            especialidad: c.especialidad,
+                            fecha: c.fecha,
+                            hora: c.hora,
+                            fechaHora: fechaHoraFormato
+                        });
+                    }
+                });
+                localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(nuevasOcupadas));
+
+            } else {
+                // MODO CREACIÓN NORMAL: Crear nuevos registros
+
+                // 2. Persistencia en el "Historial de Mis Citas"
+                let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas')) || [];
+                historial.push(nuevaCita);
+                localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
+
+                // 2b. Persistencia en sanitas_citas (para consulta desde widget de invitados)
+                // IMPORTANTE: 'fecha' se guarda en formato YYYY-MM-DD para coincidencia exacta con <input type="date">
+                const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || fecha;
+                let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                citasPublicas.push({
+                    id_cita: idCitaUnico,
+                    codigo: codigoCita,
+                    cedula: cedulaPaciente,
+                    medico: nombreMedico,
+                    especialidad: especialidad,
+                    fecha: fechaISO,
+                    hora: hora
+                });
+                localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+
+                // Guardar la cita como ocupada
+                const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
+                ocupadas.push({
+                    medico: nombreMedico,
+                    especialidad: especialidad,
+                    fecha: fecha,
+                    hora: hora,
+                    fechaHora: fechaHoraStr
+                });
+                localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
+            }
 
             // 3. Renderizar en pantalla de éxito (sin código)
             document.getElementById('resumen-doctor-name').textContent = nombreMedico;
@@ -986,6 +1493,7 @@ const app = {
             // 4. Limpieza de Sesión
             sessionStorage.removeItem('reservaCita_preseleccion');
             sessionStorage.removeItem('especialidad_seleccionada');
+            sessionStorage.removeItem('cita_modificacion');
         },
 
         _generarTicketHTML(medico, especialidad, fechaHora, paciente) {
@@ -1306,6 +1814,7 @@ const app = {
                             const yaPaso = slotDate <= ahora;
 
                             const label = `${diasNombres[i]} ${diaNum} de ${mesCorto}, ${horaStr}`;
+                            const fechaISO = `${dia.getFullYear()}-${String(dia.getMonth() + 1).padStart(2, '0')}-${String(dia.getDate()).padStart(2, '0')}`;
 
                             // Verificar si esta hora ya está ocupada para el médico actual
                             const medicoActual = document.getElementById('citas-doctor-name')?.textContent || '';
@@ -1317,7 +1826,7 @@ const app = {
                             if (yaPaso || estaOcupada) {
                                 html += `<button class="time-slot time-slot--past" disabled>${horaStr}</button>`;
                             } else {
-                                html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}')">${horaStr}</button>`;
+                                html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}', '${fechaISO}')">${horaStr}</button>`;
                             }
                             slotCount++;
                         }
@@ -1353,7 +1862,7 @@ const app = {
             this.generarCalendario();
         },
 
-        seleccionarHora(boton, label) {
+        seleccionarHora(boton, label, fechaISO) {
             // Heurística #1: feedback inmediato — remover selección anterior en TODO el grid
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => {
                 el.classList.remove('time-slot--selected');
@@ -1362,7 +1871,9 @@ const app = {
             // Marcar únicamente el botón pulsado
             boton.classList.add('time-slot--selected');
             this.horaSeleccionada = label;
+            this.fechaISOSeleccionada = fechaISO || null;
             sessionStorage.setItem('cita_hora_seleccionada', label);
+            if (fechaISO) sessionStorage.setItem('cita_fecha_iso', fechaISO);
 
             // Habilitar "Confirmar Cita" solo cuando hay selección activa
             const btnConfirmar = document.getElementById('btn-confirmar-cita');
@@ -2514,6 +3025,17 @@ const app = {
                             'Es necesaria para verificar tu edad.');
                         return false;
                     }
+                    // Bloque C: Validación en el servidor simulado
+                    const rangos = app.obtenerRangosFecha();
+                    if (val > rangos.hace18Anios) {
+                        this._mostrarError('reg-fecha', 'Debe ser mayor de 18 años para crear una cuenta.');
+                        return false;
+                    }
+                    if (val < rangos.hace90Anios) {
+                        this._mostrarError('reg-fecha', 'Fecha de nacimiento inválida.');
+                        return false;
+                    }
+
                     this._marcarExito(id);
                     return true;
                 }
@@ -3175,16 +3697,28 @@ const app = {
         // 12.1 Inicializar: cargar datos y mostrar estado inicial
         // ------------------------------------------------------------------
         inicializar() {
-            // Intentar cargar desde localStorage, usar demo si no hay datos
             const rawCitas = localStorage.getItem('sanitas_mis_citas');
             const rawRecetas = localStorage.getItem('sanitas_mis_recetas');
             this._citas = rawCitas ? JSON.parse(rawCitas) : this._citasDemo;
             this._recetas = rawRecetas ? JSON.parse(rawRecetas) : this._recetasDemo;
 
-            // Reset estado visual
             this._filtroActual = 'proximas';
             this._seccionActual = 'citas';
             this.mostrarSeccion('citas');
+
+            // ── Deep linking desde colisión de horarios ──
+            const deepLinkStr = sessionStorage.getItem('abrir_detalle_pendiente');
+            if (deepLinkStr) {
+                sessionStorage.removeItem('abrir_detalle_pendiente');
+                try {
+                    const deepData = JSON.parse(deepLinkStr);
+                    const id = deepData.id_cita;
+                    const cita = this._citas.find(c => (c.id_cita === id || c.id === id || c._id === id));
+                    if (cita) {
+                        this.verDetalleCita(cita.id || cita._id || id);
+                    }
+                } catch (e) { }
+            }
         },
 
         // ------------------------------------------------------------------
@@ -3234,6 +3768,10 @@ const app = {
             hoy.setHours(0, 0, 0, 0);
 
             const filtradas = this._citas.filter(c => {
+                // Las canceladas van siempre a "anteriores"
+                if (c.estado === 'Cancelada') {
+                    return filtro === 'anteriores';
+                }
                 let esProxima = true;
                 // Verificar si es formato YYYY-MM-DD (Datos Demo)
                 if (/^\d{4}-\d{2}-\d{2}$/.test(c.fecha)) {
@@ -3258,14 +3796,18 @@ const app = {
                     ? c.fecha.split('-').reverse().join('/')
                     : c.fecha;
                 const idCita = c.id || c._id || String(Date.now());
+                const esCancelada = c.estado === 'Cancelada';
+                const badgeHtml = esCancelada
+                    ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
+                    : '';
                 return `
-                <div class="salud-item" role="listitem" tabindex="0"
+                <div class="salud-item${esCancelada ? ' salud-item--cancelada' : ''}" role="listitem" tabindex="0"
                      onclick="app.salud.verDetalleCita('${idCita}')"
                      onkeydown="if(event.key==='Enter')app.salud.verDetalleCita('${idCita}')">
                     <div class="salud-item__info">
                         <strong class="salud-item__nombre">${c.medico || 'Médico Especialista'}</strong>
                         <span class="salud-item__sub">${c.especialidad || 'Consulta General'}</span>
-                        <span class="salud-item__fecha">${fechaFmt}${c.hora ? ' – ' + c.hora : ''}</span>
+                        <span class="salud-item__fecha">${fechaFmt}${c.hora ? ' – ' + c.hora : ''} ${badgeHtml}</span>
                     </div>
                     <i class="fa-solid fa-chevron-right salud-item__arrow" aria-hidden="true"></i>
                 </div>`;
@@ -3283,7 +3825,30 @@ const app = {
                 ? cita.fecha.split('-').reverse().join('/')
                 : cita.fecha;
 
+            const idCita = cita.id || cita._id;
+            const esCancelada = cita.estado === 'Cancelada';
+            const estadoBadge = esCancelada
+                ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
+                : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
+
+            // Botones CRUD solo si la cita NO está cancelada
+            const accionesHtml = !esCancelada ? `
+                <div class="cita-acciones" role="group" aria-label="Acciones de cita">
+                    <button type="button" class="cita-acciones__btn cita-acciones__btn--modificar"
+                        onclick="app.salud.prepararModificacion('${idCita}')">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Cambiar Fecha/Hora
+                    </button>
+                    <button type="button" class="cita-acciones__btn cita-acciones__btn--cancelar"
+                        onclick="app.salud.cancelarCita('${idCita}')">
+                        <i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar Cita
+                    </button>
+                </div>` : '';
+
             document.getElementById('salud-cita-detalle-body').innerHTML = `
+                <div class="salud-det__row">
+                    <span class="salud-det__label">Estado</span>
+                    <span class="salud-det__val">${estadoBadge}</span>
+                </div>
                 <div class="salud-det__row">
                     <span class="salud-det__label">Fecha</span>
                     <span class="salud-det__val">${fechaFmt}</span>
@@ -3320,7 +3885,8 @@ const app = {
                 <div class="salud-det__row">
                     <span class="salud-det__label">Dirección</span>
                     <span class="salud-det__val">${cita.direccion}</span>
-                </div>` : ''}`;
+                </div>` : ''}
+                ${accionesHtml}`;
 
             document.getElementById('salud-citas-header').style.display = 'none';
             document.getElementById('salud-citas-lista').style.display = 'none';
@@ -3396,11 +3962,68 @@ const app = {
                 document.getElementById('salud-cita-detalle').style.display = 'none';
                 document.getElementById('salud-citas-header').style.display = 'block';
                 document.getElementById('salud-citas-lista').style.display = 'block';
+                // H1: Re-renderizar la lista para reflejar cambios
+                this.renderizarCitas(this._filtroActual);
             } else {
                 document.getElementById('salud-receta-detalle').style.display = 'none';
                 document.getElementById('salud-recetas-header').style.display = 'block';
                 document.getElementById('salud-recetas-lista').style.display = 'block';
             }
+        },
+
+        // ------------------------------------------------------------------
+        // 12.9 CRUD: Cancelar cita (Bloque A – H3: Control y Libertad)
+        // ------------------------------------------------------------------
+        cancelarCita(idCita) {
+            console.log("Iniciando proceso de cancelación para:", idCita);
+            app.citas.mostrarConfirmacionCancelacion(idCita, (idCancelado) => {
+                // Buscar en _citas (memoria)
+                const cita = this._citas.find(c => (c.id || c._id) === idCita);
+                if (!cita) return;
+
+                // Soft-delete: marcar como cancelada sin borrar
+                cita.estado = 'Cancelada';
+
+                // Persistir el cambio en sanitas_mis_citas
+                localStorage.setItem('sanitas_mis_citas', JSON.stringify(this._citas));
+
+                // Sincronizar con sanitas_citas (store público)
+                app._sincronizarCancelacion(cita);
+
+                // H1: Refrescar la vista y la lista inmediatamente
+                this.verDetalleCita(idCita);
+                this.renderizarCitas(this._filtroActual || 'proximas');
+            });
+        },
+
+        // ------------------------------------------------------------------
+        // 12.10 CRUD: Preparar modificación de cita (Bloque B)
+        // ------------------------------------------------------------------
+        prepararModificacion(idCita) {
+            console.log('Modificando cita:', idCita);
+            const cita = this._citas.find(c => (c.id || c._id) === idCita);
+            if (!cita) return;
+
+            sessionStorage.setItem('cita_modificacion', JSON.stringify({
+                id_cita: idCita,
+                medico: cita.medico,
+                especialidad: cita.especialidad,
+                cedula: cita.cedula,
+                origen: 'dashboard',
+                fechaVieja: cita.fecha,
+                horaVieja: cita.hora
+            }));
+
+            sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
+                medico: cita.medico,
+                especialidad: cita.especialidad
+            }));
+            sessionStorage.setItem('especialidad_seleccionada', cita.especialidad);
+
+            app.navegar('citas');
+            setTimeout(() => {
+                app.citas.mostrarPaso(2);
+            }, 100);
         }
     },
 
@@ -3416,16 +4039,18 @@ const app = {
 
             const inputCedula = document.getElementById('widget-cedula');
             const inputFecha = document.getElementById('widget-fecha-cita');
-            const inputCodigo = document.getElementById('widget-codigo');
             const btnConsultar = document.getElementById('btn-consultar-cita');
 
-            // Solo dígitos en cédula
+            // Solo dígitos en cédula y limpiar error en tiempo real
             if (inputCedula) {
                 inputCedula.addEventListener('input', (e) => {
                     e.target.value = e.target.value.replace(/\D/g, '');
+                    inputCedula.classList.remove('input-error');
+                    const errorSpan = document.getElementById('widget-cedula-error');
+                    if (errorSpan) errorSpan.style.display = 'none';
                 });
 
-                // Validación on blur
+                // Validación on blur (H5 Nielsen)
                 inputCedula.addEventListener('blur', () => {
                     const val = inputCedula.value.trim();
                     const errorSpan = document.getElementById('widget-cedula-error');
@@ -3449,28 +4074,22 @@ const app = {
             }
 
             if (inputFecha) {
+                // Limpiar error en tiempo real
+                inputFecha.addEventListener('input', () => {
+                    inputFecha.classList.remove('input-error');
+                    const errorSpan = document.getElementById('widget-fecha-error');
+                    if (errorSpan) errorSpan.style.display = 'none';
+                });
+
                 inputFecha.addEventListener('blur', () => {
                     const val = inputFecha.value.trim();
                     const errorSpan = document.getElementById('widget-fecha-error');
-                    if (val.length === 0 && (!inputCodigo || !inputCodigo.value.trim())) {
-                        inputFecha.classList.remove('input-success');
+                    if (val.length === 0) {
+                        inputFecha.classList.remove('input-error', 'input-success');
+                        if (errorSpan) errorSpan.style.display = 'none';
                     } else {
                         inputFecha.classList.remove('input-error');
                         inputFecha.classList.add('input-success');
-                        if (errorSpan) errorSpan.style.display = 'none';
-                    }
-                });
-            }
-
-            if (inputCodigo) {
-                inputCodigo.addEventListener('blur', () => {
-                    const val = inputCodigo.value.trim();
-                    const errorSpan = document.getElementById('widget-codigo-error');
-                    if (val.length === 0 && (!inputFecha || !inputFecha.value.trim())) {
-                        inputCodigo.classList.remove('input-success');
-                    } else {
-                        inputCodigo.classList.remove('input-error');
-                        inputCodigo.classList.add('input-success');
                         if (errorSpan) errorSpan.style.display = 'none';
                     }
                 });
@@ -3485,60 +4104,306 @@ const app = {
         },
 
         consultar() {
-            const cedula = (document.getElementById('widget-cedula')?.value || '').trim();
-            const fecha = (document.getElementById('widget-fecha-cita')?.value || '').trim();
-            const codigo = (document.getElementById('widget-codigo')?.value || '').trim();
+            const inputCedula = document.getElementById('widget-cedula');
+            const inputFecha = document.getElementById('widget-fecha-cita');
+            const cedula = (inputCedula?.value || '').trim();
+            const fecha = (inputFecha?.value || '').trim();
+            const errorCedula = document.getElementById('widget-cedula-error');
+            const errorFecha = document.getElementById('widget-fecha-error');
             let valido = true;
 
-            // Forzar blur para que los mensajes aparezcan
-            document.getElementById('widget-cedula')?.dispatchEvent(new Event('blur'));
-            document.getElementById('widget-fecha-cita')?.dispatchEvent(new Event('blur'));
-            document.getElementById('widget-codigo')?.dispatchEvent(new Event('blur'));
+            // Limpiar errores previos antes de revalidar
+            [inputCedula, inputFecha].forEach(el => {
+                if (el) { el.classList.remove('input-error', 'input-success'); }
+            });
+            [errorCedula, errorFecha].forEach(el => {
+                if (el) { el.textContent = ''; el.style.display = 'none'; }
+            });
 
-            // Validar cédula
-            if (cedula.length !== 10 || !/^\d{10}$/.test(cedula)) {
+            // ── H9: Validación de Cédula con mensajes precisos ──
+            if (!cedula) {
+                if (errorCedula) { errorCedula.textContent = 'Por favor, ingrese su número de cédula.'; errorCedula.style.display = 'block'; }
+                inputCedula?.classList.add('input-error');
                 valido = false;
-            } else if (app.citas && !app.citas.validarCedulaEcuatoriana(cedula)) {
+            } else if (cedula.length !== 10 || !/^\d{10}$/.test(cedula) || (app.citas && !app.citas.validarCedulaEcuatoriana(cedula))) {
+                if (errorCedula) { errorCedula.textContent = 'La cédula debe contener 10 dígitos válidos.'; errorCedula.style.display = 'block'; }
+                inputCedula?.classList.add('input-error');
                 valido = false;
             }
 
-            // Validar al menos fecha o codigo
-            if (!fecha && !codigo) {
-                const errorSpan = document.getElementById('widget-fecha-error');
-                if (errorSpan) { errorSpan.textContent = 'Debe ingresar Fecha o Código.'; errorSpan.style.display = 'block'; }
-                document.getElementById('widget-fecha-cita')?.classList.add('input-error');
-                document.getElementById('widget-codigo')?.classList.add('input-error');
+            // ── H9: Validación de Fecha con mensajes precisos ──
+            if (!fecha) {
+                if (errorFecha) { errorFecha.textContent = 'Por favor, seleccione la fecha de su cita.'; errorFecha.style.display = 'block'; }
+                inputFecha?.classList.add('input-error');
                 valido = false;
+            } else {
+                // Validar rango: no puede exceder 2 meses a futuro
+                const rangos = app.obtenerRangosFecha();
+                if (fecha > rangos.en2Meses) {
+                    if (errorFecha) { errorFecha.textContent = 'Las citas solo pueden consultarse hasta 2 meses a futuro.'; errorFecha.style.display = 'block'; }
+                    inputFecha?.classList.add('input-error');
+                    valido = false;
+                }
+                // Validar rango: no puede ser en el pasado
+                if (fecha < rangos.hoy) {
+                    if (errorFecha) { errorFecha.textContent = 'La fecha de la cita no puede ser en el pasado.'; errorFecha.style.display = 'block'; }
+                    inputFecha?.classList.add('input-error');
+                    valido = false;
+                }
             }
 
             if (!valido) return;
 
-            // Buscar en las citas guardadas en localStorage
+            // ── Paso 1: Obtener TODOS los registros que coincidan (Cédula + Fecha) ──
             const citasGuardadas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            const citaEncontrada = citasGuardadas.find(
-                c => c.cedula === cedula && (c.fecha === fecha || c.codigo === codigo)
-            );
 
-            if (citaEncontrada) {
-                document.getElementById('modal-consulta-fecha').textContent = citaEncontrada.fecha || '—';
-                document.getElementById('modal-consulta-hora').textContent = citaEncontrada.hora || '—';
-                document.getElementById('modal-consulta-especialidad').textContent = citaEncontrada.especialidad || '—';
-                document.getElementById('modal-consulta-medico').textContent = citaEncontrada.medico || '—';
+            // Normalizar la fecha del input (YYYY-MM-DD) para comparación exacta
+            const fechaNorm = fecha.trim();
+
+            const resultados = citasGuardadas.filter(c => {
+                const cedulaMatch = (c.cedula || '').trim() === cedula;
+                const fechaMatch = (c.fecha || '').trim() === fechaNorm;
+                return cedulaMatch && fechaMatch;
+            });
+
+            // ── Paso 2: Lógica de visualización según cantidad de resultados ──
+            const body = document.getElementById('modal-consulta-body');
+            const titulo = document.getElementById('modal-consulta-title');
+
+            // Limpiar contenedor dinámico
+            body.innerHTML = '';
+
+            if (resultados.length === 0) {
+                // 0 resultados → Abrir modal con Empty State
+                titulo.textContent = 'No se encontraron citas';
+                body.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <i class="fa-regular fa-calendar-xmark fa-3x" style="color: var(--gray-text); margin-bottom: 15px;"></i>
+                        <h4 style="margin-bottom: 10px;">No se encontraron citas</h4>
+                        <p style="color: var(--gray-text); font-size: 0.9rem;">No hay citas registradas para la cédula y fecha seleccionadas.</p>
+                    </div>
+                `;
+                const modal = document.getElementById('modal-consulta-cita');
+                if (modal) modal.style.display = 'flex';
+                return;
+            }
+
+            // Guardar resultados en memoria para navegación interna
+            this._resultadosActuales = resultados;
+
+            if (resultados.length === 1) {
+                // 1 resultado → Inyectar vista Detalle directamente
+                titulo.textContent = 'Detalle de tu Cita';
+                body.innerHTML = this._renderDetalle(resultados[0]);
             } else {
-                document.getElementById('modal-consulta-fecha').textContent = '—';
-                document.getElementById('modal-consulta-hora').textContent = '—';
-                document.getElementById('modal-consulta-especialidad').textContent = 'No encontrada';
-                document.getElementById('modal-consulta-medico').textContent = '—';
+                // >1 resultados → Inyectar vista Maestro (lista clickeable)
+                titulo.textContent = `Se encontraron ${resultados.length} citas`;
+                body.innerHTML = this._renderListaMaestro(resultados);
             }
 
             // Abrir modal
             const modal = document.getElementById('modal-consulta-cita');
             if (modal) modal.style.display = 'flex';
+
+            // Deep link desde colisión: abrir automáticamente el detalle de la cita conflictiva
+            if (this._pendingDetailId) {
+                const idCita = this._pendingDetailId;
+                this._pendingDetailId = null; // se consume una sola vez
+                const index = this._resultadosActuales.findIndex(c => c.id_cita === idCita);
+                if (index !== -1) {
+                    this.verDetalle(index);
+                }
+            }
+        },
+
+        // ── Render: Vista Detalle de una cita ──
+        _renderDetalle(cita, mostrarVolver) {
+            const fechaFmt = /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha)
+                ? cita.fecha.split('-').reverse().join('/')
+                : cita.fecha;
+
+            // Determinar el índice de esta cita en sanitas_citas para poder referenciarlo
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            const indexEnPublicas = citasPublicas.findIndex(cp =>
+                cp.cedula === cita.cedula && cp.fecha === cita.fecha && cp.hora === cita.hora && cp.medico === cita.medico);
+
+            const esCancelada = cita.estado === 'Cancelada';
+            const estadoBadge = esCancelada
+                ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
+                : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
+
+            let html = `
+                <div class="modal-consulta__row">
+                    <span class="modal-consulta__label"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Estado</span>
+                    <span class="modal-consulta__val">${estadoBadge}</span>
+                </div>
+                <div class="modal-consulta__row">
+                    <span class="modal-consulta__label"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Fecha</span>
+                    <span class="modal-consulta__val">${fechaFmt || '—'}</span>
+                </div>
+                <div class="modal-consulta__row">
+                    <span class="modal-consulta__label"><i class="fa-regular fa-clock" aria-hidden="true"></i> Hora</span>
+                    <span class="modal-consulta__val">${cita.hora || '—'}</span>
+                </div>
+                <div class="modal-consulta__row">
+                    <span class="modal-consulta__label"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i> Especialidad</span>
+                    <span class="modal-consulta__val">${cita.especialidad || '—'}</span>
+                </div>
+                <div class="modal-consulta__row">
+                    <span class="modal-consulta__label"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> Médico</span>
+                    <span class="modal-consulta__val">${cita.medico || '—'}</span>
+                </div>`;
+
+            // Botones CRUD solo si la cita NO está cancelada y se encontró en el store
+            if (!esCancelada && indexEnPublicas !== -1) {
+                html += `
+                <div class="cita-acciones" role="group" aria-label="Acciones de cita">
+                    <button type="button" class="cita-acciones__btn cita-acciones__btn--modificar"
+                        onclick="app.widgetInvitado.prepararModificacion('${cita.id_cita || indexEnPublicas}')">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Cambiar Fecha/Hora
+                    </button>
+                    <button type="button" class="cita-acciones__btn cita-acciones__btn--cancelar"
+                        onclick="app.widgetInvitado.cancelarCita('${cita.id_cita || indexEnPublicas}')">
+                        <i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar Cita
+                    </button>
+                </div>`;
+            }
+
+            // Botón "Volver al listado" solo si viene de una lista de múltiples resultados
+            if (mostrarVolver) {
+                html += `
+                <button type="button" class="modal-consulta__btn-volver"
+                    onclick="app.widgetInvitado.volverAListado()">
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al listado
+                </button>`;
+            }
+
+            return html;
+        },
+
+        // ── Render: Vista Maestro (lista de citas) ──
+        // Recicla la estructura DOM y clases CSS del módulo de Recetas (Mi Salud)
+        _renderListaMaestro(citas) {
+            return citas.map((c, index) => {
+                const horaLabel = c.hora || 'Sin hora';
+                const espLabel = c.especialidad || 'Consulta General';
+                const medicoLabel = c.medico || 'Médico Especialista';
+
+                return `
+                <div class="salud-item modal-consulta__item-lista" role="listitem" tabindex="0"
+                     onclick="app.widgetInvitado.verDetalle(${index})"
+                     onkeydown="if(event.key==='Enter')app.widgetInvitado.verDetalle(${index})">
+                    <div class="salud-item__info">
+                        <strong class="salud-item__nombre">${medicoLabel}</strong>
+                        <span class="salud-item__sub">${espLabel}</span>
+                        <span class="salud-item__fecha">${horaLabel}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right salud-item__arrow" aria-hidden="true"></i>
+                </div>`;
+            }).join('');
+        },
+
+        // ── Navegación: Maestro → Detalle de una cita específica ──
+        verDetalle(index) {
+            const cita = this._resultadosActuales[index];
+            if (!cita) return;
+
+            const body = document.getElementById('modal-consulta-body');
+            const titulo = document.getElementById('modal-consulta-title');
+
+            titulo.textContent = 'Detalle de tu Cita';
+            body.innerHTML = this._renderDetalle(cita, true);
+        },
+
+        // ── Navegación: Detalle → Volver al listado Maestro ──
+        volverAListado() {
+            const body = document.getElementById('modal-consulta-body');
+            const titulo = document.getElementById('modal-consulta-title');
+
+            titulo.textContent = `Se encontraron ${this._resultadosActuales.length} citas`;
+            body.innerHTML = this._renderListaMaestro(this._resultadosActuales);
         },
 
         cerrarModal() {
             const modal = document.getElementById('modal-consulta-cita');
             if (modal) modal.style.display = 'none';
+            // Limpiar estado interno
+            this._resultadosActuales = [];
+        },
+
+        // ── Bloque A: Cancelar cita desde modal de invitado ──
+        cancelarCita(idStr) {
+            console.log("Iniciando proceso de cancelación para:", idStr);
+            app.citas.mostrarConfirmacionCancelacion(idStr, (idCancelado) => {
+                const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+
+                let indexEnPublicas = citasPublicas.findIndex(c => c.id_cita === idStr);
+                if (indexEnPublicas === -1 && !isNaN(parseInt(idStr, 10))) {
+                    indexEnPublicas = parseInt(idStr, 10);
+                }
+
+                if (indexEnPublicas < 0 || indexEnPublicas >= citasPublicas.length) return;
+
+                // Soft-delete: marcar como cancelada sin borrar
+                citasPublicas[indexEnPublicas].estado = 'Cancelada';
+                localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+
+                // Sincronizar con sanitas_mis_citas si existe el registro allí
+                const cita = citasPublicas[indexEnPublicas];
+                app._sincronizarCancelacion(cita);
+
+                // H1: Refrescar la vista — re-renderizar el detalle
+                const body = document.getElementById('modal-consulta-body');
+                const titulo = document.getElementById('modal-consulta-title');
+                if (titulo) titulo.textContent = 'Cita Cancelada';
+
+                // Actualizar el resultado en memoria y re-renderizar
+                if (this._resultadosActuales[0]) {
+                    // Buscar cuál de los resultados coincide
+                    const idxLocal = this._resultadosActuales.findIndex(r =>
+                        r.cedula === cita.cedula && r.fecha === cita.fecha && r.hora === cita.hora);
+                    if (idxLocal !== -1) this._resultadosActuales[idxLocal].estado = 'Cancelada';
+                }
+                if (body) body.innerHTML = this._renderDetalle(cita, this._resultadosActuales.length > 1);
+            });
+        },
+
+        // ── Bloque B: Preparar modificación desde modal de invitado ──
+        prepararModificacion(idStr) {
+            console.log('Modificando cita:', idStr);
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+
+            let indexEnPublicas = citasPublicas.findIndex(c => c.id_cita === idStr);
+            if (indexEnPublicas === -1 && !isNaN(parseInt(idStr, 10))) {
+                indexEnPublicas = parseInt(idStr, 10);
+            }
+
+            if (indexEnPublicas < 0 || indexEnPublicas >= citasPublicas.length) return;
+
+            const cita = citasPublicas[indexEnPublicas];
+
+            sessionStorage.setItem('cita_modificacion', JSON.stringify({
+                id_cita: cita.id_cita,
+                indexPublicas: indexEnPublicas,
+                medico: cita.medico,
+                especialidad: cita.especialidad,
+                cedula: cita.cedula,
+                origen: 'widget',
+                fechaVieja: cita.fecha,
+                horaVieja: cita.hora
+            }));
+
+            sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
+                medico: cita.medico,
+                especialidad: cita.especialidad
+            }));
+            sessionStorage.setItem('especialidad_seleccionada', cita.especialidad);
+
+            this.cerrarModal();
+            app.navegar('citas');
+            setTimeout(() => {
+                app.citas.mostrarPaso(2);
+            }, 100);
         }
     }
 };

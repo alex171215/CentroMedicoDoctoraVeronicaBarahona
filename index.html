@@ -203,7 +203,7 @@
             </div>
         </section>
 
-        <!-- Modal: Resultado de Consulta de Cita -->
+        <!-- Modal: Resultado de Consulta de Cita (Dinámico – Maestro/Detalle) -->
         <div id="modal-consulta-cita" class="modal-overlay modal-consulta" style="display:none;" role="dialog"
             aria-modal="true" aria-labelledby="modal-consulta-title">
             <div class="modal-content modal-consulta__content">
@@ -214,28 +214,9 @@
                     <i class="fa-solid fa-calendar-check"></i>
                 </div>
                 <h3 id="modal-consulta-title" class="modal-consulta__title">Detalle de tu Cita</h3>
-                <div class="modal-consulta__body">
-                    <div class="modal-consulta__row">
-                        <span class="modal-consulta__label"><i class="fa-regular fa-calendar" aria-hidden="true"></i>
-                            Fecha</span>
-                        <span id="modal-consulta-fecha" class="modal-consulta__val">—</span>
-                    </div>
-                    <div class="modal-consulta__row">
-                        <span class="modal-consulta__label"><i class="fa-regular fa-clock" aria-hidden="true"></i>
-                            Hora</span>
-                        <span id="modal-consulta-hora" class="modal-consulta__val">—</span>
-                    </div>
-                    <div class="modal-consulta__row">
-                        <span class="modal-consulta__label"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i>
-                            Especialidad</span>
-                        <span id="modal-consulta-especialidad" class="modal-consulta__val">—</span>
-                    </div>
-                    <div class="modal-consulta__row">
-                        <span class="modal-consulta__label"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
-                            Médico</span>
-                        <span id="modal-consulta-medico" class="modal-consulta__val">—</span>
-                    </div>
-                </div>
+                <!-- Contenedor dinámico: será inyectado por JS según cantidad de resultados -->
+                <div id="modal-consulta-body" class="modal-consulta__body" role="region"
+                    aria-live="polite"></div>
                 <button type="button" class="btn btn--action modal-consulta__close-btn"
                     onclick="app.widgetInvitado.cerrarModal()">Entendido</button>
             </div>

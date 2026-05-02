@@ -23,3 +23,17 @@ La persistencia actual es LocalStorage (con miras a migración a Firebase). La e
 
 **C. sanitas_citas**
 `[{ id_cita, cedula_paciente, id_especialidad, id_medico, fecha (YYYY-MM-DD), hora (HH:MM), codigoSeguimiento (String 6 char, ej: CIT-X8), estado (Activa/Cancelada) }]`
+
+## 4. Reglas de Validación de Negocio (Blindaje)
+
+### A. Registro de Usuarios (Edad)
+* **Requisito:** Solo mayores de edad (>= 18 años) y hasta 90 años.
+* **Lógica Técnica:** - `Fecha Máxima (DOB):` Hoy - 18 años (Permite a quienes cumplen hoy).
+  - `Fecha Mínima (DOB):` Hoy - 90 años.
+* **Acción:** Aplicar a los atributos `min` y `max` del input de fecha de nacimiento.
+
+### B. Gestión de Citas (Rango Temporal)
+* **Requisito:** Agendamiento y consulta limitados a un rango de 2 meses.
+* **Lógica Técnica:**
+  - `Fecha Mínima (Cita):` Hoy (No permite citas pasadas).
+  - `Fecha Máxima (Cita):` Hoy + 60 días (2 meses). 

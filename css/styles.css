@@ -124,6 +124,75 @@ ul {
     color: var(--white);
 }
 
+.btn--primary {
+    background-color: var(--action-color);
+    color: var(--white);
+    border: none;
+}
+
+.btn--primary:hover {
+    background-color: #0b8f87;
+}
+
+.btn--outline {
+    background-color: transparent;
+    color: var(--action-color);
+    border: 2px solid var(--action-color);
+}
+
+.btn--outline:hover {
+    background-color: var(--action-color);
+    color: var(--white);
+}
+
+/* Utilidades para Modales (Limpieza de estilos inline) */
+.modal-colision-content {
+    max-width: 450px;
+    text-align: center;
+    border-top: 4px solid #f39c12;
+}
+
+.modal-colision-title {
+    margin-bottom: 15px;
+    color: var(--text-main);
+}
+
+.modal-colision-text {
+    color: var(--gray-text);
+    margin-bottom: 20px;
+}
+
+.modal-colision-actions {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+.btn-full-width {
+    width: 100%;
+}
+
+.btn-margin-bottom {
+    margin-bottom: 10px;
+}
+
+.text-warning-small {
+    font-size: 0.75rem;
+    color: var(--gray-text);
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.btn--danger {
+    background-color: #e74c3c;
+    color: var(--white);
+    border: none;
+}
+
+.btn--danger:hover {
+    background-color: #c0392b;
+}
+
 .btn--white {
     background-color: var(--white);
     color: var(--action-color);
@@ -134,6 +203,13 @@ ul {
 
 .btn--white:hover {
     background-color: #f0f0f0;
+}
+
+/* Alerta de Colisión */
+.alert-colision-icon {
+    color: #f39c12;
+    margin-top: 10px;
+    margin-bottom: 15px;
 }
 
 /* Header */
@@ -3831,6 +3907,91 @@ ul {
     border-radius: 10px;
 }
 
+/* ── Maestro-Detalle: Lista de múltiples citas ── */
+
+/* Cada elemento clickeable de la lista Maestro dentro del modal */
+.modal-consulta__item-lista {
+    min-height: 44px;              /* Ley de Fitts: área táctil mínima */
+    padding: 15px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal-consulta__item-lista:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+/* H1 Nielsen: Feedback visual inmediato al hover */
+.modal-consulta__item-lista:hover {
+    background-color: rgba(13, 169, 159, 0.06);
+    box-shadow: 0 2px 8px rgba(13, 169, 159, 0.1);
+}
+
+/* Feedback táctil al pulsar (mobile & desktop) */
+.modal-consulta__item-lista:active {
+    background-color: rgba(13, 169, 159, 0.12);
+    transform: scale(0.99);
+}
+
+/* Focus visible para navegación por teclado (accesibilidad) */
+.modal-consulta__item-lista:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: 2px;
+}
+
+/* Botón "Volver al listado": estilo de enlace discreto, alineado a izquierda */
+.modal-consulta__btn-volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--action-color);
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+    padding: 10px 14px;
+    min-height: 44px;              /* Ley de Fitts */
+    border-radius: 8px;
+    margin-top: 16px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    text-align: left;
+    align-self: flex-start;        /* Alineación izquierda dentro de flex */
+}
+
+.modal-consulta__btn-volver:hover {
+    background-color: rgba(13, 169, 159, 0.08);
+    color: #0b8f87;
+}
+
+.modal-consulta__btn-volver:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: 2px;
+}
+
+.modal-consulta__btn-volver i {
+    font-size: 0.82rem;
+}
+
+/* Responsive: en móvil el botón volver ocupa full-width para mayor ergonomía */
+@media (max-width: 480px) {
+    .modal-consulta__item-lista {
+        padding: 16px 12px;
+        min-height: 52px;          /* Target táctil más generoso en móvil */
+    }
+
+    .modal-consulta__btn-volver {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+
 /* ==========================================================================
    BOTONES COMPROBANTE – Paso Confirmación
    ========================================================================== */
@@ -3912,4 +4073,102 @@ ul {
     justify-content: center;
     flex-wrap: wrap;
     margin-top: 30px;
+}
+
+
+/* ==========================================================================
+   CRUD CITAS – Botones Cancelar / Modificar
+   ========================================================================== */
+
+/* ── Contenedor de acciones ── */
+.cita-acciones {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* ── Base compartida ── */
+.cita-acciones__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 18px;
+    min-height: 44px;             /* Ley de Fitts */
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1.5px solid transparent;
+    white-space: nowrap;
+}
+
+.cita-acciones__btn:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: 2px;
+}
+
+/* ── Cancelar (advertencia sutil) ── */
+.cita-acciones__btn--cancelar {
+    background-color: #fff5f5;
+    color: #c0392b;
+    border-color: #f5c6cb;
+}
+
+.cita-acciones__btn--cancelar:hover {
+    background-color: #fde8e8;
+    border-color: #e74c3c;
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.15);
+}
+
+/* ── Modificar (acción principal) ── */
+.cita-acciones__btn--modificar {
+    background-color: rgba(13, 169, 159, 0.08);
+    color: var(--action-color);
+    border-color: rgba(13, 169, 159, 0.25);
+}
+
+.cita-acciones__btn--modificar:hover {
+    background-color: rgba(13, 169, 159, 0.15);
+    border-color: var(--action-color);
+    box-shadow: 0 2px 8px rgba(13, 169, 159, 0.2);
+}
+
+/* ── Badge de estado cancelada ── */
+.cita-estado-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.cita-estado-badge--cancelada {
+    background-color: #fde8e8;
+    color: #c0392b;
+}
+
+.cita-estado-badge--activa {
+    background-color: #e8f8f5;
+    color: #0DA99F;
+}
+
+/* ── Responsive Mobile ── */
+@media (max-width: 480px) {
+    .cita-acciones {
+        flex-direction: column;
+    }
+
+    .cita-acciones__btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 48px;          /* Target táctil generoso en móvil */
+    }
 }
