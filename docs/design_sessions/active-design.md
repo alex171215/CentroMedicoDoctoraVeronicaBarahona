@@ -1,24 +1,28 @@
-# Sesión de Diseño Activa: Blindaje Final de Comprobantes e Impresión
+# Sesión de Diseño Activa: Conexión de Funciones y Modal de Cancelación Profesional
 
 ## 1. Objetivo
-Corregir el renderizado del PDF (evitar hoja en blanco), implementar la función de impresión física directa y asegurar que el buscador de citas sea infalible.
+Asegurar que las funciones de cancelación sean accesibles desde el DOM y reemplazar las alertas del sistema por un modal de confirmación integrado (H3 y H4).
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Fix de Renderizado PDF (app.js)
-* **Problema:** PDF en blanco por falta de tiempo de renderizado.
-* **Solución:** En `descargarComprobantePDF`, el elemento temporal debe tener `opacity: 1; position: absolute; left: -9999px; display: block;`. 
-* **Sincronismo:** Usa `await` o un `setTimeout` de 800ms antes de llamar a `html2pdf().save()` para asegurar que los estilos se apliquen. Asegura que el contenedor tenga un ancho fijo de `800px` para evitar desbordamientos.
+### A. Exposición de Funciones (Scope en app.js)
+* **El Problema:** El `onclick` busca `app.salud.cancelarCita` y `app.widgetInvitado.cancelarCita`, pero las funciones están "escondidas" dentro de los módulos.
+* **Acción:** Revisa el final de los módulos `salud` y `widgetInvitado`. ASEGÚRATE de que la función `cancelarCita` esté incluida en el `return` de cada objeto para que sea pública. 
+* **Depuración:** Añade un `console.log("Iniciando proceso de cancelación para:", idCita);` al principio de la función para verificar que el clic llega al código.
 
-### B. Implementación de Botón "Imprimir" (Requisito Ingeniera)
-* **Acción:** Añadir botón `#btn-imprimir-comprobante` en la vista de éxito.
-* **Lógica:** Crear función `imprimirComprobante()` que abra una `window.open`, inyecte el mismo HTML del ticket y ejecute `window.print()`. Esto da libertad al usuario de elegir soporte físico.
+### B. Modal de Confirmación HTML (Adiós al window.confirm)
+* **Acción:** Crea una función `mostrarConfirmacionCancelacion(idCita, callback)`.
+* **Diseño:** 1. Inyecta un `div` con ID `#modal-confirmar-cancelacion` que cubra toda la pantalla (overlay oscuro).
+  2. Dentro, un cuadro centrado que pregunte: "¿Estás seguro de que deseas cancelar esta cita?".
+  3. Dos botones: 
+     - "No, mantener cita" (clase `.btn--outline`).
+     - "Sí, cancelar cita" (clase `.btn--primary` con un color de advertencia o rojo).
+* **Lógica:** Si el usuario presiona "Sí", ejecuta el cambio de estado en el LocalStorage y cierra el modal.
 
-### C. Refactorización del Buscador (Búsqueda Dual)
-* **Lógica de Filtro:** Modificar la función de consulta para que sea "EITHER/OR". La cita se encuentra si:
-  `(cita.cedula === inputCedula) AND (cita.fecha === inputFecha OR cita.codigoSeguimiento === inputCodigo)`.
-* **Normalización:** Usa `.trim()` en todos los strings de comparación para evitar errores por espacios invisibles.
+### C. Actualización de Estado y Re-renderizado
+* Una vez confirmada la cancelación:
+  1. Busca el objeto en `sanitas_citas` por su ID y cambia `estado: 'Cancelada'`.
+  2. Guarda en `localStorage`.
+  3. **CRÍTICO:** Ejecuta la función de renderizado correspondiente (`app.salud.renderizarCitas()` o la del widget) para que el botón y la tarjeta de la cita desaparezcan o cambien de aspecto visual inmediatamente (Heurística 1).
 
-### D. UI y Diseño (styles.css e index.html)
-* **Botones:** La pantalla de confirmación debe tener tres botones: [Descargar PDF], [Imprimir], [Volver al Inicio].
-* **Layout:** Centrar verticalmente el contenido del ticket en el PDF usando `flexbox` inline en el elemento temporal.
+**Restricciones:** No uses `alert()` ni `confirm()`. Usa exclusivamente clases CSS de tu archivo `styles.css` para el diseño del modal.
