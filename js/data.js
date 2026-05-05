@@ -9,6 +9,8 @@ const datosIniciales = {
         {
             id: "esp-001",
             especialidad: "MEDICINA FAMILIAR",
+            duracion_minutos: 40,
+            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
             doctor: {
                 nombres: "Verónica Del Pilar",
                 apellidos: "Barahona Charfuelan",
@@ -24,6 +26,8 @@ const datosIniciales = {
         {
             id: "esp-002",
             especialidad: "MEDICINA GENERAL",
+            duracion_minutos: 35,
+            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
             doctor: {
                 nombres: "Oscar Bladimir",
                 apellidos: "Poma Sumba",
@@ -39,6 +43,8 @@ const datosIniciales = {
         {
             id: "esp-003",
             especialidad: "RADIODIÁGNOSTICO",
+            duracion_minutos: 35,
+            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "10:00", hora_fin: "12:00" },
             doctor: {
                 nombres: "Camilo Calixto",
                 apellidos: "Sifontes Zayas",
@@ -55,6 +61,8 @@ const datosIniciales = {
         {
             id: "esp-004",
             especialidad: "DERMATOLOGÍA",
+            duracion_minutos: 30,
+            horarios_atencion: { dias: [3], hora_inicio: "14:00", hora_fin: "16:00" }, // Miércoles
             doctor: {
                 nombres: "María Del Carmen",
                 apellidos: "Terán Pineida",
@@ -69,6 +77,8 @@ const datosIniciales = {
         {
             id: "esp-005",
             especialidad: "UROLOGÍA",
+            duracion_minutos: 30,
+            horarios_atencion: { dias: [2], hora_inicio: "14:00", hora_fin: "16:00" }, // Martes
             doctor: {
                 nombres: "Mario Lenin",
                 apellidos: "Moran Molina",
@@ -83,6 +93,8 @@ const datosIniciales = {
         {
             id: "esp-006",
             especialidad: "ENDOCRINOLOGÍA",
+            duracion_minutos: 20,
+            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "11:00" }, // Sábados
             doctor: {
                 nombres: "José Fernando",
                 apellidos: "Guerrero Grijalva",
@@ -98,6 +110,8 @@ const datosIniciales = {
         {
             id: "esp-007",
             especialidad: "TRAUMATOLOGÍA",
+            duracion_minutos: 60,
+            horarios_atencion: { dias: [4], hora_inicio: "09:00", hora_fin: "11:00" }, // Jueves
             doctor: {
                 nombres: "Deulis Rafael",
                 apellidos: "Salazar Coello",
@@ -114,6 +128,8 @@ const datosIniciales = {
         {
             id: "esp-008",
             especialidad: "PSICOLOGÍA",
+            duracion_minutos: 60,
+            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "12:00" }, // Sábados
             doctor: {
                 nombres: "Katalina Sofía",
                 apellidos: "Rivadeneira Vasconez",
@@ -129,6 +145,8 @@ const datosIniciales = {
         {
             id: "esp-009",
             especialidad: "ODONTOLOGÍA",
+            duracion_minutos: 35,
+            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
             doctor: {
                 nombres: "Tania Maribel",
                 apellidos: "Lara Vega",
@@ -142,6 +160,8 @@ const datosIniciales = {
         {
             id: "esp-010",
             especialidad: "ENFERMERÍA",
+            duracion_minutos: 15,
+            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
             doctor: {
                 nombres: "Milton Fernando",
                 apellidos: "Rosero Mendoza",
@@ -156,6 +176,8 @@ const datosIniciales = {
         {
             id: "esp-011",
             especialidad: "LABORATORIO",
+            duracion_minutos: 12,
+            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
             doctor: {
                 nombres: "Yolanda Antonela",
                 apellidos: "Sánchez Barahona",
@@ -171,6 +193,8 @@ const datosIniciales = {
         {
             id: "esp-012",
             especialidad: "GINECOLOGÍA",
+            duracion_minutos: 40,
+            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "12:00" }, // Sábados
             doctor: {
                 nombres: "Marco Daniel",
                 apellidos: "Moya Carrillo",
@@ -187,6 +211,8 @@ const datosIniciales = {
         {
             id: "esp-013",
             especialidad: "GINECOLOGÍA",
+            duracion_minutos: 40,
+            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "12:00" }, // Sábados
             doctor: {
                 nombres: "Marcela Paulina",
                 apellidos: "Pantoja Vargas",
