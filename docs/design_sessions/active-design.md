@@ -1,28 +1,71 @@
-# Sesión de Diseño Activa: Conexión de Funciones y Modal de Cancelación Profesional
+# Sesión de Diseño Activa: Corrección del Motor Matemático de Colisiones (Buffer)
 
 ## 1. Objetivo
-Asegurar que las funciones de cancelación sean accesibles desde el DOM y reemplazar las alertas del sistema por un modal de confirmación integrado (H3 y H4).
+Reparar la lógica de verificación de buffer de 30 minutos en `app.js` que está bloqueando erróneamente citas en la mañana por culpa de citas en la tarde, y hacer dinámico el mensaje del modal.
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Exposición de Funciones (Scope en app.js)
-* **El Problema:** El `onclick` busca `app.salud.cancelarCita` y `app.widgetInvitado.cancelarCita`, pero las funciones están "escondidas" dentro de los módulos.
-* **Acción:** Revisa el final de los módulos `salud` y `widgetInvitado`. ASEGÚRATE de que la función `cancelarCita` esté incluida en el `return` de cada objeto para que sea pública. 
-* **Depuración:** Añade un `console.log("Iniciando proceso de cancelación para:", idCita);` al principio de la función para verificar que el clic llega al código.
+### A. Refactorización de Fórmula Matemática (app.js)
+* **Ubicación:** Dentro de `app.citas._verificarColisionYContinuar`, localiza la sección comentada como `// --- Verificación de buffer (30 min después de cualquier cita existente) ---`.
+* **El Error Actual:** El código evalúa erróneamente `if (inicioMinNueva < minPermitido)`.
+* **La Solución:** Reemplaza ese bloque (desde el cálculo de `inicioMinNueva` hasta el `return;` del modal) con esta lógica exacta de intervalos cruzados:
 
-### B. Modal de Confirmación HTML (Adiós al window.confirm)
-* **Acción:** Crea una función `mostrarConfirmacionCancelacion(idCita, callback)`.
-* **Diseño:** 1. Inyecta un `div` con ID `#modal-confirmar-cancelacion` que cubra toda la pantalla (overlay oscuro).
-  2. Dentro, un cuadro centrado que pregunte: "¿Estás seguro de que deseas cancelar esta cita?".
-  3. Dos botones: 
-     - "No, mantener cita" (clase `.btn--outline`).
-     - "Sí, cancelar cita" (clase `.btn--primary` con un color de advertencia o rojo).
-* **Lógica:** Si el usuario presiona "Sí", ejecuta el cambio de estado en el LocalStorage y cierra el modal.
+\`\`\`javascript
+// --- Verificación de buffer (30 min de margen entre citas) ---
+const [hNueva, mNueva] = hora.split(':').map(Number);
+const inicioMinNueva = hNueva * 60 + mNueva;
 
-### C. Actualización de Estado y Re-renderizado
-* Una vez confirmada la cancelación:
-  1. Busca el objeto en `sanitas_citas` por su ID y cambia `estado: 'Cancelada'`.
-  2. Guarda en `localStorage`.
-  3. **CRÍTICO:** Ejecuta la función de renderizado correspondiente (`app.salud.renderizarCitas()` o la del widget) para que el botón y la tarjeta de la cita desaparezcan o cambien de aspecto visual inmediatamente (Heurística 1).
+// Obtener duración de la NUEVA cita
+const doc = this._doctorActual;
+const duracionNueva = doc ? (doc.duracion_minutos || 30) : 30;
+const finMinNueva = inicioMinNueva + duracionNueva;
 
-**Restricciones:** No uses `alert()` ni `confirm()`. Usa exclusivamente clases CSS de tu archivo `styles.css` para el diseño del modal.
+const citasMismoDia = citasPublicas.filter(c =>
+    c.cedula === cedulaPaciente && c.fecha === fechaISO && c.estado !== 'Cancelada'
+);
+
+const idCitaModificando = modCtx ? (modCtx.id_cita || modCtx.idCita) : null;
+const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
+
+for (const cita of citasMismoDia) {
+    if (idCitaModificando && (cita.id_cita === idCitaModificando || cita.id === idCitaModificando)) continue;
+
+    let duracionExistente = 30;
+    if (db && db.cartera_especialistas) {
+        const esp = db.cartera_especialistas.find(e => e.especialidad === cita.especialidad);
+        if (esp) duracionExistente = esp.duracion_minutos || 30;
+    }
+
+    const [hExt, mExt] = cita.hora.split(':').map(Number);
+    const inicioMinExistente = hExt * 60 + mExt;
+    const finMinExistente = inicioMinExistente + duracionExistente;
+
+    // FÓRMULA DE COLISIÓN (30 min): Se solapan si (FinA + 30 > InicioB) Y (FinB + 30 > InicioA)
+    const margen = 30;
+    const colisiona = (finMinNueva + margen > inicioMinExistente) && (finMinExistente + margen > inicioMinNueva);
+
+    if (colisiona) {
+        let mensajeEspecial = "";
+        if (inicioMinNueva < inicioMinExistente) {
+            const maxHora = inicioMinExistente - margen - duracionNueva;
+            const hStr = \`\${String(Math.floor(maxHora / 60)).padStart(2, '0')}:\${String(maxHora % 60).padStart(2, '0')}\`;
+            mensajeEspecial = \`Antes de esta cita, tendrías que agendar máximo a las <strong>\${hStr}</strong>.\`;
+        } else {
+            const minHora = finMinExistente + margen;
+            const hStr = \`\${String(Math.floor(minHora / 60)).padStart(2, '0')}:\${String(minHora % 60).padStart(2, '0')}\`;
+            mensajeEspecial = \`Después de esta cita, intenta un horario posterior a las <strong>\${hStr}</strong>.\`;
+        }
+        
+        const detalle = \`<strong>\${cita.especialidad || 'Especialidad'}</strong> con <strong>\${cita.medico || 'Médico'}</strong> a las <strong>\${cita.hora}</strong>\`;
+        this._mostrarModalBuffer(detalle, duracionExistente, mensajeEspecial);
+        return;
+    }
+}
+\`\`\`
+
+### B. Ajuste del Modal de Buffer (app.js)
+* **Ubicación:** En la función `app.citas._mostrarModalBuffer(detalleCitaPrevia, duracionMin, horaPermitida)`.
+* **La Solución:** Cambia el nombre del tercer parámetro a `mensajeEspecial`.
+* Reemplaza la línea rígida `<br><br>Intenta un horario posterior a las <strong>\${horaPermitida}</strong>.` por `<br><br>\${mensajeEspecial}`.
+
+**Restricciones:** No alteres el sistema de colisiones exactas (la primera parte de `_verificarColisionYContinuar`), solo el motor de buffer.
