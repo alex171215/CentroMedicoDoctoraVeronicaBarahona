@@ -301,6 +301,11 @@ const app = {
 
     navegar: function (vistaId, pushState = true, force = false) {
         console.log(`Navegando a la vista: ${vistaId}`);
+        // --- INSERCIÓN: Garbage Collector de Recuperación (Heurística de Seguridad) ---
+        if (vistaId !== 'citas') {
+            sessionStorage.removeItem('temp_datos_recuperacion');
+        }
+
 
         // 1. History API (Heurística #4: Estándares)
         if (!force && pushState) {
@@ -950,6 +955,38 @@ const app = {
             this.pasoActual = nuevoPaso;
 
             this.actualizarBarraProgreso();
+
+            // --- INSERCIÓN: Auto-Completado para Recuperación de Errores (Heurística Nielsen) ---
+            // --- INSERCIÓN: Auto-Completado tras recuperación de error ---
+            if (nuevoPaso === 3) {
+                const recoveryData = sessionStorage.getItem('temp_datos_recuperacion');
+                if (recoveryData) {
+                    try {
+                        const data = JSON.parse(recoveryData);
+                        const nomInput = document.getElementById('citas-nombres');
+                        const cedInput = document.getElementById('citas-cedula');
+                        const celInput = document.getElementById('citas-celular');
+
+                        if (nomInput && data.nombres) nomInput.value = data.nombres;
+                        if (cedInput && data.cedula) cedInput.value = data.cedula;
+                        if (celInput && data.celular) celInput.value = data.celular;
+
+                        // Consumir el dato para que no quede residual
+                        sessionStorage.removeItem('temp_datos_recuperacion');
+                    } catch (e) { }
+                }
+
+                // Llamadas existentes de modificación y validadores
+                this._configurarPaso3Modificacion();
+                if (!this.validadoresIniciados) {
+                    this.configurarValidadores();
+                    this.validadoresIniciados = true;
+                } else {
+                    this.actualizarEstadoBotonSiguiente();
+                }
+            }
+
+            // --- FIN DE LA INSERCIÓN ---
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             // ─── Paso 4: inyectar aviso si es modificación ───
@@ -2231,21 +2268,118 @@ const app = {
             modal.setAttribute('aria-modal', 'true');
             modal.style.display = 'flex';
 
-            modal.innerHTML = `
-                <div class="modal-content modal-colision-content">
-                    <i class="fa-solid fa-clock fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
-                    <h2 class="modal-colision-title">Horario no disponible</h2>
-                    <p class="modal-colision-text">
-                        No puedes tomar este horario. Tienes una cita previa en <strong> ${detalleCitaPrevia}.</strong>
-                        <br>Dicha consulta dura <strong>${duracionMin} minutos</strong> y por políticas del centro médico debes dejar un margen de <strong>30 minutos</strong> para traslados.
-                        <br><br>Intenta un horario posterior a las <strong>${horaSugerida}</strong>.
-                    </p>
-                    <div class="modal-colision-actions">
-                        <button class="btn btn--primary btn-full-width" onclick="app.citas.cerrarModalBuffer()">Entendido</button>
-                    </div>
-                </div>
-            `;
+            // Funciones internas que generan los dos estados del modal
+            const renderState1 = () => `
+        <div class="modal-content modal-colision-content" id="buffer-state-content">
+            <i class="fa-solid fa-clock fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+            <h2 class="modal-colision-title">Horario no disponible</h2>
+            <p class="modal-colision-text">
+                No puedes tomar este horario. Tienes una cita previa en <strong>${detalleCitaPrevia}.</strong>
+                <br>Dicha consulta dura <strong>${duracionMin} minutos</strong> y por políticas del centro médico debes dejar un margen de <strong>30 minutos</strong> para traslados.
+                <br><br>Intenta un horario posterior a las <strong>${horaSugerida}</strong>.
+            </p>
+            <div class="modal-colision-actions">
+                <button id="btn-buffer-elegir-otro" class="btn btn--primary btn-full-width btn-margin-bottom">
+                    Elegir otro horario
+                </button>
+                <button id="btn-buffer-abandonar" class="btn btn--outline btn-full-width">
+                    Abandonar reserva
+                </button>
+            </div>
+        </div>
+    `;
+
+            const renderState2 = () => `
+        <div class="modal-content modal-colision-content" id="buffer-state-content">
+            <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+            <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
+            <p class="modal-colision-text" style="margin-bottom: 20px;">
+                ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos que ingresaste se borrarán. ¿Deseas continuar?
+            </p>
+            <div class="modal-colision-actions">
+                <button id="btn-buffer-no-volver" class="btn btn--primary btn-full-width btn-margin-bottom">
+                    No, volver
+                </button>
+                <button id="btn-buffer-si-salir" class="btn btn--danger btn-full-width" style="background-color: #e74c3c; border-color: #e74c3c; color: white;">
+                    Sí, salir y borrar datos
+                </button>
+            </div>
+        </div>
+    `;
+
+            // Inyectar estado 1
+            modal.innerHTML = renderState1();
             document.body.appendChild(modal);
+
+            // Asociar handlers del estado 1
+            this._bindState1Handlers(modal, renderState1, renderState2);
+        },
+
+        // NUEVA FUNCIÓN AUXILIAR (colócala justo después de _mostrarModalBuffer)
+        _bindState1Handlers(modal, renderState1, renderState2) {
+            // ── Acción: Elegir otro horario (retención de contexto) ──
+            const btnElegir = document.getElementById('btn-buffer-elegir-otro');
+            if (btnElegir) {
+                btnElegir.onclick = () => {
+                    // Guardar datos actuales del Paso 3 para no perderlos
+                    const nom = document.getElementById('citas-nombres');
+                    const ced = document.getElementById('citas-cedula');
+                    const cel = document.getElementById('citas-celular');
+                    const tempData = {
+                        nombres: nom ? nom.value.trim() : '',
+                        cedula: ced ? ced.value.trim() : '',
+                        celular: cel ? cel.value.trim() : ''
+                    };
+                    sessionStorage.setItem('temp_datos_recuperacion', JSON.stringify(tempData));
+                    this.cerrarModalBuffer();
+                    // Resetear selección de hora y retroceder al calendario
+                    document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
+                        .forEach(el => el.classList.remove('time-slot--selected'));
+                    this.horaSeleccionada = null;
+                    this.mostrarPaso(2);
+                    this.generarCalendario();
+                };
+            }
+
+            // ── Acción: Abandonar reserva (ahora abre confirmación inline) ──
+            const btnAbandonar = document.getElementById('btn-buffer-abandonar');
+            if (btnAbandonar) {
+                btnAbandonar.onclick = () => {
+                    // Transformar el modal al Estado 2
+                    modal.innerHTML = renderState2();
+
+                    // Configurar botones del estado 2
+                    document.getElementById('btn-buffer-no-volver').onclick = () => {
+                        // Restaurar estado 1 y sus handlers
+                        modal.innerHTML = renderState1();
+                        this._bindState1Handlers(modal, renderState1, renderState2);
+                    };
+
+                    document.getElementById('btn-buffer-si-salir').onclick = () => {
+                        // Hard Reset: eliminar todo rastro de la reserva
+                        [
+                            'reservaCita_preseleccion',
+                            'especialidad_seleccionada',
+                            'cita_modificacion',
+                            'cita_hora_seleccionada',
+                            'cita_fecha_iso',
+                            'temp_datos_recuperacion'
+                        ].forEach(key => sessionStorage.removeItem(key));
+
+                        // Limpiar campos visuales del Paso 3
+                        ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                el.value = '';
+                                el.style.borderColor = '#ccc';
+                            }
+                        });
+
+                        this.cerrarModalBuffer();
+                        app.navegar('home');
+                    };
+                };
+            }
         },
 
         cerrarModalBuffer() {
