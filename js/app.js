@@ -304,6 +304,7 @@ const app = {
         // --- INSERCIÓN: Garbage Collector de Recuperación (Heurística de Seguridad) ---
         if (vistaId !== 'citas') {
             sessionStorage.removeItem('temp_datos_recuperacion');
+            if (app.citas) app.citas.modoProxy = false;      // ← AÑADIR
         }
 
 
@@ -710,6 +711,7 @@ const app = {
             }
 
             // MATA-BUGS: Resetear el paso actual a 0 ANTES de mostrar cualquier pantalla
+            this.modoProxy = false;   // ← INSERTAR LÍNEA
             this.pasoActual = 0;
             this.historialPasos = [];
 
@@ -976,6 +978,68 @@ const app = {
                     } catch (e) { }
                 }
 
+                const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+                const step3Form = document.getElementById('citas-step-3');
+                if (step3Form) {
+                    // Elementos que vamos a manipular
+                    const loginH2 = step3Form.querySelector('h2');         // "¿Ya registrado? Acceder"
+                    const oDiv = step3Form.querySelector('h2 + div');       // "O"
+                    const registroH3 = step3Form.querySelector('h3');       // "¿Todavía no está registrado?"
+                    const formLabel = step3Form.querySelector('h3 + form > div:first-child label'); // Etiqueta "Nombres completos"
+
+                    // Si estamos en modo proxy (logueado agendando para familiar)
+                    if (estaLogueado && this.modoProxy) {
+                        // Ocultar enlaces de login/registro
+                        if (loginH2) loginH2.style.display = 'none';
+                        if (oDiv) oDiv.style.display = 'none';
+                        if (registroH3) registroH3.style.display = 'none';
+
+                        // Insertar o actualizar título e instrucción
+                        let titleEl = document.getElementById('proxy-paso3-title');
+                        if (!titleEl) {
+                            titleEl = document.createElement('h2');
+                            titleEl.id = 'proxy-paso3-title';
+                            titleEl.style.cssText = 'color: #3B49A3; margin-bottom: 10px; text-align: center; font-size: 1.2rem;';
+                            const formWrapper = step3Form.querySelector('.citas-form-wrapper');
+                            if (formWrapper) {
+                                formWrapper.insertBefore(titleEl, formWrapper.firstChild);
+                            }
+                        }
+                        titleEl.textContent = 'Registro de Familiar';
+
+                        let instEl = document.getElementById('proxy-paso3-inst');
+                        if (!instEl) {
+                            instEl = document.createElement('p');
+                            instEl.id = 'proxy-paso3-inst';
+                            instEl.style.cssText = 'text-align: center; color: #666; margin-bottom: 20px; font-size: 0.95rem;';
+                            if (titleEl.nextSibling) {
+                                titleEl.parentNode.insertBefore(instEl, titleEl.nextSibling);
+                            }
+                        }
+                        instEl.textContent = 'Ingrese los datos personales de su familiar para esta reserva.';
+                    } else {
+                        // Modo invitado (sin sesión)
+                        // Mostrar login/registro normalmente
+                        if (loginH2) loginH2.style.display = '';
+                        if (oDiv) oDiv.style.display = '';
+                        if (registroH3) registroH3.style.display = '';
+
+                        // Actualizar a "Datos del Paciente"
+                        if (registroH3) {
+                            registroH3.textContent = 'Datos del Paciente';
+                            registroH3.style.color = '#3B49A3';
+                        }
+                        // Eliminar cualquier título/instrucción de proxy si existe
+                        const proxyTitle = document.getElementById('proxy-paso3-title');
+                        if (proxyTitle) proxyTitle.remove();
+                        const proxyInst = document.getElementById('proxy-paso3-inst');
+                        if (proxyInst) proxyInst.remove();
+                    }
+                }
+
+                // Llamadas existentes de modificación y validadores
+                this._configurarPaso3Modificacion();
+
                 // Llamadas existentes de modificación y validadores
                 this._configurarPaso3Modificacion();
                 if (!this.validadoresIniciados) {
@@ -984,6 +1048,34 @@ const app = {
                 } else {
                     this.actualizarEstadoBotonSiguiente();
                 }
+            }
+
+            // --- Inserción: Control segmentado "Para mí / Para un familiar" (solo si hay sesión) ---
+            if (nuevoPaso === 2 && localStorage.getItem('usuarioLogueado') === 'true') {
+                const step2Container = document.getElementById('citas-step-2');
+                if (step2Container && !document.getElementById('proxy-segment-control')) {
+                    const segmentHTML = `
+                        <div id="proxy-segment-control" class="proxy-segment" style="display: flex; justify-content: center; gap: 0; margin-bottom: 20px; background: #f0f4f8; border-radius: 30px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                            <label class="proxy-segment__option" style="flex: 1; text-align: center; padding: 10px 15px; cursor: pointer; font-weight: 500; transition: background 0.3s, color 0.3s; background: #0DA99F; color: white;">
+                                <input type="radio" name="modo-proxy" value="self" style="display: none;" checked onchange="app.citas.modoProxy = false; document.querySelectorAll('.proxy-segment__option').forEach(el => el.style.background=''); this.parentNode.style.background='#0DA99F'; this.parentNode.style.color='white';">
+                                👤 Para mí
+                            </label>
+                            <label class="proxy-segment__option" style="flex: 1; text-align: center; padding: 10px 15px; cursor: pointer; font-weight: 500; transition: background 0.3s, color 0.3s; background: transparent; color: #666;">
+                                <input type="radio" name="modo-proxy" value="proxy" style="display: none;" onchange="app.citas.modoProxy = true; document.querySelectorAll('.proxy-segment__option').forEach(el => el.style.background=''); this.parentNode.style.background='#0DA99F'; this.parentNode.style.color='white';">
+                                👨‍👩‍👧 Para un familiar
+                            </label>
+                        </div>
+                    `;
+                    // Insertar al inicio del contenedor del paso 2, antes del layout dividido
+                    const target = step2Container.querySelector('.citas-layout-divided');
+                    if (target) {
+                        target.insertAdjacentHTML('beforebegin', segmentHTML);
+                    }
+                }
+            }
+            // Resetear modoProxy al entrar al paso 2 (por si venía de otro flujo)
+            if (this.pasoActual !== 2 && nuevoPaso === 2) {
+                this.modoProxy = false;
             }
 
             // --- FIN DE LA INSERCIÓN ---
@@ -1035,41 +1127,60 @@ const app = {
             if (this.pasoActual === 2) {
                 const estaLogueado = localStorage.getItem('usuarioLogueado');
 
-                // ─── Salto lógico si es una modificación (invitado) ───
+                // ─── Lógica de modificación se mantiene idéntica ───
                 const modCtxStr = sessionStorage.getItem('cita_modificacion');
                 if (modCtxStr) {
                     let modCtx;
                     try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
-
                     if (!estaLogueado && modCtx) {
-                        // Recuperar datos originales del paciente
                         const misCitas = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
                         let citaOriginal = null;
                         if (modCtx.id_cita) {
                             citaOriginal = misCitas.find(c => (c.id_cita === modCtx.id_cita || c.id === modCtx.id_cita || c._id === modCtx.id_cita));
                         }
                         if (!citaOriginal) {
-                            // fallback por coincidencia de datos
                             citaOriginal = misCitas.find(c =>
                                 c.cedula === modCtx.cedula && c.medico === modCtx.medico && c.fecha === modCtx.fechaVieja && c.hora === modCtx.horaVieja
                             );
                         }
-
                         if (citaOriginal) {
-                            // Prellenar los campos ocultos del paso 3 con los datos originales
                             const nomInput = document.getElementById('citas-nombres');
                             const cedInput = document.getElementById('citas-cedula');
                             if (nomInput) nomInput.value = citaOriginal.paciente || '';
                             if (cedInput) cedInput.value = citaOriginal.cedula || '';
-
-                            // Saltar directamente al flujo de confirmación
                             this._verificarColisionYContinuar(false);
                             return;
                         }
                     }
                 }
 
-                // Flujo normal sin modificación
+                // ─── PROXY: si elige "Para un familiar" mostramos Paso 3 vacío ───
+                if (estaLogueado && this.modoProxy) {
+                    // Mostrar paso 3 del formulario
+                    this.mostrarPaso(3);
+                    // Forzar campos vacíos y editables (sin datos de modificación)
+                    ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            el.value = '';
+                            el.removeAttribute('readonly');
+                            el.style.borderColor = '#ccc';
+                        }
+                    });
+                    // Eliminar mensaje de modificación si existiera
+                    const modMsg = document.getElementById('modificacion-msg');
+                    if (modMsg) modMsg.remove();
+                    // Iniciar validadores del paso 3
+                    if (!this.validadoresIniciados) {
+                        this.configurarValidadores();
+                        this.validadoresIniciados = true;
+                    } else {
+                        this.actualizarEstadoBotonSiguiente();
+                    }
+                    return;
+                }
+
+                // ─── Flujo normal (para mí o invitado sin proxy) ───
                 if (estaLogueado) {
                     this._verificarColisionYContinuar(true);
                 } else {
@@ -1083,15 +1194,16 @@ const app = {
                     }
                 }
             } else if (this.pasoActual === 3) {
-                // Validar antes de avanzar (guard)
                 if (!this.validarPaso3(true)) return;
-                this._verificarColisionYContinuar(false);
+                const logueadoReal = localStorage.getItem('usuarioLogueado') === 'true';
+                this._verificarColisionYContinuar(logueadoReal);
             }
         },
 
         _verificarColisionYContinuar(logueado) {
             let cedulaPaciente = "";
-            if (logueado) {
+            if (logueado && !this.modoProxy) {
+                // Si está logueado y agenda para sí mismo: usar su propia cédula
                 try {
                     const userActivoStr = localStorage.getItem('usuarioActivo');
                     if (userActivoStr) {
@@ -1100,6 +1212,7 @@ const app = {
                     }
                 } catch (e) { }
             } else {
+                // En modo proxy (logueado pero para familiar) o invitado: usar la cédula ingresada en el formulario
                 const inputCedula = document.getElementById('citas-cedula');
                 if (inputCedula) cedulaPaciente = inputCedula.value.trim();
             }
@@ -1123,6 +1236,11 @@ const app = {
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
 
             const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            // En modo proxy, garantizamos que se toma la cédula del formulario aunque logueado sea true
+            if (logueado && this.modoProxy) {
+                const inputCedula = document.getElementById('citas-cedula');
+                if (inputCedula) cedulaPaciente = inputCedula.value.trim();
+            }
             const citaColision = citasPublicas.find(c =>
                 c.cedula === cedulaPaciente &&
                 c.fecha === fechaISO &&
@@ -1182,6 +1300,7 @@ const app = {
                     return;
                 }
             }
+            console.log('[Colisión] Cédula a verificar:', cedulaPaciente, ' | Modo proxy:', this.modoProxy);
 
             // Si todo ok, continuar
             this.prepararResumenFinal(logueado);
@@ -1438,6 +1557,7 @@ const app = {
 
             let paciente = "Paciente";
             let cedulaPaciente = "";
+            let cedulaTitular = null;   // NUEVO
             if (logueado) {
                 try {
                     const userActivoStr = localStorage.getItem('usuarioActivo');
@@ -1445,18 +1565,29 @@ const app = {
                         const user = JSON.parse(userActivoStr);
                         paciente = `${user.nombre_1 || ''} ${user.nombre_2 || ''} ${user.apellido_1 || ''} ${user.apellido_2 || ''}`.replace(/\s+/g, ' ').trim() || "Paciente";
                         cedulaPaciente = user.identificacion || "";
+                        cedulaTitular = user.identificacion;   // NUEVO
                     }
                 } catch (e) { }
+                // Si está en modo proxy, el paciente es el familiar (se toma del formulario)
+                if (this.modoProxy) {
+                    const inputCedula = document.getElementById('citas-cedula');
+                    if (inputCedula) cedulaPaciente = inputCedula.value.trim();
+                    const inputNombres = document.getElementById('citas-nombres') || document.getElementById('cita-nombres');
+                    if (inputNombres) paciente = inputNombres.value.trim();
+                    // cedulaTitular sigue siendo la del usuario logueado
+                }
             } else {
+                // Invitado: toma datos del formulario
                 const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
                 const inputApellidos = document.getElementById('cita-apellidos');
                 const inputCedula = document.getElementById('citas-cedula');
-
                 let n = inputNombres ? inputNombres.value : '';
                 let a = inputApellidos ? inputApellidos.value : '';
                 let nombreForm = `${n} ${a}`.trim();
                 if (nombreForm) paciente = nombreForm;
                 if (inputCedula) cedulaPaciente = inputCedula.value.trim();
+                // Cambia esta línea:
+                cedulaTitular = cedulaPaciente;   // ← MODIFICADO
             }
 
             const fechaHoraStr = this.horaSeleccionada;
@@ -1482,6 +1613,7 @@ const app = {
                 hora: hora,
                 paciente: paciente,
                 cedula: cedulaPaciente,
+                cedula_titular: cedulaTitular,   // NUEVO
                 lugar: 'Centro Médico Familiar Dra. Verónica Barahona',
                 lugar_direccion: 'Tumbaco - Quito',
                 seguro: 'Particular',
@@ -1515,7 +1647,8 @@ const app = {
                         fecha: fechaISO,
                         hora: hora,
                         medico: nombreMedico,
-                        especialidad: especialidad
+                        especialidad: especialidad,
+                        cedula_titular: cedulaTitular   // ← AÑADIR
                     };
                     localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
                 }
@@ -1533,7 +1666,8 @@ const app = {
                             hora: hora,
                             medico: nombreMedico,
                             especialidad: especialidad,
-                            estado: 'Próxima'
+                            estado: 'Próxima',
+                            cedula_titular: cedulaTitular   // ← AÑADIR
                         };
                         localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
                     }
@@ -1864,6 +1998,7 @@ const app = {
         fechaBaseCalendario: new Date(),
 
         diaSeleccionadoMobile: 0,   // 0 = Lunes, 1 = Martes, …, 5 = Sábado
+        modoProxy: false,
 
         // Mapeo de duración (minutos) por especialidad
         duracionesPorEspecialidad: {
@@ -4044,6 +4179,20 @@ const app = {
             this._citas = rawCitas ? JSON.parse(rawCitas) : this._citasDemo;
             this._recetas = rawRecetas ? JSON.parse(rawRecetas) : this._recetasDemo;
 
+            // ── FILTRO POR USUARIO AUTENTICADO ──
+            const usuarioLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            if (usuarioLogueado) {
+                try {
+                    const user = JSON.parse(localStorage.getItem('usuarioActivo'));
+                    if (user && user.identificacion) {
+                        const idTitular = user.identificacion;
+                        this._citas = this._citas.filter(cita => {
+                            return cita.cedula === idTitular || cita.cedula_titular === idTitular;
+                        });
+                    }
+                } catch (e) { }
+            }
+
             this._filtroActual = 'proximas';
             this._seccionActual = 'citas';
             this.mostrarSeccion('citas');
@@ -4126,6 +4275,19 @@ const app = {
                 return filtro === 'proximas' ? esProxima : !esProxima;
             });
 
+            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            let nombreTitular = '';
+            if (estaLogueado) {
+                try {
+                    const user = JSON.parse(localStorage.getItem('usuarioActivo'));
+                    if (user) {
+                        const nom1 = user.nombre1 || user.nombre_1 || '';
+                        const ape1 = user.apellido1 || user.apellido_1 || '';
+                        nombreTitular = (nom1 + ' ' + ape1).trim();
+                    }
+                } catch (e) { }
+            }
+
             const contenedor = document.getElementById('salud-citas-lista');
             if (!filtradas.length) {
                 contenedor.innerHTML = '<p class="salud-empty">No hay citas en esta sección.</p>';
@@ -4133,7 +4295,6 @@ const app = {
             }
 
             contenedor.innerHTML = filtradas.map(c => {
-                // Solo hacer split si tiene formato YYYY-MM-DD
                 const fechaFmt = /^\d{4}-\d{2}-\d{2}$/.test(c.fecha)
                     ? c.fecha.split('-').reverse().join('/')
                     : c.fecha;
@@ -4142,13 +4303,26 @@ const app = {
                 const badgeHtml = esCancelada
                     ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
                     : '';
+
+                // ── Añadir línea de paciente si es distinto al titular ──
+                let lineaPaciente = '';
+                if (estaLogueado && nombreTitular && c.paciente && c.paciente.trim() !== '') {
+                    // Normalizar: quitar espacios múltiples y comparar en minúsculas
+                    const nombrePaciente = c.paciente.replace(/\s+/g, ' ').trim();
+                    const nombreTitularNorm = nombreTitular.replace(/\s+/g, ' ').trim();
+                    if (nombrePaciente.toLowerCase() !== nombreTitularNorm.toLowerCase()) {
+                        lineaPaciente = `<span class="salud-item__sub" style="font-style:italic;color:#0DA99F;"><i class="fa-solid fa-user" style="margin-right:4px;"></i>Paciente: ${nombrePaciente}</span>`;
+                    }
+                }
+
                 return `
                 <div class="salud-item${esCancelada ? ' salud-item--cancelada' : ''}" role="listitem" tabindex="0"
-                     onclick="app.salud.verDetalleCita('${idCita}')"
-                     onkeydown="if(event.key==='Enter')app.salud.verDetalleCita('${idCita}')">
+                    onclick="app.salud.verDetalleCita('${idCita}')"
+                    onkeydown="if(event.key==='Enter')app.salud.verDetalleCita('${idCita}')">
                     <div class="salud-item__info">
                         <strong class="salud-item__nombre">${c.medico || 'Médico Especialista'}</strong>
                         <span class="salud-item__sub">${c.especialidad || 'Consulta General'}</span>
+                        ${lineaPaciente}
                         <span class="salud-item__fecha">${fechaFmt}${c.hora ? ' – ' + c.hora : ''} ${badgeHtml}</span>
                     </div>
                     <i class="fa-solid fa-chevron-right salud-item__arrow" aria-hidden="true"></i>
