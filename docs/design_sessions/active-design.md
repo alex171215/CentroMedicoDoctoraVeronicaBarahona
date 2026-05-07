@@ -1,23 +1,19 @@
-# Sesión de Diseño Activa: Refactorización de UI y Sistema de Diseño
+# Sesión de Diseño Activa: Erradicación de Estado "Disabled" Fantasma
 
 ## 1. Objetivo
-Realizar una auditoría visual en el frontend (index.html y styles.css) para limpiar inconsistencias, eliminar estilos inline y aplicar el nuevo Sistema de Diseño de 5 niveles, cumpliendo con la Heurística de Consistencia (H4).
+Forzar la eliminación de la clase `btn--secundario-main` (que está pintando los botones de gris) en el renderizado dinámico de las tarjetas de especialistas, cumpliendo con la regla crítica de Affordance.
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Creación del Sistema de Clases (styles.css)
-* Lee la nueva regla de "Jerarquía y Semántica de Botones" en `golden-rules.md`.
-* Traduce esos 5 niveles en clases CSS reales dentro de `styles.css`. 
-* Elimina cualquier clase de botón vieja que cause redundancia. Asegúrate de usar las variables CSS globales si ya existen.
+### A. Cirugía de Template String (app.js)
+* **El Problema:** La IA falló en la sesión anterior al intentar corregir el botón "Ver perfil y servicios" de las tarjetas de los médicos. Siguen renderizándose con fondo gris.
+* **Acción (Find and Replace):**
+  1. Abre `app.js`.
+  2. Busca LITERALMENTE la cadena de texto: `btn--secundario-main` dentro de las funciones que generan HTML (probablemente en el módulo del directorio o donde se iteran los especialistas).
+  3. Reemplaza ESA cadena exacta por: `btn--secundario`.
+  4. El código final inyectado debe ser exactamente este: `class="btn btn--secundario directory-card__link"`
 
-### B. Auditoría y Reemplazo en DOM (index.html)
-Escanea el HTML, limpia los atributos `style="..."` quemados y aplica las nuevas clases:
-1. **Botón "Siguiente" (Login/Registro):** Actualmente es gris. Cámbialo a `.btn--accion` (Naranja).
-2. **Botón "Imprimir":** Actualmente tiene un color morado extraño (`#6149A3`). Cámbialo a `.btn--secundario`.
-3. **Pantalla de Éxito (Comprobante):** - "Volver al Inicio" -> `.btn--primario`.
-   - "Descargar PDF" -> `.btn--secundario`.
-   - "Imprimir" -> `.btn--secundario`.
-4. **Botón "Abandonar reserva":** Cámbialo a `.btn--secundario` y asegúrate de que tenga el padding adecuado para que parezca un botón.
-5. **Enlaces Sueltos:** Los textos "Cancelar Registro" y "¿Ya tienes cuenta? Inicia sesión" deben usar la nueva clase `.enlace-accion` para heredar el cursor pointer y el subrayado interactivo.
+### B. Auditoría de Especificidad CSS (styles.css)
+* **Acción:** Revisa `styles.css`. Si por alguna razón la clase `.directory-card__link` o alguna otra clase contenedora está forzando un `background-color` gris oscuro o negro para los botones, ELIMINA esa propiedad. El botón debe heredar el fondo transparente y el borde turquesa de la clase base `.btn--secundario`.
 
-**Restricción Estricta:** NO modifiques las funciones `onclick`, IDs, ni ninguna lógica de JavaScript. Solo modifica los atributos `class`, elimina clases obsoletas y limpia los estilos inline en el HTML.
+**Restricción Estricta:** Esta es una tarea de búsqueda y destrucción de la clase antigua. No toques nada más del DOM ni de la lógica.
