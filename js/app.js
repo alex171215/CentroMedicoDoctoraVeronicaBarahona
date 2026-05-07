@@ -387,6 +387,7 @@ const app = {
             // Resetear la posición del carrusel de especialidades al inicio
             const doctorsGrid = document.getElementById('doctors-carousel');
             if (doctorsGrid) doctorsGrid.scrollLeft = 0;
+            this._actualizarVisibilidadCarruselEspecialistas();
         } else {
             if (hero) hero.style.display = 'none';
             if (locations) locations.style.display = 'none';
@@ -538,26 +539,11 @@ const app = {
         };
 
         // Actualizar visibilidad de flechas según posición del scroll
-        const updateNavButtons = () => {
-            const maxScroll = grid.scrollWidth - grid.clientWidth;
-            const tolerance = 2; // px de margen para evitar parpadeos
 
-            if (maxScroll <= 0) {
-                // No hay desbordamiento: esconder ambas flechas
-                prevBtn.style.display = 'none';
-                nextBtn.style.display = 'none';
-                return;
-            }
-
-            // Flecha izquierda visible solo si no estamos al inicio
-            prevBtn.style.display = grid.scrollLeft > tolerance ? 'flex' : 'none';
-            // Flecha derecha visible solo si no estamos al final
-            nextBtn.style.display = grid.scrollLeft < maxScroll - tolerance ? 'flex' : 'none';
-        };
 
         // Asegurar que las dimensiones estén listas antes de la primera verificación
         const initUpdate = () => {
-            updateNavButtons();
+            this._actualizarVisibilidadCarruselEspecialistas();
 
             // Escuchar la carga de imágenes para recalcular si es necesario
             const images = grid.querySelectorAll('img');
@@ -568,7 +554,7 @@ const app = {
                     else {
                         img.addEventListener('load', () => {
                             loadedCount++;
-                            if (loadedCount === images.length) updateNavButtons();
+                            if (loadedCount === images.length) this._actualizarVisibilidadCarruselEspecialistas();
                         }, { once: true });
                     }
                 });
@@ -583,11 +569,31 @@ const app = {
             grid.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
         });
 
-        grid.addEventListener('scroll', updateNavButtons);
-        window.addEventListener('resize', updateNavButtons);
+        grid.addEventListener('scroll', () => this._actualizarVisibilidadCarruselEspecialistas());
+        window.addEventListener('resize', () => this._actualizarVisibilidadCarruselEspecialistas());
 
         // Llamada inicial con un pequeño retraso para que el DOM se haya renderizado
         setTimeout(initUpdate, 100);
+    },
+
+    // Nueva función auxiliar para actualizar visibilidad de flechas del carrusel de especialidades
+    _actualizarVisibilidadCarruselEspecialistas: function () {
+        const grid = document.getElementById('doctors-carousel');
+        const prevBtn = document.querySelector('.doctors__nav-btn--prev');
+        const nextBtn = document.querySelector('.doctors__nav-btn--next');
+        if (!grid || !prevBtn || !nextBtn) return;
+
+        const maxScroll = grid.scrollWidth - grid.clientWidth;
+        const tolerance = 2;
+
+        if (maxScroll <= 0) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            return;
+        }
+
+        prevBtn.style.display = grid.scrollLeft > tolerance ? 'flex' : 'none';
+        nextBtn.style.display = grid.scrollLeft < maxScroll - tolerance ? 'flex' : 'none';
     },
 
     // ======================================================================
@@ -642,7 +648,7 @@ const app = {
                     </div>
                     <div class="doctor-card__content">
                         <div class="doctor-card__actions" style="margin-top: 15px;">
-                            <span class="btn btn--outline-action" aria-label="Ver especialistas en ${esp}">
+                            <span class="btn btn--secundario" aria-label="Ver especialistas en ${esp}">
                                 <i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Agendar Cita
                             </span>
                         </div>
@@ -736,7 +742,7 @@ const app = {
                 }
 
                 if (this.horaSeleccionada) {
-                    // Saltamos directamente a la pantalla de confirmación (paso 4)
+                    // (paso 4 - Revisión)
                     this.pasoActual = 2; // necesario para que prepararResumenFinal no proteste
                     this.prepararResumenFinal(true);
                     this.mostrarPaso(4);
@@ -919,7 +925,7 @@ const app = {
                             <h3 class="doctor-card-dir__name">${med.doctor.nombre_completo}</h3>
                             <p class="doctor-card-dir__specialty">${med.especialidad}</p>
                             <div class="doctor-card-dir__actions" style="margin-top: 15px;">
-                                <button onclick="app.citas.seleccionarDoctorParaCita('${med.doctor.nombre_completo}', '${med.especialidad}', '${img}')" class="btn btn--action directory-card__btn">
+                                <button onclick="app.citas.seleccionarDoctorParaCita('${med.doctor.nombre_completo}', '${med.especialidad}', '${img}')" class="btn btn--primario directory-card__btn">
                                     Seleccionar Médico
                                 </button>
                             </div>
@@ -1026,7 +1032,7 @@ const app = {
 
                         // Actualizar a "Datos del Paciente"
                         if (registroH3) {
-                            registroH3.textContent = 'Datos del Paciente';
+                            registroH3.textContent = 'Ingrese los datos del Paciente';
                             registroH3.style.color = '#3B49A3';
                         }
                         // Eliminar cualquier título/instrucción de proxy si existe
@@ -1039,9 +1045,6 @@ const app = {
 
                 // Llamadas existentes de modificación y validadores
                 this._configurarPaso3Modificacion();
-
-                // Llamadas existentes de modificación y validadores
-                this._configurarPaso3Modificacion();
                 if (!this.validadoresIniciados) {
                     this.configurarValidadores();
                     this.validadoresIniciados = true;
@@ -1049,30 +1052,19 @@ const app = {
                     this.actualizarEstadoBotonSiguiente();
                 }
             }
-
-            // --- Inserción: Control segmentado "Para mí / Para un familiar" (solo si hay sesión) ---
-            if (nuevoPaso === 2 && localStorage.getItem('usuarioLogueado') === 'true') {
-                const step2Container = document.getElementById('citas-step-2');
-                if (step2Container && !document.getElementById('proxy-segment-control')) {
-                    const segmentHTML = `
-                        <div id="proxy-segment-control" class="proxy-segment" style="display: flex; justify-content: center; gap: 0; margin-bottom: 20px; background: #f0f4f8; border-radius: 30px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                            <label class="proxy-segment__option" style="flex: 1; text-align: center; padding: 10px 15px; cursor: pointer; font-weight: 500; transition: background 0.3s, color 0.3s; background: #0DA99F; color: white;">
-                                <input type="radio" name="modo-proxy" value="self" style="display: none;" checked onchange="app.citas.modoProxy = false; document.querySelectorAll('.proxy-segment__option').forEach(el => el.style.background=''); this.parentNode.style.background='#0DA99F'; this.parentNode.style.color='white';">
-                                👤 Para mí
-                            </label>
-                            <label class="proxy-segment__option" style="flex: 1; text-align: center; padding: 10px 15px; cursor: pointer; font-weight: 500; transition: background 0.3s, color 0.3s; background: transparent; color: #666;">
-                                <input type="radio" name="modo-proxy" value="proxy" style="display: none;" onchange="app.citas.modoProxy = true; document.querySelectorAll('.proxy-segment__option').forEach(el => el.style.background=''); this.parentNode.style.background='#0DA99F'; this.parentNode.style.color='white';">
-                                👨‍👩‍👧 Para un familiar
-                            </label>
-                        </div>
-                    `;
-                    // Insertar al inicio del contenedor del paso 2, antes del layout dividido
-                    const target = step2Container.querySelector('.citas-layout-divided');
-                    if (target) {
-                        target.insertAdjacentHTML('beforebegin', segmentHTML);
-                    }
+            // --- INSERCIÓN: Renderizado del nuevo Paso 4 (Revisión) ---
+            if (nuevoPaso === 4) {
+                if (this._citaTemporal) {
+                    this._mostrarResumen(this._citaTemporal);
+                } else {
+                    // Si no hay datos, volver al paso 2 por seguridad
+                    this.mostrarPaso(2);
+                    return;
                 }
             }
+
+            // --- FIN DE LA INSERCIÓN ---
+
             // Resetear modoProxy al entrar al paso 2 (por si venía de otro flujo)
             if (this.pasoActual !== 2 && nuevoPaso === 2) {
                 this.modoProxy = false;
@@ -1082,21 +1074,23 @@ const app = {
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             // ─── Paso 4: inyectar aviso si es modificación ───
-            if (nuevoPaso === 4 && sessionStorage.getItem('cita_modificacion')) {
-                const step4 = document.getElementById('citas-step-4');
+            // ─── Paso 5: inyectar aviso si es modificación ───
+            // ─── Paso 5: inyectar aviso si es modificación ───
+            if (nuevoPaso === 5 && sessionStorage.getItem('cita_modificacion')) {
+                const step5 = document.getElementById('citas-step-5');
                 // Evitar duplicados
-                let alertInfo = step4.querySelector('.alert-info-mod');
+                let alertInfo = step5.querySelector('.alert-info-mod');
                 if (!alertInfo) {
                     alertInfo = document.createElement('div');
                     alertInfo.className = 'alert-info-mod';
                     alertInfo.innerHTML = '<strong>✅ Identidad Mantenida:</strong> Los datos del paciente (Nombre, Cédula y Celular) se conservan de la cita original.';
                     // Insertar al inicio del contenedor de resumen (el div que tiene max-width:600px...)
                     // Buscar ese contenedor específico dentro de step-4
-                    const resumenContainer = step4.querySelector('.citas-step > div:first-child');
+                    const resumenContainer = step5.querySelector('.citas-step > div:first-child');
                     if (resumenContainer) {
                         resumenContainer.insertBefore(alertInfo, resumenContainer.firstChild);
                     } else {
-                        step4.insertBefore(alertInfo, step4.firstChild);
+                        step5.insertBefore(alertInfo, step5.firstChild);
                     }
                 }
             }
@@ -1196,8 +1190,58 @@ const app = {
             } else if (this.pasoActual === 3) {
                 if (!this.validarPaso3(true)) return;
                 const logueadoReal = localStorage.getItem('usuarioLogueado') === 'true';
+
+                // --- VALIDACIÓN DE LÍMITE DIARIO ---
+                let cedulaParaLimite = '';
+                if (logueadoReal && this.modoProxy) {
+                    // Modo proxy: usar cédula del formulario
+                    const inputCed = document.getElementById('citas-cedula');
+                    if (inputCed) cedulaParaLimite = inputCed.value.trim();
+                } else if (!logueadoReal) {
+                    // Invitado: usar cédula del formulario
+                    const inputCed = document.getElementById('citas-cedula');
+                    if (inputCed) cedulaParaLimite = inputCed.value.trim();
+                } else {
+                    // Loguedado para sí mismo: se validará en el paso 4, aquí no aplica
+                }
+                if (cedulaParaLimite) {
+                    const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso');
+                    const fechaBonita = this.horaSeleccionada ? this.horaSeleccionada.split(',')[0]?.trim() : ''; const especialidad = sessionStorage.getItem('especialidad_seleccionada') || document.getElementById('citas-doctor-specialty')?.textContent || '';
+                    let idExcluir = null;
+                    const modCtxStr = sessionStorage.getItem('cita_modificacion');
+                    if (modCtxStr) {
+                        try { const modCtx = JSON.parse(modCtxStr); idExcluir = modCtx.id_cita; } catch (e) { }
+                    }
+                    if (this._verificarLimiteDiario(cedulaParaLimite, fechaISO, especialidad, idExcluir)) {
+                        this._mostrarModalLimiteDiario(especialidad, fechaBonita);
+                        return;
+                    }
+                }
+                // --- FIN VALIDACIÓN ---
+
                 this._verificarColisionYContinuar(logueadoReal);
             }
+        },
+        // Verifica si el paciente ya tiene una cita en la misma especialidad el mismo día.
+        // Retorna true si YA EXISTE una cita que incumple el límite (debe bloquearse).
+        _verificarLimiteDiario(cedulaPaciente, fecha, especialidad, idCitaExcluida = null) {
+            if (!cedulaPaciente || !fecha || !especialidad) return false;
+            // Obtener citas del store público (sanitas_citas) para cubrir invitados y logueados.
+            const citas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            // Normalizar fecha para comparación (YYYY-MM-DD)
+            const fechaNorm = fecha; // Ya viene en formato ISO (YYYY-MM-DD)
+            const encontrada = citas.find(c => {
+                if (c.cedula !== cedulaPaciente) return false;
+                if (c.especialidad !== especialidad) return false;
+                if (c.estado === 'Cancelada') return false;
+                // Comparar fecha (puede venir de diferentes formatos, normalizar)
+                const cFecha = (c.fecha || '').trim();
+                if (cFecha !== fechaNorm) return false;
+                // Excluir la misma cita si se está modificando
+                if (idCitaExcluida && (c.id_cita === idCitaExcluida || c.id === idCitaExcluida)) return false;
+                return true;
+            });
+            return !!encontrada;
         },
 
         _verificarColisionYContinuar(logueado) {
@@ -1339,12 +1383,12 @@ const app = {
                     </p>
                     <div class="modal-colision-actions">
                         <!-- Botón Principal: Elegir otra hora -->
-                        <button id="btn-colision-otra" class="btn btn--primary btn-full-width btn-margin-bottom">
+                        <button id="btn-colision-otra" class="btn btn--primario btn-full-width btn-margin-bottom">
                             Elegir otra hora
                         </button>
 
                         <!-- Botón secundario: Gestionar cita previa -->
-                        <button id="btn-gestionar-cita" class="btn btn--outline btn-full-width">
+                        <button id="btn-gestionar-cita" class="btn btn--secundario btn-full-width">
                             <i class="fa-solid fa-gear" aria-hidden="true" style="margin-right: 8px;"></i> Gestionar cita anterior
                         </button>
                         <p class="text-warning-small">(⚠️ Abandonarás esta pantalla y perderás la selección actual)</p>
@@ -1383,10 +1427,10 @@ const app = {
                     Si vas a gestionar tu cita anterior, la reserva actual se descartará. ¿Deseas continuar?
                 </p>
                 <div class="modal-colision-actions">
-                    <button id="btn-volver-opciones" class="btn btn--outline btn-full-width btn-margin-bottom">
+                    <button id="btn-volver-opciones" class="btn btn--secundario btn-full-width btn-margin-bottom">
                         Cancelar (Volver a las opciones)
                     </button>
-                    <button id="btn-ir-cita-anterior" class="btn btn--primary btn-full-width">
+                    <button id="btn-ir-cita-anterior" class="btn btn--primario btn-full-width">
                         Sí, ir a mi cita anterior
                     </button>
                 </div>
@@ -1439,10 +1483,10 @@ const app = {
                         ¿Estás seguro de que deseas cancelar esta cita?
                     </p>
                     <div class="modal-colision-actions">
-                        <button id="btn-cancelar-no" class="btn btn--outline btn-full-width btn-margin-bottom">
+                        <button id="btn-cancelar-no" class="btn btn--secundario btn-full-width btn-margin-bottom">
                             No, mantener cita
                         </button>
-                        <button id="btn-cancelar-si" class="btn btn--primary btn-full-width" style="background-color: var(--status-red, #e74c3c); border-color: var(--status-red, #e74c3c);">
+                        <button id="btn-cancelar-si" class="btn btn--primario btn-full-width" style="">
                             Sí, cancelar cita
                         </button>
                     </div>
@@ -1613,25 +1657,121 @@ const app = {
                 hora: hora,
                 paciente: paciente,
                 cedula: cedulaPaciente,
-                cedula_titular: cedulaTitular,   // NUEVO
+                cedula_titular: cedulaTitular,
                 lugar: 'Centro Médico Familiar Dra. Verónica Barahona',
                 lugar_direccion: 'Tumbaco - Quito',
                 seguro: 'Particular',
                 estado: 'Próxima'
             };
-            // ── Verificar si es una MODIFICACIÓN de cita existente ──
+
+            // Guardar la cita temporalmente en memoria y en sessionStorage (respaldo)
+            this._citaTemporal = nuevaCita;
+            sessionStorage.setItem('_citaTemporal_respaldo', JSON.stringify(nuevaCita));
+
+            // Renderizar el paso de revisión (Paso 4)
+            this._mostrarResumen(nuevaCita);
+            this.mostrarPaso(4);
+
+            // Limpiar sesión de pre-selección, pero NO de modificación aún
+            sessionStorage.removeItem('reservaCita_preseleccion');
+            sessionStorage.removeItem('especialidad_seleccionada');
+            // No limpiar 'cita_modificacion' aquí, se usará en la confirmación final
+        },
+
+        // Muestra el resumen de la cita en el Paso 4
+        _mostrarResumen(cita) {
+            const summaryDiv = document.getElementById('review-summary-content');
+            if (!summaryDiv) return;
+
+            const fechaHora = cita.fecha + (cita.hora ? ', ' + cita.hora : '');
+            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            const proxyLinkContainer = document.getElementById('proxy-link-container');
+
+            // Mostrar/ocultar enlace de proxy: solo si hay sesión y NO es modo proxy
+            if (proxyLinkContainer) {
+                proxyLinkContainer.style.display = (estaLogueado && !this.modoProxy) ? 'block' : 'none';
+            }
+
+            summaryDiv.innerHTML = `
+                <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${cita.especialidad}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${cita.medico}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Fecha y Hora</span><span class="salud-det__val">${fechaHora}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${cita.paciente}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${cita.cedula || '—'}</span></div>
+            `;
+
+            // Configurar botón Volver
+            const backBtn = document.getElementById('btn-back-review');
+            if (backBtn) {
+                backBtn.onclick = () => {
+                    // Retroceder al paso anterior según el historial
+                    if (this.historialPasos.length > 0) {
+                        const anterior = this.historialPasos.pop();
+                        this.mostrarPaso(anterior);
+                    } else {
+                        this.mostrarPaso(2);
+                    }
+                };
+            }
+
+            // Configurar botón Confirmar Cita
+            const confirmBtn = document.getElementById('btn-confirmar-cita-definitivo');
+            if (confirmBtn) {
+                confirmBtn.onclick = () => {
+                    this.confirmarCita();
+                };
+            }
+        },
+
+        // Guarda definitivamente la cita en localStorage y muestra éxito
+        confirmarCita() {
+            let cita = this._citaTemporal;
+            // Respaldo: si se perdió la variable en memoria, recuperar de sessionStorage
+            if (!cita) {
+                try {
+                    const respaldo = sessionStorage.getItem('_citaTemporal_respaldo');
+                    if (respaldo) cita = JSON.parse(respaldo);
+                } catch (e) { }
+            }
+            if (!cita) {
+                alert('No hay datos de cita para confirmar.');
+                return;
+            }
+
+            // --- VALIDACIÓN DE LÍMITE DIARIO (Titular agendando para sí mismo) ---
+            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            if (estaLogueado && !this.modoProxy) {
+                // Es el titular confirmando su propia cita
+                let cedulaTitular = '';
+                try {
+                    const user = JSON.parse(localStorage.getItem('usuarioActivo'));
+                    cedulaTitular = user.identificacion || '';
+                } catch (e) { }
+                const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
+                const especialidad = cita.especialidad;
+                let idExcluir = null;
+                const modCtxStr = sessionStorage.getItem('cita_modificacion');
+                if (modCtxStr) {
+                    try { const modCtx = JSON.parse(modCtxStr); idExcluir = modCtx.id_cita; } catch (e) { }
+                }
+                if (this._verificarLimiteDiario(cedulaTitular, fechaISO, especialidad, idExcluir)) {
+                    this._mostrarModalLimiteDiario(especialidad, cita.fecha);
+                    return;
+                }
+            }
+            // --- FIN VALIDACIÓN ---
+
             const modCtxStr = sessionStorage.getItem('cita_modificacion');
             let modCtx = null;
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
 
-            if (modCtx) {
-                // MODO MODIFICACIÓN: Actualizar registros existentes en vez de crear nuevos (SSOT)
-                const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || fecha;
+            const fechaHoraStr = this.horaSeleccionada; // Asegurar que tenemos la hora
+            const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
 
-                // Actualizar en sanitas_citas (store público)
+            if (modCtx) {
+                // MODO MODIFICACIÓN
                 let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
                 let indexP = -1;
-
                 if (modCtx.id_cita) {
                     indexP = citasPublicas.findIndex(cp => cp.id_cita === modCtx.id_cita);
                 } else if (modCtx.origen === 'widget' && typeof modCtx.indexPublicas === 'number') {
@@ -1639,21 +1779,19 @@ const app = {
                 } else {
                     indexP = citasPublicas.findIndex(cp => cp.cedula === modCtx.cedula && cp.medico === modCtx.medico);
                 }
-
                 if (indexP !== -1) {
                     const citaAntigua = citasPublicas[indexP];
                     citasPublicas[indexP] = {
                         ...citaAntigua,
                         fecha: fechaISO,
-                        hora: hora,
-                        medico: nombreMedico,
-                        especialidad: especialidad,
-                        cedula_titular: cedulaTitular   // ← AÑADIR
+                        hora: cita.hora,
+                        medico: cita.medico,
+                        especialidad: cita.especialidad,
+                        cedula_titular: cita.cedula_titular
                     };
                     localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
                 }
 
-                // Actualizar en sanitas_mis_citas (store del dashboard)
                 if (modCtx.id_cita || modCtx.idCita) {
                     const realId = modCtx.id_cita || modCtx.idCita;
                     let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
@@ -1662,111 +1800,128 @@ const app = {
                         const historialAntiguo = historial[indexH];
                         historial[indexH] = {
                             ...historialAntiguo,
-                            fecha: fecha,
-                            hora: hora,
-                            medico: nombreMedico,
-                            especialidad: especialidad,
+                            fecha: cita.fecha,
+                            hora: cita.hora,
+                            medico: cita.medico,
+                            especialidad: cita.especialidad,
                             estado: 'Próxima',
-                            cedula_titular: cedulaTitular   // ← AÑADIR
+                            cedula_titular: cita.cedula_titular
                         };
                         localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
                     }
-
-                    // Sincronizar salud._citas en memoria y re-renderizar la vista
+                    // Sincronizar en memoria
                     if (app.salud && app.salud._citas) {
                         const indexSalud = app.salud._citas.findIndex(sc => (sc.id || sc._id) === realId || sc.id_cita === realId);
                         if (indexSalud !== -1) {
                             app.salud._citas[indexSalud] = {
                                 ...app.salud._citas[indexSalud],
-                                fecha: fecha,
-                                hora: hora,
-                                medico: nombreMedico,
-                                especialidad: especialidad,
+                                fecha: cita.fecha,
+                                hora: cita.hora,
+                                medico: cita.medico,
+                                especialidad: cita.especialidad,
                                 estado: 'Próxima'
                             };
-                            // H1: Re-renderizar la interfaz si estamos en Mi Salud
-                            app.salud.renderizarCitas(app.salud._filtroActual || 'proximas');
                         }
                     }
                 }
-
-                // Limpiar contexto de modificación
                 sessionStorage.removeItem('cita_modificacion');
-
-                // ── Fix: Reconstruir sanitas_citas_ocupadas basado estrictamente en sanitas_citas ──
-                const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-                let nuevasOcupadas = [];
-                citasPublicas.forEach(c => {
-                    if (c.estado !== 'Cancelada') {
-                        let d = new Date(); // fallback
-                        if (c.fecha && c.fecha.includes('-')) {
-                            // Crear la fecha en UTC para evitar saltos de zona horaria (Y-M-D -> T00:00:00)
-                            const [year, month, day] = c.fecha.split('-');
-                            d = new Date(year, month - 1, day);
-                        }
-                        const diaNombre = diasNombres[d.getDay()];
-                        const mesNombre = meses[d.getMonth()];
-                        const fechaHoraFormato = `${diaNombre} ${d.getDate()} de ${mesNombre}, ${c.hora}`;
-
-                        nuevasOcupadas.push({
-                            medico: c.medico,
-                            especialidad: c.especialidad,
-                            fecha: c.fecha,
-                            hora: c.hora,
-                            fechaHora: fechaHoraFormato
-                        });
-                    }
-                });
-                localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(nuevasOcupadas));
-
+                // Reconstruir ocupadas
+                this._reconstruirOcupadas();
             } else {
-                // MODO CREACIÓN NORMAL: Crear nuevos registros
-
-                // 2. Persistencia en el "Historial de Mis Citas"
-                let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas')) || [];
-                historial.push(nuevaCita);
+                // MODO CREACIÓN NORMAL
+                let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+                historial.push(cita);
                 localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
 
-                // 2b. Persistencia en sanitas_citas (para consulta desde widget de invitados)
-                // IMPORTANTE: 'fecha' se guarda en formato YYYY-MM-DD para coincidencia exacta con <input type="date">
-                const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || fecha;
                 let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
                 citasPublicas.push({
-                    id_cita: idCitaUnico,
-                    codigo: codigoCita,
-                    cedula: cedulaPaciente,
-                    medico: nombreMedico,
-                    especialidad: especialidad,
+                    id_cita: cita.id_cita,
+                    codigo: cita.codigo,
+                    cedula: cita.cedula,
+                    medico: cita.medico,
+                    especialidad: cita.especialidad,
                     fecha: fechaISO,
-                    hora: hora
+                    hora: cita.hora
                 });
                 localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
 
-                // Guardar la cita como ocupada
                 const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
                 ocupadas.push({
-                    medico: nombreMedico,
-                    especialidad: especialidad,
-                    fecha: fecha,
-                    hora: hora,
-                    fechaHora: fechaHoraStr
+                    medico: cita.medico,
+                    especialidad: cita.especialidad,
+                    fecha: cita.fecha,
+                    hora: cita.hora,
+                    fechaHora: this.horaSeleccionada
                 });
                 localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
             }
 
-            // 3. Renderizar en pantalla de éxito (sin código)
-            document.getElementById('resumen-doctor-name').textContent = nombreMedico;
-            document.getElementById('resumen-doctor-specialty').textContent = especialidad;
-            document.getElementById('resumen-fecha').textContent = fechaHora;
-            document.getElementById('resumen-paciente').textContent = paciente;
-            // Ya no se usa resumen-codigo-cita, así que no lo asignamos
-
-            // 4. Limpieza de Sesión
-            sessionStorage.removeItem('reservaCita_preseleccion');
-            sessionStorage.removeItem('especialidad_seleccionada');
+            // Limpiar datos temporales y mostrar éxito
+            this._citaTemporal = null;
+            this.modoProxy = false;
             sessionStorage.removeItem('cita_modificacion');
+
+            // Llenar los elementos del paso 5
+            document.getElementById('resumen-doctor-name').textContent = cita.medico;
+            document.getElementById('resumen-doctor-specialty').textContent = cita.especialidad;
+            document.getElementById('resumen-fecha').textContent = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
+            document.getElementById('resumen-paciente').textContent = cita.paciente;
+
+
+            this.mostrarPaso(5);
+            sessionStorage.removeItem('_citaTemporal_respaldo');   // limpiar respaldo
+        },
+
+        // Reconstruir ocupadas a partir de sanitas_citas (evitar duplicados)
+        _reconstruirOcupadas() {
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            let nuevasOcupadas = [];
+            citasPublicas.forEach(c => {
+                if (c.estado !== 'Cancelada') {
+                    let d = new Date();
+                    if (c.fecha && c.fecha.includes('-')) {
+                        const [year, month, day] = c.fecha.split('-');
+                        d = new Date(year, month - 1, day);
+                    }
+                    const diaNombre = diasNombres[d.getDay()];
+                    const mesNombre = meses[d.getMonth()];
+                    const fechaHoraFormato = `${diaNombre} ${d.getDate()} de ${mesNombre}, ${c.hora}`;
+                    nuevasOcupadas.push({
+                        medico: c.medico,
+                        especialidad: c.especialidad,
+                        fecha: c.fecha,
+                        hora: c.hora,
+                        fechaHora: fechaHoraFormato
+                    });
+                }
+            });
+            localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(nuevasOcupadas));
+        },
+
+        // Activar modo proxy desde el resumen
+        activarProxyDesdeResumen() {
+            this.modoProxy = true;
+            // Limpiar los campos del Paso 3 y mostrarlo
+            ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.value = '';
+                    el.removeAttribute('readonly');
+                    el.style.borderColor = '#ccc';
+                }
+            });
+            const modMsg = document.getElementById('modificacion-msg');
+            if (modMsg) modMsg.remove();
+            // Reiniciar validadores
+            if (!this.validadoresIniciados) {
+                this.configurarValidadores();
+                this.validadoresIniciados = true;
+            } else {
+                this.actualizarEstadoBotonSiguiente();
+            }
+            this.mostrarPaso(3);
         },
 
         _generarTicketHTML(medico, especialidad, fechaHora, paciente) {
@@ -1946,20 +2101,21 @@ const app = {
         actualizarBarraProgreso() {
             const indicator = document.getElementById('citas-progress-indicator');
             const estaLogueado = localStorage.getItem('usuarioLogueado');
-
             let hitos = [];
             if (estaLogueado) {
                 hitos = [
                     { id: 0, label: 'Selección', steps: [0, 1] },
                     { id: 2, label: 'Cita', steps: [2] },
-                    { id: 4, label: 'Confirmación', steps: [4] }
+                    { id: 4, label: 'Revisión', steps: [4] },
+                    { id: 5, label: 'Confirmación', steps: [5] }
                 ];
             } else {
                 hitos = [
                     { id: 0, label: 'Selección', steps: [0, 1] },
                     { id: 2, label: 'Cita', steps: [2] },
                     { id: 3, label: 'Datos', steps: [3] },
-                    { id: 4, label: 'Confirmación', steps: [4] }
+                    { id: 4, label: 'Revisión', steps: [4] },
+                    { id: 5, label: 'Confirmación', steps: [5] }
                 ];
             }
 
@@ -1999,6 +2155,7 @@ const app = {
 
         diaSeleccionadoMobile: 0,   // 0 = Lunes, 1 = Martes, …, 5 = Sábado
         modoProxy: false,
+        _citaTemporal: null,
 
         // Mapeo de duración (minutos) por especialidad
         duracionesPorEspecialidad: {
@@ -2405,42 +2562,42 @@ const app = {
 
             // Funciones internas que generan los dos estados del modal
             const renderState1 = () => `
-        <div class="modal-content modal-colision-content" id="buffer-state-content">
-            <i class="fa-solid fa-clock fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
-            <h2 class="modal-colision-title">Horario no disponible</h2>
-            <p class="modal-colision-text">
-                No puedes tomar este horario. Tienes una cita previa en <strong>${detalleCitaPrevia}.</strong>
-                <br>Dicha consulta dura <strong>${duracionMin} minutos</strong> y por políticas del centro médico debes dejar un margen de <strong>30 minutos</strong> para traslados.
-                <br><br>Intenta un horario posterior a las <strong>${horaSugerida}</strong>.
-            </p>
-            <div class="modal-colision-actions">
-                <button id="btn-buffer-elegir-otro" class="btn btn--primary btn-full-width btn-margin-bottom">
-                    Elegir otro horario
-                </button>
-                <button id="btn-buffer-abandonar" class="btn btn--outline btn-full-width">
-                    Abandonar reserva
-                </button>
-            </div>
-        </div>
-    `;
+                <div class="modal-content modal-colision-content" id="buffer-state-content">
+                    <i class="fa-solid fa-clock fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+                    <h2 class="modal-colision-title">Horario no disponible</h2>
+                    <p class="modal-colision-text">
+                        No puedes tomar este horario. Tienes una cita previa en <strong>${detalleCitaPrevia}.</strong>
+                        <br>Dicha consulta dura <strong>${duracionMin} minutos</strong> y por políticas del centro médico debes dejar un margen de <strong>30 minutos</strong> para traslados.
+                        <br><br>Intenta un horario posterior a las <strong>${horaSugerida}</strong>.
+                    </p>
+                    <div class="modal-colision-actions">
+                        <button id="btn-buffer-elegir-otro" class="btn btn--primario btn-full-width btn-margin-bottom">
+                            Elegir otro horario
+                        </button>
+                        <button id="btn-buffer-abandonar" class="btn btn--secundario btn-full-width">
+                            Abandonar reserva
+                        </button>
+                    </div>
+                </div>
+            `;
 
             const renderState2 = () => `
-        <div class="modal-content modal-colision-content" id="buffer-state-content">
-            <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
-            <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
-            <p class="modal-colision-text" style="margin-bottom: 20px;">
-                ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos que ingresaste se borrarán. ¿Deseas continuar?
-            </p>
-            <div class="modal-colision-actions">
-                <button id="btn-buffer-no-volver" class="btn btn--primary btn-full-width btn-margin-bottom">
-                    No, volver
-                </button>
-                <button id="btn-buffer-si-salir" class="btn btn--danger btn-full-width" style="background-color: #e74c3c; border-color: #e74c3c; color: white;">
-                    Sí, salir y borrar datos
-                </button>
-            </div>
-        </div>
-    `;
+                <div class="modal-content modal-colision-content" id="buffer-state-content">
+                    <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+                    <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
+                    <p class="modal-colision-text" style="margin-bottom: 20px;">
+                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos que ingresaste se borrarán. ¿Deseas continuar?
+                    </p>
+                    <div class="modal-colision-actions">
+                        <button id="btn-buffer-no-volver" class="btn btn--primario btn-full-width btn-margin-bottom">
+                            No, volver
+                        </button>
+                        <button id="btn-buffer-si-salir" class="btn btn--peligro btn-full-width" style=" color: white;">
+                            Sí, salir y borrar datos
+                        </button>
+                    </div>
+                </div>
+            `;
 
             // Inyectar estado 1
             modal.innerHTML = renderState1();
@@ -2448,6 +2605,105 @@ const app = {
 
             // Asociar handlers del estado 1
             this._bindState1Handlers(modal, renderState1, renderState2);
+        },
+
+        _mostrarModalLimiteDiario(especialidad, fecha) {
+            let modal = document.getElementById('modal-limite-diario');
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = 'modal-limite-diario';
+            modal.className = 'modal-overlay';
+            modal.setAttribute('role', 'alertdialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.style.display = 'flex';
+
+            // ESTADO 1: Aviso de Límite Alcanzado
+            const renderState1 = () => `
+                <div class="modal-content modal-colision-content">
+                    <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+                    <h2 class="modal-colision-title">Límite diario alcanzado</h2>
+                    <p class="modal-colision-text">
+                        ⚠️ El paciente ya cuenta con una cita programada en <strong>${especialidad}</strong> para el <strong>${fecha}</strong>.
+                        Por políticas del centro médico, solo se permite una reserva por especialidad al día.
+                    </p>
+                    <div class="modal-colision-actions">
+                        <button id="btn-limite-entendido" class="btn btn--primario btn-full-width btn-margin-bottom">
+                            Entendido, elegir otro día
+                        </button>
+                        <button id="btn-limite-abandonar" class="btn btn--secundario btn-full-width">
+                            Abandonar reserva
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // ESTADO 2: Confirmación de Abandono (Prevención de Errores)
+            const renderState2 = () => `
+                <div class="modal-content modal-colision-content">
+                    <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+                    <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
+                    <p class="modal-colision-text" style="margin-bottom: 20px;">
+                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos ingresados se borrarán. ¿Deseas continuar?
+                    </p>
+                    <div class="modal-colision-actions">
+                        <button id="btn-limite-no-volver" class="btn btn--primario btn-full-width btn-margin-bottom">
+                            No, volver
+                        </button>
+                        <button id="btn-limite-si-salir" class="btn btn--peligro btn-full-width">
+                            Sí, salir y borrar datos
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.innerHTML = renderState1();
+            document.body.appendChild(modal);
+
+            // Controlador de Eventos Dinámicos
+            const bindEvents = () => {
+                // Acción 1: Volver al calendario
+                document.getElementById('btn-limite-entendido').addEventListener('click', () => {
+                    this._cerrarModalLimiteDiario();
+                    this._bloquearConfirmar();
+                    document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
+                        .forEach(el => el.classList.remove('time-slot--selected'));
+                    this.horaSeleccionada = null;
+                    this.mostrarPaso(2);
+                    this.generarCalendario();
+                });
+
+                // Acción 2: Intentar abandonar
+                const btnAbandonar = document.getElementById('btn-limite-abandonar');
+                if (btnAbandonar) {
+                    btnAbandonar.addEventListener('click', () => {
+                        modal.innerHTML = renderState2(); // Cambio de contexto en línea
+
+                        // Acción 2.1: Arrepentirse y volver al aviso
+                        document.getElementById('btn-limite-no-volver').addEventListener('click', () => {
+                            modal.innerHTML = renderState1();
+                            bindEvents(); // Re-atar eventos
+                        });
+
+                        // Acción 2.2: Confirmar abandono (Hard Reset)
+                        document.getElementById('btn-limite-si-salir').addEventListener('click', () => {
+                            ['reservaCita_preseleccion', 'especialidad_seleccionada', 'cita_modificacion', 'cita_hora_seleccionada', 'cita_fecha_iso', 'temp_datos_recuperacion'].forEach(key => sessionStorage.removeItem(key));
+                            ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
+                                const el = document.getElementById(id);
+                                if (el) { el.value = ''; el.style.borderColor = '#ccc'; }
+                            });
+                            this._cerrarModalLimiteDiario();
+                            app.navegar('home');
+                        });
+                    });
+                }
+            };
+
+            bindEvents();
+        },
+        _cerrarModalLimiteDiario() {
+            const modal = document.getElementById('modal-limite-diario');
+            if (modal) modal.remove();
         },
 
         // NUEVA FUNCIÓN AUXILIAR (colócala justo después de _mostrarModalBuffer)
@@ -2653,8 +2909,8 @@ const app = {
                     <img src="${imagenSrc}" alt="${nombreMed}" class="directory-card__img" tabindex="0">
                     <h3 class="directory-card__name">${nombreMed}</h3>
                     <p class="directory-card__specialty">${med.especialidad}</p>
-                    <button class="btn btn--outline-main directory-card__link" aria-label="Ver perfil de ${nombreMed}">Ver perfil y servicios</button>
-                    <button class="btn btn--action directory-card__btn" style="background-color: #FDAD34; border-color: #FDAD34; color: #fff; font-weight: bold;">
+                    <button class="btn btn--secundario-main directory-card__link" aria-label="Ver perfil de ${nombreMed}">Ver perfil y servicios</button>
+                    <button class="btn btn--primario directory-card__btn" style=" color: #fff; font-weight: bold;">
                         <i class="fa-regular fa-calendar-check" style="margin-right: 8px;"></i> Agendar Cita
                     </button>
                 `;

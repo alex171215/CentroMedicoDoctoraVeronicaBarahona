@@ -13,3 +13,11 @@ CUALQUIER modificación en la interfaz debe cumplir obligatoriamente con las sig
 * **Perceptibilidad (1.4.1):** Los errores de formulario NO deben depender solo del color. Deben incluir borde de error y mensaje textual inyectado dinámicamente debajo del campo.
 * **Operabilidad (Ley de Fitts):** TODO elemento interactivo (botones, enlaces, iconos clickeables) DEBE tener un área de impacto mínima de **44x44 píxeles** en móviles.
 * **Semántica y ARIA (4.1.2):** Uso estricto de HTML semántico (`<header>`, `<main>`, `<nav>`). Componentes dinámicos deben usar atributos ARIA (`role="alert"`, `aria-live="polite"`, `aria-modal="true"`, `aria-hidden="true"` para iconos decorativos).
+
+### Regla de Oro: Jerarquía y Semántica de Botones (Design System)
+Para mantener la consistencia visual (H4), PROHIBIDO usar estilos inline o colores hexadecimales sueltos para botones. Usa estrictamente estas clases:
+* `.btn--primario` (Fondo Turquesa, texto blanco): Acciones finales (Confirmar, Consultar).
+* `.btn--accion` (Fondo Naranja, texto blanco): Progresión (Siguiente, Iniciar Sesión).
+* `.btn--secundario` (Outline Turquesa, texto Turquesa): Acciones opcionales/secundarias (Descargar PDF, Imprimir).
+* `.btn--peligro` (Fondo rojo claro, texto rojo): Acciones destructivas (Cancelar).
+* `.enlace-accion` (Texto Turquesa, subrayado): Enlaces de texto puro sin padding de botón.

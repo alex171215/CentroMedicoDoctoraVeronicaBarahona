@@ -95,54 +95,60 @@ ul {
     border: none;
 }
 
-.btn--action {
-    background-color: var(--action-color);
-    color: var(--white);
-}
-
-.btn--action:hover {
-    background-color: #0b8f87;
-}
-
-.btn--accent {
-    background-color: var(--accent-color);
-    color: var(--white);
-}
-
-.btn--accent:hover {
-    background-color: #e59a2a;
-}
-
-.btn--outline-action {
-    border: 1px solid var(--action-color);
-    color: var(--action-color);
-    background: transparent;
-}
-
-.btn--outline-action:hover {
-    background-color: var(--action-color);
-    color: var(--white);
-}
-
-.btn--primary {
+.btn--primario {
     background-color: var(--action-color);
     color: var(--white);
     border: none;
 }
 
-.btn--primary:hover {
+.btn--primario:hover {
     background-color: #0b8f87;
 }
 
-.btn--outline {
+.btn--accion {
+    background-color: var(--accent-color);
+    color: var(--white);
+    border: none;
+}
+
+.btn--accion:hover {
+    background-color: #e59a2a;
+}
+
+.btn--secundario {
     background-color: transparent;
     color: var(--action-color);
     border: 2px solid var(--action-color);
 }
 
-.btn--outline:hover {
+.btn--secundario:hover {
     background-color: var(--action-color);
     color: var(--white);
+}
+
+.btn--peligro {
+    background-color: #ffcccc;
+    color: #cc0000;
+    border: none;
+}
+
+.btn--peligro:hover {
+    background-color: #ffb3b3;
+}
+
+.enlace-accion {
+    color: var(--action-color);
+    text-decoration: underline;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.enlace-accion:hover {
+    color: #0b8f87;
 }
 
 /* Utilidades para Modales (Limpieza de estilos inline) */
@@ -183,15 +189,6 @@ ul {
     margin-bottom: 5px;
 }
 
-.btn--danger {
-    background-color: #e74c3c;
-    color: var(--white);
-    border: none;
-}
-
-.btn--danger:hover {
-    background-color: #c0392b;
-}
 
 .btn--white {
     background-color: var(--white);
@@ -1276,30 +1273,6 @@ ul {
     color: #888;
     margin-bottom: 15px;
     text-transform: uppercase;
-}
-
-/* Rediseño de Botón Secundario (.btn--outline-main) para IHC */
-.btn--outline-main {
-    background-color: #3B49A3;
-    /* Solid background */
-    color: #FFFFFF;
-    border: none;
-    text-decoration: none;
-    font-weight: bold;
-    min-height: 44px;
-    min-width: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    padding: 10px 20px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.btn--outline-main:hover {
-    background-color: #2a3473;
-    color: #FFFFFF;
 }
 
 .directory-card__link {

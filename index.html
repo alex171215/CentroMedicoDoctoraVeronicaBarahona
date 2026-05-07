@@ -27,7 +27,7 @@
                 <div class="header__top-links">
                 </div>
                 <div class="header__top-buttons">
-                    <button id="btn-auth" class="btn btn--accent" aria-label="Iniciar Sesión">
+                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
                         <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
                     </button>
                 </div>
@@ -108,7 +108,7 @@
                             </div>
                         </div>
                         <a href="javascript:void(0)" onclick="app.agendarCitaGeneral()"
-                            class="btn btn--action hero__btn">AGENDAR CITA</a>
+                            class="btn btn--primario hero__btn">AGENDAR CITA</a>
                     </div>
                 </div>
 
@@ -123,7 +123,7 @@
                             <span class="hero__title-bold">ENCUENTRA TUS MEDICAMENTOS AQUÍ</span>
                         </h1>
                         <a href="javascript:void(0)" onclick="app.navegar('farmacia')"
-                            class="btn btn--action hero__btn">VER FARMACIA</a>
+                            class="btn btn--primario hero__btn">VER FARMACIA</a>
                     </div>
                 </div>
 
@@ -138,7 +138,7 @@
                             <span class="hero__title-bold">MÁS DE 10 ESPECIALIDADES A TU SERVICIO</span>
                         </h1>
                         <a href="javascript:void(0)" onclick="app.navegar('especialistas')"
-                            class="btn btn--action hero__btn">NUESTROS MÉDICOS</a>
+                            class="btn btn--primario hero__btn">NUESTROS MÉDICOS</a>
                     </div>
                 </div>
 
@@ -197,7 +197,7 @@
                             style="display:none;"></span>
                     </div>
                 </div>
-                <button type="button" id="btn-consultar-cita" class="btn btn--action widget-invitado__btn">
+                <button type="button" id="btn-consultar-cita" class="btn btn--primario widget-invitado__btn">
                     <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar
                 </button>
             </div>
@@ -215,9 +215,8 @@
                 </div>
                 <h3 id="modal-consulta-title" class="modal-consulta__title">Detalle de tu Cita</h3>
                 <!-- Contenedor dinámico: será inyectado por JS según cantidad de resultados -->
-                <div id="modal-consulta-body" class="modal-consulta__body" role="region"
-                    aria-live="polite"></div>
-                <button type="button" class="btn btn--action modal-consulta__close-btn"
+                <div id="modal-consulta-body" class="modal-consulta__body" role="region" aria-live="polite"></div>
+                <button type="button" class="btn btn--primario modal-consulta__close-btn"
                     onclick="app.widgetInvitado.cerrarModal()">Entendido</button>
             </div>
         </div>
@@ -306,8 +305,7 @@
              Vista Farmacia (SPA)
              =================================================== -->
         <section id="view-farmacia" class="view-section farmacia-view"
-            style="display: none; background-color: #FAFCFE; padding: 40px 0; min-height: 80vh;"
-            aria-labelledby="farmacia-heading">
+            style="display: none; background-padding: 40px 0; min-height: 80vh;" aria-labelledby="farmacia-heading">
 
             <div class="container">
 
@@ -355,7 +353,7 @@
 
                         <!-- Botón Cargar Más -->
                         <div style="text-align: center; margin-top: 40px; width: 100%;">
-                            <button id="btn-cargar-mas" class="btn btn--outline-main"
+                            <button id="btn-cargar-mas" class="btn btn--secundario-main"
                                 onclick="app.farmacia._cargarMas()"
                                 style="display: none; margin: 0 auto; min-width: 250px;">
                                 <i class="fa-solid fa-plus"></i> Ver más medicamentos
@@ -386,14 +384,14 @@
                             <!-- Se copia aquí la lista del sidebar -->
                         </div>
                         <div class="filtros-bottom-sheet__footer">
-                            <button class="btn btn--action" onclick="app.farmacia.cerrarModalFiltros()">Mostrar
+                            <button class="btn btn--primario" onclick="app.farmacia.cerrarModalFiltros()">Mostrar
                                 resultados</button>
                         </div>
                     </div>
                 </div>
 
                 <div style="text-align: center; margin-top: 40px; width: 100%;">
-                    <button id="btn-cargar-mas" class="btn btn--outline-main" onclick="app.farmacia._cargarMas()"
+                    <button id="btn-cargar-mas" class="btn btn--secundario-main" onclick="app.farmacia._cargarMas()"
                         style="display: none; margin: 0 auto; min-width: 250px;">
                         <i class="fa-solid fa-plus"></i> Ver más medicamentos
                     </button>
@@ -517,17 +515,18 @@
                                     style="display:none;"></span>
                             </div>
 
-                            <button type="button" class="btn btn--accent login-submit"
+                            <button type="button" class="btn btn--accion login-submit"
                                 onclick="app.registro.siguientePaso(1)">Siguiente</button>
 
                             <p class="reg-cancel-link">
-                                <span onclick="app.registro.cancelarRegistro()">Cancelar Registro</span>
+                                <span onclick="app.registro.cancelarRegistro()" class="enlace-accion">Cancelar
+                                    Registro</span>
                             </p>
 
                             <p class="login-register-link" style="margin-top:20px;">
                                 ¿Ya tienes cuenta?
                                 <a href="javascript:void(0)" onclick="app.registro.cancelarRegistro()"
-                                    class="login-register-link__a">Inicia sesión</a>
+                                    class="enlace-accion">Inicia sesión</a>
                             </p>
                         </div>
 
@@ -578,11 +577,12 @@
                                     style="display:none;"></span>
                             </div>
 
-                            <button type="button" class="btn btn--main login-submit"
+                            <button type="button" class="btn btn--accion login-submit"
                                 onclick="app.registro.siguientePaso(2)">Siguiente</button>
 
                             <p class="reg-cancel-link">
-                                <span onclick="app.registro.cancelarRegistro()">Cancelar Registro</span>
+                                <span onclick="app.registro.cancelarRegistro()" class="enlace-accion">Cancelar
+                                    Registro</span>
                             </p>
                         </div>
 
@@ -632,7 +632,7 @@
                                 Solicitar código nuevamente en <span id="reg-countdown">01:00</span>
                             </p>
 
-                            <button type="button" id="reg-validar-btn" class="btn btn--accent login-submit"
+                            <button type="button" id="reg-validar-btn" class="btn btn--accion login-submit"
                                 onclick="app.registro.validarCodigo()">Validar</button>
                         </div>
 
@@ -769,9 +769,9 @@
                     <img id="modal-med-img" src="" alt=""
                         style="width: 120px; height: 120px; object-fit: contain; border-radius: 8px; border: 3px solid #0DA99F; background: #f4f6f8;">
                 </div>
-                <h3 id="modal-med-title" style="color: #3B49A3; text-align: center; margin-bottom: 0;">Nombre
+                <h3 id="modal-med-title" style="text-align: center; margin-bottom: 0;">Nombre
                     comercial</h3>
-                <p id="modal-med-generic" style="text-align: center; color: #666; margin-bottom: 15px;">Genérico</p>
+                <p id="modal-med-generic" style="text-align: center; margin-bottom: 15px;">Genérico</p>
                 <div id="modal-med-body" style="font-size: 0.9rem; line-height: 1.6;">
                     <div class="salud-det__row"><span class="salud-det__label">Presentación</span><span
                             id="modal-med-presentacion" class="salud-det__val">—</span></div>
@@ -781,7 +781,7 @@
                             class="salud-det__val"></span></div>
                     <div id="modal-med-receta"
                         style="margin-top: 15px; padding: 8px 12px; background: #fef9e7; border-left: 4px solid #f39c12; display: none;">
-                        <span style="font-weight: 600; color: #c47f0a;">Requiere receta médica</span>
+                        <span style="font-weight: 600; ">Requiere receta médica</span>
                     </div>
                 </div>
             </div>
@@ -843,12 +843,12 @@
                             </div>
 
                             <!-- Botón Principal -->
-                            <button type="submit" id="login-submit-btn" class="btn btn--accent login-submit">
+                            <button type="submit" id="login-submit-btn" class="btn btn--accion login-submit">
                                 Iniciar sesión
                             </button>
 
                             <!-- Enlace de Registro -->
-                            <p class="login-register-link">¿No tienes cuenta? <span class="login-register-link__a"
+                            <p class="login-register-link">¿No tienes cuenta? <span class="enlace-accion"
                                     onclick="app.navegar('registro')">Regístrate</span></p>
 
                         </form>
@@ -860,12 +860,12 @@
 
         <!-- Vista Oculta de Especialistas (SPA) -->
         <section id="view-especialistas" class="view-section"
-            style="display: none; background-color: #FAFCFE; padding: 40px 0; min-height: 80vh;">
+            style="display: none; background-padding: 40px 0; min-height: 80vh;">
             <div class="container">
                 <!-- Barra de Búsqueda -->
                 <div class="directory-search" style="max-width: 600px; margin: 0 auto 40px auto; position: relative;">
                     <i class="fa-solid fa-magnifying-glass"
-                        style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #888; font-size: 1.2rem;"></i>
+                        style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 1.2rem;"></i>
                     <input type="text" id="buscador-especialistas"
                         placeholder="Busca por nombre de médico o especialidad..."
                         style="width: 100%; padding: 15px 15px 15px 45px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: border-color 0.3s;">
@@ -886,15 +886,15 @@
                     <div class="modal-header" style="text-align: center; margin-bottom: 20px;">
                         <img id="modal-doc-img" src="" alt="Foto del especialista"
                             style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 4px solid #0DA99F; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-                        <h3 id="modal-doc-name" style="color: #3B49A3; margin-bottom: 5px; font-size: 1.5rem;">Nombre
+                        <h3 id="modal-doc-name" style="margin-bottom: 5px; font-size: 1.5rem;">Nombre
                         </h3>
-                        <p id="modal-doc-specialty" style="color: #0DA99F; font-weight: bold; margin-bottom: 0;">
+                        <p id="modal-doc-specialty" style="font-weight: bold; margin-bottom: 0;">
                             Especialidad</p>
                     </div>
                     <div class="modal-body">
-                        <h4 style="margin-bottom: 15px; font-size: 1.1rem; color: #333;">Servicios y Actividades:</h4>
+                        <h4 style="margin-bottom: 15px; font-size: 1.1rem; ">Servicios y Actividades:</h4>
                         <ul id="modal-doc-activities" class="modal-activities-list"
-                            style="padding-left: 20px; line-height: 1.6; color: #555;">
+                            style="padding-left: 20px; line-height: 1.6; ">
                             <!-- Actividades inyectadas por JS -->
                         </ul>
                     </div>
@@ -914,7 +914,7 @@
             style="display:none; padding: 40px 0; min-height: 80vh; background: #FAFCFE;">
             <div class="container" style="max-width: 1100px; margin: 0 auto;">
                 <h2
-                    style="font-family: 'Montserrat', sans-serif; color: #3B49A3; font-size: 2rem; text-align: center; margin-bottom: 30px;">
+                    style="font-family: 'Montserrat', sans-serif; font-size: 2rem; text-align: center; margin-bottom: 30px;">
                     Contacto
                 </h2>
                 <div class="contacto-grid">
@@ -927,7 +927,7 @@
                                 <i class="fa-solid fa-clock"></i> Lun-Vie: 7:00 – 17:00 &nbsp;|&nbsp; Sáb: 8:00 – 13:00
                             </p>
                             <a href="https://maps.app.goo.gl/YwkDycizBWUpwCPo9" target="_blank" rel="noopener"
-                                class="btn btn--outline-action">
+                                class="btn btn--secundario">
                                 <i class="fa-solid fa-map-pin"></i> Cómo llegar
                             </a>
                         </div>
@@ -1039,14 +1039,15 @@
                             </div>
 
                             <!-- Botón Guardar -->
-                            <button type="button" class="btn btn--main login-submit"
+                            <button type="button" class="btn btn--accion login-submit"
                                 onclick="app.perfil.guardarCambios()">
                                 <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
                                 Guardar Cambios
                             </button>
 
                             <p class="reg-cancel-link">
-                                <span onclick="app.navegar('home'); app.perfil.abrirModal()">Cancelar</span>
+                                <span onclick="app.navegar('home'); app.perfil.abrirModal()"
+                                    class="enlace-accion">Cancelar</span>
                             </p>
                         </form>
 
@@ -1155,7 +1156,7 @@
 
         <!-- Vista Oculta de Citas (SPA) -->
         <section id="view-citas" class="view-section"
-            style="display: none; background-color: #FAFCFE; padding: 40px 0; min-height: 80vh;">
+            style="display: none; background-padding: 40px 0; min-height: 80vh;">
             <div class="container citas-container">
 
                 <!-- Indicador de Progreso Dinámico -->
@@ -1192,21 +1193,20 @@
                                         alt="Doctor"
                                         style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #e0f0f0;">
                                 </div>
-                                <h3 id="citas-doctor-name"
-                                    style="color: #3B49A3; text-align: center; margin-bottom: 5px;">
+                                <h3 id="citas-doctor-name" style="text-align: center; margin-bottom: 5px;">
                                     Dr. Nombre</h3>
                                 <p id="citas-doctor-specialty"
-                                    style="text-align: center; color: #555; font-weight: bold; margin-bottom: 15px; text-transform: uppercase;">
+                                    style="text-align: center; font-weight: bold; margin-bottom: 15px; text-transform: uppercase;">
                                     Especialidad</p>
 
                                 <div
-                                    style="font-size: 0.9rem; color: #666; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
-                                    <i class="fa-solid fa-location-dot" style="color: #0DA99F;"></i> <span>Centro Médico
+                                    style="font-size: 0.9rem; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
+                                    <i class="fa-solid fa-location-dot" style=""></i> <span>Centro Médico
                                         Dra. Verónica Barahona</span>
                                 </div>
                                 <div
-                                    style="font-size: 0.9rem; color: #666; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
-                                    <i class="fa-solid fa-money-bill-1-wave" style="color: #0DA99F;"></i>
+                                    style="font-size: 0.9rem; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; justify-content: center;">
+                                    <i class="fa-solid fa-money-bill-1-wave" style=""></i>
                                     <span>Consulta:
                                         $30.00</span>
                                 </div>
@@ -1215,7 +1215,7 @@
                             <!-- Panel Derecho: Calendario -->
                             <div class="citas-calendar-panel">
                                 <div class="citas-calendar-header"
-                                    style="background: #e0f0f0; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; font-weight: bold; color: #3B49A3; border-radius: 8px 8px 0 0;">
+                                    style="background: #e0f0f0; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; font-weight: bold; border-radius: 8px 8px 0 0;">
                                     <button onclick="app.citas.cambiarSemana(-1)" class="calendar-nav-btn"
                                         aria-label="Semana anterior" title="Semana anterior">
                                         <i class="fa-solid fa-chevron-left"></i>
@@ -1235,7 +1235,7 @@
                                         <i class="fa-solid fa-chevron-left"></i>
                                     </button>
                                     <span id="citas-day-label-mobile"
-                                        style="font-weight: bold; color: #3B49A3; font-size: 0.9rem;"></span>
+                                        style="font-weight: bold; font-size: 0.9rem;"></span>
                                     <button onclick="app.citas.cambiarDiaMobile(1)" class="calendar-nav-btn"
                                         aria-label="Día siguiente">
                                         <i class="fa-solid fa-chevron-right"></i>
@@ -1248,8 +1248,8 @@
                                 <div
                                     style="margin-top: 30px; text-align: right; border-top: 1px solid #eee; padding-top: 20px;">
                                     <button id="btn-confirmar-cita" onclick="app.citas.avanzarPaso()"
-                                        class="btn btn--action"
-                                        style="background-color: #0DA99F; border-color: #0DA99F; opacity: 0.5; pointer-events: none; font-weight: bold; transition: all 0.3s;">Confirmar
+                                        class="btn btn--primario"
+                                        style=" opacity: 0.5; pointer-events: none; font-weight: bold; transition: all 0.3s;">Confirmar
                                         Cita</button>
                                 </div>
                             </div>
@@ -1263,15 +1263,15 @@
                         </button>
                         <div class="citas-form-wrapper"
                             style="max-width: 600px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                            <h2 style="color: #3B49A3; margin-bottom: 30px; text-align: center; font-size: 1.2rem;">¿Ya
+                            <h2 style="margin-bottom: 30px; text-align: center; font-size: 1.2rem;">¿Ya
                                 registrado?
                                 <a href="javascript:void(0)" onclick="app.navegar('login')"
-                                    style="color: #0DA99F; text-decoration: none; cursor:pointer;">Acceder</a>
+                                    style="text-decoration: none; cursor:pointer;">Acceder</a>
                             </h2>
                             <div
-                                style="text-align: center; margin: 20px 0; color: #aaa; text-transform: uppercase; font-size: 0.9rem;">
+                                style="text-align: center; margin: 20px 0; text-transform: uppercase; font-size: 0.9rem;">
                                 O</div>
-                            <h3 style="color: #3B49A3; margin-bottom: 25px; font-size: 1.2rem;">¿Todavía no está
+                            <h3 style="margin-bottom: 25px; font-size: 1.2rem;">¿Todavía no está
                                 registrado?
                                 Rellene el siguiente formulario</h3>
 
@@ -1279,8 +1279,8 @@
                                 onsubmit="event.preventDefault(); app.citas.avanzarPaso();" novalidate>
                                 <div class="form-group" style="margin-bottom: 20px;">
                                     <label for="citas-nombres"
-                                        style="display: block; color: #0DA99F; font-weight: bold; margin-bottom: 8px;">Nombres
-                                        completos <span style="color: #0DA99F;">*</span></label>
+                                        style="display: block; font-weight: bold; margin-bottom: 8px;">Nombres
+                                        completos <span style="">*</span></label>
                                     <input type="text" id="citas-nombres" class="form-control" required
                                         placeholder="Ej. Juan Pérez"
                                         style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; outline: none; transition: border-color 0.3s;">
@@ -1291,8 +1291,8 @@
 
                                 <div class="form-group" style="margin-bottom: 20px;">
                                     <label for="citas-cedula"
-                                        style="display: block; color: #0DA99F; font-weight: bold; margin-bottom: 8px;">Cédula
-                                        <span style="color: #0DA99F;">*</span></label>
+                                        style="display: block; font-weight: bold; margin-bottom: 8px;">Cédula
+                                        <span style="">*</span></label>
                                     <input type="text" id="citas-cedula" class="form-control" required
                                         placeholder="Ej: 1715811293" maxlength="10"
                                         style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; outline: none; transition: border-color 0.3s;">
@@ -1305,8 +1305,8 @@
 
                                 <div class="form-group" style="margin-bottom: 30px;">
                                     <label for="citas-celular"
-                                        style="display: block; color: #0DA99F; font-weight: bold; margin-bottom: 8px;">Celular
-                                        <span style="color: #0DA99F;">*</span></label>
+                                        style="display: block; font-weight: bold; margin-bottom: 8px;">Celular
+                                        <span style="">*</span></label>
                                     <input type="tel" id="citas-celular" class="form-control" required
                                         placeholder="09xxxxxxx" maxlength="10"
                                         style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; outline: none; transition: border-color 0.3s;">
@@ -1316,26 +1316,55 @@
                                         10 dígitos numéricos.</span>
                                 </div>
 
-                                <button type="submit" id="btn-citas-siguiente" class="btn btn--action"
-                                    style="width: 100%; background-color: #FDAD34; border-color: #FDAD34; opacity: 0.5; pointer-events: none; padding: 15px; font-size: 1.1rem; font-weight: bold; transition: all 0.3s;">Siguiente</button>
+                                <button type="submit" id="btn-citas-siguiente" class="btn btn--accion"
+                                    style="width: 100%;  opacity: 0.5; pointer-events: none; padding: 15px; font-size: 1.1rem; font-weight: bold; transition: all 0.3s;">Siguiente</button>
                             </form>
                         </div>
                     </div>
 
-                    <!-- PASO 4: Confirmación -->
-                    <div id="citas-step-4" class="citas-step" style="display: none; text-align: center;">
+                    <!-- PASO 4: Revisión y Confirmación (NUEVO) -->
+                    <div id="citas-step-4" class="citas-step" style="display: none;">
+                        <button type="button" id="btn-back-review" class="btn-back-minimalist">
+                            <i class="fa-solid fa-arrow-left"></i> Volver a Agendar Cita
+                        </button>
+                        <div class="citas-form-wrapper"
+                            style="max-width: 600px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                            <h2 style="margin-bottom: 20px; text-align: center;">Resumen de la Cita</h2>
+
+                            <!-- Contenedor dinámico para los detalles -->
+                            <div id="review-summary-content" style="margin-bottom: 30px;"></div>
+
+                            <!-- Botón Proxy (solo visible si hay sesión y no es proxy) -->
+                            <div id="proxy-link-container"
+                                style="text-align: center; margin-bottom: 20px; display: none;">
+                                <span style="font-size: 0.95rem; ">¿La cita es para otra persona?</span>
+                                <a href="javascript:void(0)" onclick="app.citas.activarProxyDesdeResumen()"
+                                    class="enlace-accion" style="font-weight: 500; margin-left: 5px;">
+                                    <i class="fa-solid fa-user-plus"></i> Agendar para un familiar
+                                </a>
+                            </div>
+
+                            <!-- Botones -->
+                            <div style="display: flex; gap: 20px; justify-content: center;">
+                                <button type="button" id="btn-confirmar-cita-definitivo" class="btn btn--primario"
+                                    style=" opacity: 1; pointer-events: auto; padding: 15px 30px; font-size: 1.1rem; font-weight: bold;">
+                                    <i class="fa-solid fa-check-circle"></i> Confirmar Cita
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PASO 5: Confirmación (antes era Paso 4) -->
+                    <div id="citas-step-5" class="citas-step" style="display: none; text-align: center;">
                         <div
                             style="max-width: 600px; margin: 0 auto; background: #fff; padding: 50px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                            <i class="fa-regular fa-circle-check"
-                                style="font-size: 5rem; color: #0DA99F; margin-bottom: 20px;"></i>
-                            <h2 style="color: #3B49A3; margin-bottom: 15px;">Cita agendada con éxito. Su código de
-                                referencia es <span id="resumen-codigo-cita"
-                                    style="font-family: 'Montserrat', monospace; letter-spacing: 2px;"></span></h2>
+                            <i class="fa-regular fa-circle-check" style="font-size: 5rem; margin-bottom: 20px;"></i>
+                            <h2 style="color: #3B49A3; margin-bottom: 15px;">Cita agendada con éxito.</h2>
 
                             <div
                                 style="background: #FAFCFE; border: 1px solid #e0f0f0; border-radius: 8px; padding: 25px; margin-top: 10px; text-align: left;">
                                 <h3
-                                    style="color: #3B49A3; margin-bottom: 15px; border-bottom: 2px solid #0DA99F; display: inline-block; padding-bottom: 5px;">
+                                    style="margin-bottom: 15px; border-bottom: 2px solid #0DA99F; display: inline-block; padding-bottom: 5px;">
                                     Detalles de la Cita</h3>
                                 <p style="margin-bottom: 10px;"><strong>Médico:</strong> <span
                                         id="resumen-doctor-name"></span></p>
@@ -1348,15 +1377,13 @@
                             </div>
 
                             <div class="comprobante-botones">
-                                <button class="btn-comprobante btn-comprobante--volver" onclick="app.navegar('home')">
+                                <button class="btn btn--primario" onclick="app.navegar('home')">
                                     <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al Inicio
                                 </button>
-                                <button class="btn-comprobante btn-comprobante--pdf"
-                                    onclick="app.citas.descargarComprobantePDF()">
+                                <button class="btn btn--secundario" onclick="app.citas.descargarComprobantePDF()">
                                     <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
                                 </button>
-                                <button class="btn-comprobante btn-comprobante--imprimir"
-                                    onclick="app.citas.imprimirComprobante()">
+                                <button class="btn btn--secundario" onclick="app.citas.imprimirComprobante()">
                                     <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
                                 </button>
                             </div>
