@@ -2909,7 +2909,7 @@ const app = {
                     <img src="${imagenSrc}" alt="${nombreMed}" class="directory-card__img" tabindex="0">
                     <h3 class="directory-card__name">${nombreMed}</h3>
                     <p class="directory-card__specialty">${med.especialidad}</p>
-                    <button class="btn btn--secundario-main directory-card__link" aria-label="Ver perfil de ${nombreMed}">Ver perfil y servicios</button>
+                    <button class="btn btn--secundario directory-card__link" aria-label="Ver perfil de ${nombreMed}">Ver perfil y servicios</button>
                     <button class="btn btn--primario directory-card__btn" style=" color: #fff; font-weight: bold;">
                         <i class="fa-regular fa-calendar-check" style="margin-right: 8px;"></i> Agendar Cita
                     </button>
