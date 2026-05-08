@@ -55,6 +55,13 @@ const app = {
             }
         });
 
+        // ── Expiración de borrador al volver a la pestaña ──
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && app.registro) {
+                app.registro._verificarExpiracionBorrador();
+            }
+        });
+
         // 3. Carga Inicial (First Load)
         const hashInicial = window.location.hash.replace('#', '');
         if (hashInicial) {
@@ -301,20 +308,28 @@ const app = {
 
     navegar: function (vistaId, pushState = true, force = false) {
         console.log(`Navegando a la vista: ${vistaId}`);
-        // --- INSERCIÓN: Garbage Collector de Recuperación (Heurística de Seguridad) ---
-        if (vistaId !== 'citas') {
-            sessionStorage.removeItem('temp_datos_recuperacion');
-            if (app.citas) app.citas.modoProxy = false;      // ← AÑADIR
+
+        // ── NUEVO: Guardar origen cuando se va a login ──
+        if (vistaId === 'login') {
+            const vistaActual = this.currentView || window.location.hash.replace('#', '') || 'home';
+            sessionStorage.setItem('vista_origen', vistaActual);
+            // Si venía de citas, guardar paso actual y datos del formulario
+            if (vistaActual === 'citas' && app.citas) {
+                app.citas._guardarEstadoParaLogin();
+            }
         }
 
+        // --- Garbage Collector de Recuperación ---
+        if (vistaId !== 'citas') {
+            sessionStorage.removeItem('temp_datos_recuperacion');
+            if (app.citas) app.citas.modoProxy = false;
+        }
 
-        // 1. History API (Heurística #4: Estándares)
+        // 1. History API ...
         if (!force && pushState) {
-            // Previene recarga si ya existe el mismo estado
             if (window.location.hash === '#' + vistaId) return;
             history.pushState({ vista: vistaId }, '', '#' + vistaId);
         } else if (pushState) {
-            // Forzar siempre el pushState
             history.pushState({ vista: vistaId }, '', '#' + vistaId);
         }
 
@@ -429,6 +444,9 @@ const app = {
         }
         // Forzar el scroll hacia arriba al cambiar de vista
         window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // ── NUEVO: Actualizar vista actual ──
+        this.currentView = vistaId;
     },
 
     scrollAlFooter: function () {
@@ -704,6 +722,14 @@ const app = {
         },
 
         iniciarFlujo() {
+            // ── NUEVO: Restauración post‑login desde citas ──
+            const restoreStr = sessionStorage.getItem('citas_login_restore');
+            if (restoreStr) {
+                sessionStorage.removeItem('citas_login_restore');
+                this._restaurarEstadoPostLogin(restoreStr);
+                return;
+            }
+
             // Limpiar errores visuales y estado anterior
             document.querySelectorAll('#view-citas .error-msg').forEach(msg => msg.style.display = 'none');
             document.querySelectorAll('#view-citas .form-control').forEach(input => {
@@ -771,7 +797,7 @@ const app = {
 
                 this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url);
                 this.mostrarPaso(2); // Salta al calendario (2) guardando el historial correcto
-                this.generarCalendario();
+                this.generarCalendario(true);
             } else if (preEspecialidad) {
                 this.evaluarEspecialidad(preEspecialidad);
             } else {
@@ -796,7 +822,7 @@ const app = {
                 }));
                 this.prepararResumenMedico(med.doctor.nombre_completo, especialidad, med.imagen_url);
                 this.mostrarPaso(2);
-                this.generarCalendario();
+                this.generarCalendario(true);
             } else if (medicos.length > 1) {
                 this.mostrarPaso(1);
                 this.renderizarPasoDoctores(especialidad, medicos);
@@ -948,7 +974,7 @@ const app = {
             // Llamamos a la función que ya existe para actualizar la interfaz
             this.prepararResumenMedico(nombre, especialidad, img);
             this.mostrarPaso(2);
-            this.generarCalendario();
+            this.generarCalendario(true);
         },
 
         mostrarPaso(nuevoPaso) {
@@ -1517,6 +1543,98 @@ const app = {
             // Regresar al paso 2 si estaba en el 3
             if (this.pasoActual === 3) {
                 this.mostrarPaso(2);
+            }
+        },
+
+        _guardarEstadoParaLogin() {
+            const paso = this.pasoActual;
+            const data = { paso };
+            if (paso === 3) {
+                const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                const cel = document.getElementById('citas-celular')?.value.trim() || '';
+                data.formData = { nombres: nom, cedula: ced, celular: cel };
+            }
+            sessionStorage.setItem('citas_login_restore', JSON.stringify(data));
+        },
+
+        _restaurarEstadoPostLogin(restoreStr) {
+            let restoreData;
+            try { restoreData = JSON.parse(restoreStr); } catch (e) { return; }
+            const { paso, formData } = restoreData;
+
+            // Limpiar cualquier error visual
+            document.querySelectorAll('#view-citas .error-msg').forEach(msg => msg.style.display = 'none');
+
+            // Actualizar resumen del médico si es necesario
+            const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
+            const especialidad = sessionStorage.getItem('especialidad_seleccionada');
+            if (preCitaStr && especialidad) {
+                try {
+                    const preCita = JSON.parse(preCitaStr);
+                    if (preCita.medico) {
+                        this.prepararResumenMedico(preCita.medico, especialidad, preCita.imagen_url);
+                    }
+                } catch (e) { }
+            }
+
+            // Restaurar paso y limpiar historial
+            this.pasoActual = paso;
+            this.historialPasos = [];
+
+            if (paso === 2) {
+                this.generarCalendario();
+                // Re‑seleccionar la hora previamente elegida
+                const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada');
+                if (horaGuardada) {
+                    this.horaSeleccionada = horaGuardada;
+                    const fechaISO = sessionStorage.getItem('cita_fecha_iso');
+                    this._seleccionarSlotVisual(horaGuardada, fechaISO);
+                }
+                this.mostrarPaso(2);  // ← necesario porque generamos calendario sin cambiar paso
+            } else if (paso === 3) {
+                // ── Usuario ya está logueado: saltar directamente a Resumen (Paso 4) ──
+                if (!this.horaSeleccionada) {
+                    const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada');
+                    if (horaGuardada) this.horaSeleccionada = horaGuardada;
+                    const fechaISO = sessionStorage.getItem('cita_fecha_iso');
+                    if (fechaISO) this.fechaISOSeleccionada = fechaISO;
+                }
+                this.modoProxy = false;
+
+                if (this.horaSeleccionada) {
+                    this.prepararResumenFinal(true);  // esto llama internamente a mostrarPaso(4)
+                } else {
+                    this.generarCalendario();
+                    this.mostrarPaso(2);
+                }
+                // ⚠️ No se vuelve a llamar a mostrarPaso(paso) después de esta rama
+            } else {
+                // Para pasos 0, 1 o cualquier otro, simplemente se muestra el paso correspondiente
+                this.mostrarPaso(paso);
+            }
+        },
+
+        // Helper para encontrar y resaltar el slot visualmente
+        _seleccionarSlotVisual(horaLabel, fechaISO) {
+            const slots = document.querySelectorAll('#citas-calendar-grid .time-slot');
+            for (const slot of slots) {
+                const onclickAttr = slot.getAttribute('onclick');
+                if (onclickAttr) {
+                    // El formato del onclick es: app.citas.seleccionarHora(this, '${label}', '${fechaISO}')
+                    const match = onclickAttr.match(/seleccionarHora\(this,\s*'([^']+)',\s*'([^']*)'\)/);
+                    if (match && match[1] === horaLabel) {
+                        slot.classList.add('time-slot--selected');
+                        // Actualizar el botón de confirmación
+                        const btnConfirmar = document.getElementById('btn-confirmar-cita');
+                        if (btnConfirmar) {
+                            btnConfirmar.style.opacity = '1';
+                            btnConfirmar.style.pointerEvents = 'auto';
+                            btnConfirmar.disabled = false;
+                        }
+                        break;
+                    }
+                }
             }
         },
 
@@ -2173,9 +2291,47 @@ const app = {
             return this.duracionesPorEspecialidad[esp] || 30; // 30 min por defecto
         },
 
-        generarCalendario() {
+        _obtenerSlotsDia(diaDate, doctorSettings) {
+            const { diasLaborables, horaInicio, horaFin, horaFinSabado, duracion } = doctorSettings;
+            const diaSemanaIdx = diaDate.getDay(); // 0=Domingo..6=Sábado
+            const diaLaboralNum = diaSemanaIdx === 0 ? 7 : diaSemanaIdx; // 1=Lunes..7=Domingo
+            if (!diasLaborables.includes(diaLaboralNum)) return [];
+
+            const esSabado = (diaSemanaIdx === 6);
+            const [hI, mI] = horaInicio.split(':').map(Number);
+            const [hF, mF] = (esSabado ? horaFinSabado : horaFin).split(':').map(Number);
+            const ahora = new Date();
+            const hoyStr = new Date().toDateString();
+            const esPasado = diaDate < new Date(hoyStr);
+
+            const slots = [];
+            for (let m = hI * 60 + mI; m <= hF * 60 + mF; m += duracion) {
+                const hh = Math.floor(m / 60);
+                const mm = m % 60;
+                const horaStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+                const slotDate = new Date(diaDate);
+                slotDate.setHours(hh, mm, 0, 0);
+                const yaPaso = esPasado || slotDate <= ahora;
+
+                // Construir el mismo label y fechaISO que usa el código actual
+                const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                const label = `${diasNombres[diaSemanaIdx]} ${diaDate.getDate()} de ${meses[diaDate.getMonth()]}, ${horaStr}`;
+                const fechaISO = `${diaDate.getFullYear()}-${String(diaDate.getMonth() + 1).padStart(2, '0')}-${String(diaDate.getDate()).padStart(2, '0')}`;
+
+                const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
+                const medicoActual = document.getElementById('citas-doctor-name')?.textContent || '';
+                const estaOcupada = ocupadas.some(cita => cita.medico === medicoActual && cita.fechaHora === label);
+
+                slots.push({ horaStr, label, fechaISO, yaPaso, estaOcupada });
+            }
+            return slots;
+        },
+
+        generarCalendario(autoSeek = false) {
             const grid = document.getElementById('citas-calendar-grid');
             if (!grid) return;
+
 
             // Obtener datos del médico seleccionado
             const doc = this._doctorActual;
@@ -2200,7 +2356,7 @@ const app = {
             const hoy = new Date(this.fechaBaseCalendario);
             const diaSemana = hoy.getDay();
             const diffAlLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
-            const lunes = new Date(hoy);
+            let lunes = new Date(hoy);
             lunes.setDate(hoy.getDate() + diffAlLunes);
             lunes.setHours(0, 0, 0, 0);
 
@@ -2213,8 +2369,39 @@ const app = {
             let html = '';
 
             const esMobile = window.innerWidth <= 640;
-            const diaActivo = this.diaSeleccionadoMobile;
             const labelDiaMobile = document.getElementById('citas-day-label-mobile');
+            // ── Smart Default: avanzar automáticamente al primer día con horarios ──
+            if (autoSeek && esMobile && doc) {
+                const settings = { duracion, diasLaborables, horaInicio, horaFin, horaFinSabado };
+                let diaActual = new Date(lunes);
+                diaActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
+                let contador = 0;
+                while (contador < 30) {
+                    const slots = this._obtenerSlotsDia(diaActual, settings);
+                    const disponibles = slots.filter(s => !s.yaPaso && !s.estaOcupada);
+                    if (disponibles.length > 0) break;
+                    // avanzar un día
+                    diaActual.setDate(diaActual.getDate() + 1);
+                    // recalcular lunes y día de la semana
+                    const dSem = diaActual.getDay();
+                    const diff = dSem === 0 ? -6 : 1 - dSem;
+                    lunes = new Date(diaActual);
+                    lunes.setDate(diaActual.getDate() + diff);
+                    this.fechaBaseCalendario = new Date(lunes);
+                    this.diaSeleccionadoMobile = Math.round((diaActual - lunes) / 86400000);
+                    contador++;
+                }
+                // Si no encontró, se queda en el último día (mostrará empty state)
+                // Actualizar la etiqueta del mes ya que lunes pudo cambiar
+                if (labelMes) labelMes.textContent = `${meses[lunes.getMonth()]} ${lunes.getFullYear()}`;
+                // También actualizar label dia móvil si procede
+                const diaSelect = new Date(lunes);
+                diaSelect.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
+                const nombreDia = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][diaSelect.getDay()];
+                if (labelDiaMobile) labelDiaMobile.textContent = `${nombreDia} ${diaSelect.getDate()} de ${meses[diaSelect.getMonth()]}`;
+            }
+
+            const diaActivo = this.diaSeleccionadoMobile;
             if (labelDiaMobile && esMobile) {
                 const diaSelect = new Date(lunes);
                 diaSelect.setDate(lunes.getDate() + diaActivo);
@@ -2238,6 +2425,9 @@ const app = {
                         continue;
                     }
 
+                    // Verificar si el día tiene al menos un slot disponible (para decidir empty state)
+                    const slotsDia = this._obtenerSlotsDia(dia, { diasLaborables, horaInicio, horaFin, horaFinSabado, duracion });
+                    const slotsDisponibles = slotsDia.filter(s => !s.yaPaso && !s.estaOcupada);
                     const esSabado = (i === 5);
                     const esPasado = dia < ahora && dia.toDateString() !== ahora.toDateString();
                     const diaNum = dia.getDate();
@@ -2245,47 +2435,65 @@ const app = {
                     const esHoy = dia.toDateString() === ahora.toDateString();
                     const headerClass = esHoy ? 'calendar-day-header calendar-day-header--today' : 'calendar-day-header';
 
-                    html += `<div class="calendar-day${esPasado ? ' calendar-day--past' : ''}">`;
-                    html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
-                    html += `<div class="calendar-slots">`;
-
-                    if (esPasado) {
-                        html += `<span class="time-slot time-slot--unavailable">No disponible</span>`;
-                    } else {
-                        const [hI, mI] = horaInicio.split(':').map(Number);
-                        const inicioMin = hI * 60 + mI;
-                        const [hF, mF] = (esSabado ? horaFinSabado : horaFin).split(':').map(Number);
-                        const corteMin = hF * 60 + mF;
-
-                        let slotCount = 0;
-                        const maxSlots = 10; // ampliamos un poco para evitar recortes
-                        for (let m = inicioMin; m <= corteMin; m += duracion) {
-                            if (slotCount >= maxSlots) break;
-
-                            const hh = Math.floor(m / 60);
-                            const mm = m % 60;
-                            const horaStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-                            const slotDate = new Date(dia);
-                            slotDate.setHours(hh, mm, 0, 0);
-                            const yaPaso = slotDate <= ahora;
-
-                            const label = `${diasNombres[i]} ${diaNum} de ${mesCorto}, ${horaStr}`;
-                            const fechaISO = `${dia.getFullYear()}-${String(dia.getMonth() + 1).padStart(2, '0')}-${String(dia.getDate()).padStart(2, '0')}`;
-
-                            const medicoActual = document.getElementById('citas-doctor-name')?.textContent || '';
-                            const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
-                            const estaOcupada = ocupadas.some(cita => cita.medico === medicoActual && cita.fechaHora === label);
-
-                            // También marcar como bloqueado si viola el buffer personal (se verá al seleccionar, pero visualmente no podemos anticipar)
-                            if (yaPaso || estaOcupada) {
-                                html += `<button class="time-slot time-slot--past" disabled>${horaStr}</button>`;
-                            } else {
-                                html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}', '${fechaISO}')">${horaStr}</button>`;
-                            }
-                            slotCount++;
+                    if (!esPasado && slotsDisponibles.length === 0) {
+                        // Estado vacío minimalista
+                        html += `<div class="calendar-day">`;
+                        if (!esMobile) {   // ← SÓLO SE MUESTRA LA CABECERA EN ESCRITORIO
+                            html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
                         }
+                        html += `<div class="calendar-slots calendar-slots--empty">`;
+                        html += `<p style="text-align:center; padding:20px; color: var(--gray-text);">
+                <i class="fa-regular fa-calendar-xmark" style="font-size:1.5rem; display:block; margin-bottom:8px;"></i>
+                No hay horarios disponibles para este día.
+            </p>`;
+                        if (esMobile) {
+                            html += `<button class="btn btn--primario" style="margin:0 auto; display:block;" onclick="app.citas.irAlProximoDiaDisponible()">
+                    Ir al próximo día disponible
+                </button>`;
+                        }
+                        html += `</div></div>`;
+                    } else {
+                        // Renderizado normal (código que ya tenías antes)
+                        html += `<div class="calendar-day${esPasado ? ' calendar-day--past' : ''}">`;
+                        html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
+                        html += `<div class="calendar-slots">`;
+
+                        if (esPasado) {
+                            html += `<span class="time-slot time-slot--unavailable">No disponible</span>`;
+                        } else {
+                            const [hI, mI] = horaInicio.split(':').map(Number);
+                            const inicioMin = hI * 60 + mI;
+                            const [hF, mF] = (esSabado ? horaFinSabado : horaFin).split(':').map(Number);
+                            const corteMin = hF * 60 + mF;
+
+                            let slotCount = 0;
+                            const maxSlots = 10;
+                            for (let m = inicioMin; m <= corteMin; m += duracion) {
+                                if (slotCount >= maxSlots) break;
+                                const hh = Math.floor(m / 60);
+                                const mm = m % 60;
+                                const horaStr = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+                                const slotDate = new Date(dia);
+                                slotDate.setHours(hh, mm, 0, 0);
+                                const yaPaso = slotDate <= ahora;
+
+                                const label = `${diasNombres[i]} ${diaNum} de ${mesCorto}, ${horaStr}`;
+                                const fechaISO = `${dia.getFullYear()}-${String(dia.getMonth() + 1).padStart(2, '0')}-${String(dia.getDate()).padStart(2, '0')}`;
+
+                                const medicoActual = document.getElementById('citas-doctor-name')?.textContent || '';
+                                const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
+                                const estaOcupada = ocupadas.some(cita => cita.medico === medicoActual && cita.fechaHora === label);
+
+                                if (yaPaso || estaOcupada) {
+                                    html += `<button class="time-slot time-slot--past" disabled>${horaStr}</button>`;
+                                } else {
+                                    html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}', '${fechaISO}')">${horaStr}</button>`;
+                                }
+                                slotCount++;
+                            }
+                        }
+                        html += `</div></div>`;
                     }
-                    html += `</div></div>`;
                 }
             }
 
@@ -2311,6 +2519,51 @@ const app = {
                 this.diaSeleccionadoMobile = 0; // lunes de la semana siguiente
             }
             this.generarCalendario();
+        },
+
+        irAlProximoDiaDisponible() {
+            const doc = this._doctorActual;
+            if (!doc) return;
+            const settings = {
+                duracion: doc.duracion_minutos || 30,
+                diasLaborables: (doc.horarios_atencion && doc.horarios_atencion.dias) ? doc.horarios_atencion.dias : [1, 2, 3, 4, 5, 6],
+                horaInicio: (doc.horarios_atencion && doc.horarios_atencion.hora_inicio) || '07:00',
+                horaFin: (doc.horarios_atencion && doc.horarios_atencion.hora_fin) || '16:30',
+                horaFinSabado: (doc.horarios_atencion && doc.horarios_atencion.hora_fin_sabado) || '12:30'
+            };
+
+            // Día actual que está seleccionado en móvil
+            const hoy = new Date(this.fechaBaseCalendario);
+            const diaSemana = hoy.getDay();
+            const diffAlLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+            let lunes = new Date(hoy);
+            lunes.setDate(hoy.getDate() + diffAlLunes);
+            let diaActual = new Date(lunes);
+            diaActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
+
+            let encontrado = false;
+            for (let intento = 0; intento < 30; intento++) {
+                diaActual.setDate(diaActual.getDate() + 1); // siguiente día
+
+                // Recalcular en qué semana y día de la semana cae
+                const dSem = diaActual.getDay();
+                const diff = dSem === 0 ? -6 : 1 - dSem;
+                let lunesSemana = new Date(diaActual);
+                lunesSemana.setDate(diaActual.getDate() + diff);
+                this.fechaBaseCalendario = new Date(lunesSemana);
+                const diffDias = Math.round((diaActual - lunesSemana) / 86400000);
+                if (diffDias >= 0 && diffDias <= 5) {
+                    this.diaSeleccionadoMobile = diffDias;
+                    const slots = this._obtenerSlotsDia(new Date(diaActual), settings);
+                    const disponibles = slots.filter(s => !s.yaPaso && !s.estaOcupada);
+                    if (disponibles.length > 0) {
+                        encontrado = true;
+                        break;
+                    }
+                }
+            }
+            // Renderizar con el nuevo día (incluso si no encontró, mostrará empty state)
+            this.generarCalendario(false);
         },
 
         seleccionarHora(boton, label, fechaISO) {
@@ -3497,20 +3750,26 @@ const app = {
 
             // Bypass temporal de prototipo: Permitir login con un usuario por defecto si no hay base de datos
             if (usuarioEncontrado || (identificacion === "1715811293" && password === "admin")) {
+                // ── NUEVO: Limpiar formulario antes de salir ──
+                this.resetearFormulario();
                 localStorage.setItem('usuarioLogueado', 'true');
                 localStorage.setItem('usuarioActivo', JSON.stringify(usuarioEncontrado || { nombres: "Usuario de Prueba", identificacion: identificacion }));
 
                 app.iniciarSesionUsuario(); // Actualiza el botón del header
 
                 // DECISIÓN ÚNICA: ¿viene de un flujo de agendamiento?
-                const citaEnCurso = sessionStorage.getItem('reservaCita_preseleccion');
-                const especialidadEnCurso = sessionStorage.getItem('especialidad_seleccionada');
+                // ── Redirección basada en vista de origen ──
+                const vistaOrigen = sessionStorage.getItem('vista_origen');
+                sessionStorage.removeItem('vista_origen');   // Limpiar para no contaminar
 
-                if (citaEnCurso || especialidadEnCurso) {
-                    sessionStorage.setItem('cita_desde_login', 'true');
+                if (!vistaOrigen || vistaOrigen === 'registro') {
+                    app.navegar('home');
+                } else if (vistaOrigen === 'citas') {
+                    // Los datos de citas ya fueron guardados antes de navegar a login,
+                    // y serán restaurados por iniciarFlujo al detectar 'citas_login_restore'
                     app.navegar('citas');
                 } else {
-                    app.navegar('mi-salud');   // ← antes decía 'home'
+                    app.navegar(vistaOrigen);   // 'especialistas', 'farmacia', 'home', etc.
                 }
             } else {
                 this._mostrarError('login-password', 'Usuario o contraseña incorrectos.');
@@ -3593,8 +3852,106 @@ const app = {
                 }
             });
 
+            // ── Restaurar borrador si existe ──
+            this._cargarBorrador();
+
+            // ── Auto-guardado en cada cambio ──
+            const contenedorRegistro = document.getElementById('view-registro');
+            if (contenedorRegistro) {
+                contenedorRegistro.addEventListener('input', () => this._guardarBorrador());
+                contenedorRegistro.addEventListener('change', () => this._guardarBorrador()); // para selects y date
+            }
             // Reiniciar al paso 1
             this._irAPaso(1);
+        },
+
+        // Guarda todos los campos visibles y ocultos del registro en sessionStorage
+        _guardarBorrador() {
+            const campos = [
+                'reg-tipo-doc', 'reg-identificacion',
+                'reg-nombre1', 'reg-nombre2',
+                'reg-apellido1', 'reg-apellido2',
+                'reg-fecha-nac',
+                'reg-sexo',
+                'reg-celular', 'reg-fijo',
+                'reg-email', 'reg-password',
+                'reg-codigo'
+            ];
+            const borrador = {};
+            campos.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) borrador[id] = el.value;
+            });
+            borrador._tipoDoc = this._tipoDoc;
+            borrador._sexo = this._sexo;
+            borrador.timestamp = Date.now();   // ← AÑADE ESTA LÍNEA
+            sessionStorage.setItem('sanitas_borrador_registro', JSON.stringify(borrador));
+        },
+
+        // Carga el borrador y lo aplica a los inputs
+        _cargarBorrador() {
+            this._verificarExpiracionBorrador();   // ← NUEVA LLAMADA
+            const raw = sessionStorage.getItem('sanitas_borrador_registro');
+            if (!raw) return;
+            let borrador;
+            try { borrador = JSON.parse(raw); } catch (e) { return; }
+
+            Object.keys(borrador).forEach(id => {
+                if (id.startsWith('_')) return; // propiedades internas
+                const el = document.getElementById(id);
+                if (el) el.value = borrador[id] || '';
+            });
+
+            // Restaurar estado interno
+            if (borrador._tipoDoc) this._tipoDoc = borrador._tipoDoc;
+            if (borrador._sexo) this._sexo = borrador._sexo;
+
+            // Si se restauró tipoDoc, actualizar el placeholder de identificación
+            if (this._tipoDoc) {
+                const identInput = document.getElementById('reg-identificacion');
+                if (identInput) {
+                    identInput.placeholder = this._tipoDoc === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
+                    identInput.maxLength = this._tipoDoc === 'Cédula' ? 10 : 13;
+                }
+            }
+        },
+
+        // Verifica si el borrador ha expirado (>3 min) y lo elimina limpiando además los inputs
+        _verificarExpiracionBorrador() {
+            const raw = sessionStorage.getItem('sanitas_borrador_registro');
+            if (!raw) return;
+            let data;
+            try { data = JSON.parse(raw); } catch (e) { return; }
+
+            // Si no tiene timestamp o ya expiró (>3 min)
+            if (!data.timestamp || (Date.now() - data.timestamp > 3 * 60 * 1000)) {
+                sessionStorage.removeItem('sanitas_borrador_registro');
+
+                // Limpiar todos los campos de texto y desmarcar radios
+                const campos = [
+                    'reg-tipo-doc', 'reg-identificacion',
+                    'reg-nombre1', 'reg-nombre2',
+                    'reg-apellido1', 'reg-apellido2',
+                    'reg-fecha-nac',
+                    'reg-sexo',
+                    'reg-celular', 'reg-fijo',
+                    'reg-email', 'reg-password',
+                    'reg-codigo'
+                ];
+                campos.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+
+                // Desmarcar los radio buttons de los modales
+                document.querySelectorAll('.reg-modal-overlay input[type="radio"]').forEach(r => {
+                    r.checked = false;
+                });
+
+                // Restablecer estados internos
+                this._tipoDoc = '';
+                this._sexo = '';
+            }
         },
 
         // ------------------------------------------------------------------
@@ -3949,7 +4306,27 @@ const app = {
 
             clearInterval(this._countdownInterval);
             app.iniciarSesionUsuario();
+            // Limpiar borrador
+            sessionStorage.removeItem('sanitas_borrador_registro');
+            // Limpiar campos visualmente para evitar residuos de datos
+            const campos = [
+                'reg-tipo-doc', 'reg-identificacion',
+                'reg-nombre1', 'reg-nombre2',
+                'reg-apellido1', 'reg-apellido2',
+                'reg-fecha-nac',
+                'reg-sexo',
+                'reg-celular', 'reg-fijo',
+                'reg-email', 'reg-password',
+                'reg-codigo'
+            ];
+            campos.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            this._tipoDoc = '';
+            this._sexo = '';
             app.navegar('home');
+
         },
 
         // ------------------------------------------------------------------
@@ -4071,6 +4448,9 @@ const app = {
             this._sexo = '';
             this._pasoActual = 1;
             clearInterval(this._countdownInterval);
+
+            // Limpiar borrador
+            sessionStorage.removeItem('sanitas_borrador_registro');
 
             // 5. Redirigir al login
             app.navegar('login');
@@ -4426,6 +4806,32 @@ const app = {
                 ]
             }
         ],
+
+        _parsearFechaHoraCita(cita) {
+            try {
+                const hora = cita.hora || '00:00';
+                let fechaDate = null;
+                // caso 1: formato ISO YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}$/.test(cita.fecha)) {
+                    fechaDate = new Date(cita.fecha + 'T' + hora);
+                } else {
+                    // caso 2: "Martes 26 de Mayo, 07:30" o similar
+                    const match = cita.fecha.match(/(\d{1,2})\s+de\s+(\w+)/i);
+                    if (match) {
+                        const dia = parseInt(match[1], 10);
+                        const mesStr = match[2].toLowerCase();
+                        const meses = { enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5, julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11 };
+                        if (meses[mesStr] !== undefined) {
+                            const [h, m] = hora.split(':').map(Number);
+                            fechaDate = new Date(new Date().getFullYear(), meses[mesStr], dia, h, m, 0);
+                        }
+                    }
+                }
+                return fechaDate && !isNaN(fechaDate) ? fechaDate : null;
+            } catch (_) {
+                return null;
+            }
+        },
         // ------------------------------------------------------------------
         // 12.1 Inicializar: cargar datos y mostrar estado inicial
         // ------------------------------------------------------------------
@@ -4514,18 +4920,17 @@ const app = {
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
 
+            const ahora = new Date();
             const filtradas = this._citas.filter(c => {
-                // Las canceladas van siempre a "anteriores"
                 if (c.estado === 'Cancelada') {
                     return filtro === 'anteriores';
                 }
+                const fechaCita = this._parsearFechaHoraCita(c);
                 let esProxima = true;
-                // Verificar si es formato YYYY-MM-DD (Datos Demo)
-                if (/^\d{4}-\d{2}-\d{2}$/.test(c.fecha)) {
-                    const fechaCita = new Date(c.fecha + 'T00:00:00');
-                    esProxima = fechaCita >= hoy;
+                if (fechaCita) {
+                    esProxima = fechaCita >= ahora;
                 } else {
-                    // Es cita generada por la UI (ej. "LUN 27 Abr, 07:40")
+                    // fallback si no se puede interpretar fecha+hora
                     esProxima = (c.estado === 'Próxima');
                 }
                 return filtro === 'proximas' ? esProxima : !esProxima;
