@@ -88,7 +88,10 @@ const app = {
         const maxNac = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
         const hace18Anios = maxNac.toISOString().split('T')[0];
 
-        return { hoy: fechaHoy, en2Meses, hace90Anios, hace18Anios };
+        const max60 = new Date(hoy.getFullYear() - 60, hoy.getMonth(), hoy.getDate());
+        const hace60Anios = max60.toISOString().split('T')[0];
+
+        return { hoy: fechaHoy, en2Meses, hace90Anios, hace18Anios, hace60Anios };
     },
 
     _aplicarLimitesFechaGlobal() {
@@ -3033,6 +3036,60 @@ const app = {
     },
 
     // ======================================================================
+    // 0. UTILIDADES TRANSVERSALES (Validación Cédula, Restricción Edad)
+    // ======================================================================
+    utilidades: {
+        /**
+         * Algoritmo oficial del Módulo 10 para cédulas ecuatorianas.
+         * Acepta 10 dígitos o 13 (RUC persona natural – valida primeros 10).
+         * @param {string} cedula
+         * @returns {boolean}
+         */
+        validarCedulaEcuatoriana(cedula) {
+            if (!cedula) return false;
+            const digitos = cedula.replace(/\D/g, '');
+            if (digitos.length !== 10 && digitos.length !== 13) return false;
+
+            // Si es RUC 13 dígitos, los últimos 3 deben ser 001 (persona natural)
+            if (digitos.length === 13 && digitos.substring(10) !== '001') return false;
+
+            const base = digitos.substring(0, 10);
+            const digitoRegion = parseInt(base.substring(0, 2), 10);
+            if (digitoRegion < 1 || digitoRegion > 24) return false;
+
+            const tercerDigito = parseInt(base.charAt(2), 10);
+            if (tercerDigito >= 6) return false;
+
+            const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+            let suma = 0;
+            for (let i = 0; i < 9; i++) {
+                let valor = parseInt(base.charAt(i), 10) * coeficientes[i];
+                if (valor >= 10) valor -= 9;
+                suma += valor;
+            }
+            const digitoVerificador = suma % 10 === 0 ? 0 : 10 - (suma % 10);
+            return digitoVerificador === parseInt(base.charAt(9), 10);
+        },
+
+        /**
+         * Restringe un input type="date" a un rango de edad entre 18 y 60 años.
+         * @param {string} inputId - id del elemento <input type="date">
+         */
+        aplicarRestriccionEdad(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            const hoy = new Date();
+            const maxDate = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
+            const minDate = new Date(hoy.getFullYear() - 60, hoy.getMonth(), hoy.getDate());
+
+            const format = d => d.toISOString().split('T')[0];
+            input.setAttribute('min', format(minDate));
+            input.setAttribute('max', format(maxDate));
+        }
+    },
+
+    // ======================================================================
     // 7. DIRECTORIO DE ESPECIALISTAS (Búsqueda y Modal)
     // ======================================================================
     directorio: {
@@ -3657,10 +3714,36 @@ const app = {
         inicializar() {
             const inputCedula = document.getElementById('login-cedula');
             if (inputCedula) {
-                // Heurística de Prevención de errores: Bloquear caracteres especiales y forzar mayúsculas
+                // Solo dígitos, sin convertir a mayúsculas
                 inputCedula.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '');
                 });
+            }
+
+            // ── Prevenir envío por Enter en campos de login ──
+            ['login-cedula', 'login-password'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();               // evita cualquier acción por defecto
+                            // Opcional: hacer clic en el botón de login automáticamente
+                            // document.getElementById('login-submit-btn').click();
+                        }
+                    });
+                }
+            });
+
+            // ── NUEVO: Asociar botón de login ──
+            const submitBtn = document.getElementById('login-submit-btn');
+            if (submitBtn) {
+                submitBtn.addEventListener('click', (e) => this.enviar(e));
+            }
+
+            // ── Prevenir recarga del formulario oculto ──
+            const hiddenForm = document.getElementById('hidden-login-form');
+            if (hiddenForm) {
+                hiddenForm.addEventListener('submit', (e) => e.preventDefault());
             }
         },
 
@@ -3670,9 +3753,11 @@ const app = {
             const inputPassword = document.getElementById('login-password');
 
             if (inputCedula) inputCedula.value = '';
+
             if (inputPassword) {
+                // Previene que el navegador lea el cambio como un “valor de contraseña”
+                inputPassword.type = 'text';
                 inputPassword.value = '';
-                // Importante: Devolver el tipo a 'password' por si estaba en 'text'
                 inputPassword.type = 'password';
             }
 
@@ -3723,17 +3808,23 @@ const app = {
             this._limpiarError('login-cedula');
             this._limpiarError('login-password');
 
-            // 1. Validación de Longitud (Cédula o Pasaporte)
-            if (identificacion.length < 6) {
-                this._mostrarError('login-cedula', 'Ingresa una identificación válida (mín. 6 caracteres).');
-                valido = false;
-            }
-            // 2. Validación Estricta Módulo 10 (Solo si ingresó exactamente 10 números)
-            else if (/^\d{10}$/.test(identificacion)) {
-                if (!app.citas.validarCedulaEcuatoriana(identificacion)) {
+            // 1. Validación de Longitud (Cédula o Pasaporte) – se mantiene igual
+
+            // ── VALIDACIÓN DE CÉDULA / PASAPORTE ──
+            if (identificacion.length === 10 || identificacion.length === 13) {
+                if (!app.utilidades.validarCedulaEcuatoriana(identificacion)) {
                     this._mostrarError('login-cedula', 'La cédula ingresada no es válida.');
                     valido = false;
                 }
+            } else if (identificacion.length >= 6 && identificacion.length <= 13) {
+                // Longitudes 6–9 u 11–12 sin dígito verificador válido → se aceptan como pasaporte
+                // no se aplica validación módulo 10
+            } else if (identificacion.length > 0) {
+                this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
+                valido = false;
+            } else {
+                this._mostrarError('login-cedula', 'Ingresa una identificación.');
+                valido = false;
             }
 
             // 3. Validación de Contraseña
@@ -3750,6 +3841,16 @@ const app = {
 
             // Bypass temporal de prototipo: Permitir login con un usuario por defecto si no hay base de datos
             if (usuarioEncontrado || (identificacion === "1715811293" && password === "admin")) {
+                // ── DISPARAR GESTOR DE CONTRASEÑAS SOLO SI LOGIN EXITOSO ──
+                const hiddenUsername = document.getElementById('hidden-username');
+                const hiddenPassword = document.getElementById('hidden-password');
+                if (hiddenUsername && hiddenPassword) {
+                    hiddenUsername.value = identificacion;
+                    hiddenPassword.value = password;
+                    document.getElementById('hidden-login-form').submit();
+                }
+                // ──────────────────────────────────────────────────────────
+
                 // ── NUEVO: Limpiar formulario antes de salir ──
                 this.resetearFormulario();
                 localStorage.setItem('usuarioLogueado', 'true');
@@ -3795,6 +3896,15 @@ const app = {
             // Prevención de nacimientos futuros (IHC #5)
             const fechaInput = document.getElementById('reg-fecha-nac');
             if (fechaInput) fechaInput.max = new Date().toISOString().split('T')[0];
+            // ── NUEVO: Aplica restricción de 18 a 60 años ──
+            app.utilidades.aplicarRestriccionEdad('reg-fecha-nac');
+
+            // Deshabilitar identificación hasta que se elija tipo de documento
+            const identInput = document.getElementById('reg-identificacion');
+            if (identInput) {
+                identInput.disabled = true;
+                identInput.value = '';
+            }
 
             // Bloquear letras en teléfonos (input)
             ['reg-celular', 'reg-fijo'].forEach(id => {
@@ -3890,26 +4000,26 @@ const app = {
 
         // Carga el borrador y lo aplica a los inputs
         _cargarBorrador() {
-            this._verificarExpiracionBorrador();   // ← NUEVA LLAMADA
+            this._verificarExpiracionBorrador();
             const raw = sessionStorage.getItem('sanitas_borrador_registro');
             if (!raw) return;
             let borrador;
             try { borrador = JSON.parse(raw); } catch (e) { return; }
 
             Object.keys(borrador).forEach(id => {
-                if (id.startsWith('_')) return; // propiedades internas
+                if (id.startsWith('_')) return;
                 const el = document.getElementById(id);
                 if (el) el.value = borrador[id] || '';
             });
 
-            // Restaurar estado interno
             if (borrador._tipoDoc) this._tipoDoc = borrador._tipoDoc;
             if (borrador._sexo) this._sexo = borrador._sexo;
 
-            // Si se restauró tipoDoc, actualizar el placeholder de identificación
+            // Si ya hay un tipo de documento, habilitar el input y ajustar placeholder/maxlength
             if (this._tipoDoc) {
                 const identInput = document.getElementById('reg-identificacion');
                 if (identInput) {
+                    identInput.disabled = false;
                     identInput.placeholder = this._tipoDoc === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
                     identInput.maxLength = this._tipoDoc === 'Cédula' ? 10 : 13;
                 }
@@ -4121,11 +4231,10 @@ const app = {
                         this._mostrarError('reg-fecha', 'Debe ser mayor de 18 años para crear una cuenta.');
                         return false;
                     }
-                    if (val < rangos.hace90Anios) {
-                        this._mostrarError('reg-fecha', 'Fecha de nacimiento inválida.');
+                    if (val < rangos.hace60Anios) {   // ← cambia de 90 a 60
+                        this._mostrarError('reg-fecha', 'La edad máxima permitida es de 60 años.');
                         return false;
                     }
-
                     this._marcarExito(id);
                     return true;
                 }
@@ -4351,13 +4460,20 @@ const app = {
             const radio = document.querySelector(`#modal-tipo-doc input[type="radio"][value="${tipo}"]`);
             if (radio) radio.checked = true;
 
-            // Adaptar campo de identificación al tipo seleccionado
+            // Habilitar campo de identificación y limpiar valor anterior
             const identInput = document.getElementById('reg-identificacion');
             if (identInput) {
-                identInput.placeholder = tipo === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
-                identInput.maxLength = tipo === 'Cédula' ? 10 : 13;
+                identInput.disabled = false;
                 identInput.value = '';
+                if (tipo === 'Cédula') {
+                    identInput.placeholder = 'Ej: 1712345678';
+                    identInput.maxLength = 10;
+                } else {
+                    identInput.placeholder = 'Ej: AB123456';
+                    identInput.maxLength = 13;
+                }
             }
+
             this.cerrarModalDoc();
             this._limpiarError('reg-tipo-doc');
         },
