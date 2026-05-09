@@ -1,19 +1,19 @@
-# Sesión de Diseño Activa: Erradicación de Estado "Disabled" Fantasma
+# Sesión de Diseño Activa: Validación Atómica y Aislada (Paso 3)
 
 ## 1. Objetivo
-Forzar la eliminación de la clase `btn--secundario-main` (que está pintando los botones de gris) en el renderizado dinámico de las tarjetas de especialistas, cumpliendo con la regla crítica de Affordance.
+Corregir el comportamiento de validación masiva en el Paso 3, asegurando que los errores solo se muestren en el campo específico que pierde el foco (`blur`), respetando el flujo natural del usuario.
 
-## 2. Instrucciones Técnicas para Antigravity
+## 2. Instrucciones Técnicas para Antigravity (Claude)
 
-### A. Cirugía de Template String (app.js)
-* **El Problema:** La IA falló en la sesión anterior al intentar corregir el botón "Ver perfil y servicios" de las tarjetas de los médicos. Siguen renderizándose con fondo gris.
-* **Acción (Find and Replace):**
-  1. Abre `app.js`.
-  2. Busca LITERALMENTE la cadena de texto: `btn--secundario-main` dentro de las funciones que generan HTML (probablemente en el módulo del directorio o donde se iteran los especialistas).
-  3. Reemplaza ESA cadena exacta por: `btn--secundario`.
-  4. El código final inyectado debe ser exactamente este: `class="btn btn--secundario directory-card__link"`
+### A. Refactorización de Listeners (app.js)
+* **El Problema:** Al salir de un campo, el sistema valida todo el formulario y muestra errores en campos no visitados.
+* **Acción:** Modifica los Event Listeners de `blur` para los inputs del Paso 3.
+* **Lógica Atómica:**
+  1. La función ejecutada en el `blur` debe recibir el evento y actuar ÚNICAMENTE sobre `e.target`.
+  2. Valida el valor del `target`. Si está vacío o es inválido, muestra el mensaje de error **solo para ese ID**.
+  3. No llames a funciones globales de validación (como las que habilitan el botón "Siguiente") que tengan efectos secundarios visuales en otros campos durante el `blur`.
 
-### B. Auditoría de Especificidad CSS (styles.css)
-* **Acción:** Revisa `styles.css`. Si por alguna razón la clase `.directory-card__link` o alguna otra clase contenedora está forzando un `background-color` gris oscuro o negro para los botones, ELIMINA esa propiedad. El botón debe heredar el fondo transparente y el borde turquesa de la clase base `.btn--secundario`.
+### B. Sincronización de Botón "Siguiente"
+* **Acción:** Mantén la validación global (habilitar/deshabilitar botón) únicamente para el evento `input`, pero asegúrate de que esa función no inyecte clases de error (`--error`) ni muestre mensajes de texto. El evento `input` debe ser silencioso.
 
-**Restricción Estricta:** Esta es una tarea de búsqueda y destrucción de la clase antigua. No toques nada más del DOM ni de la lógica.
+**Restricción Estricta:** No alteres el diseño de los modales ni la lógica de las colisiones de 30 minutos.

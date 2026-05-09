@@ -127,13 +127,13 @@ ul {
 }
 
 .btn--peligro {
-    background-color: #ffcccc;
-    color: #cc0000;
+    background-color: #dc3545; /* Rojo sólido intenso */
+    color: #ffffff; /* Texto blanco para máximo contraste */
     border: none;
 }
 
 .btn--peligro:hover {
-    background-color: #ffb3b3;
+    background-color: #c82333; /* Rojo más oscuro al hacer hover */
 }
 
 .enlace-accion {
@@ -1577,9 +1577,8 @@ ul {
    ========================================= */
 
 .citas-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(85px, 1fr));
-    /* ancho mínimo por columna */
+    display: flex;
+    width: 100%;
     border: 1px solid #e0f0f0;
     border-top: none;
     border-radius: 0 0 8px 8px;
@@ -1589,6 +1588,7 @@ ul {
 }
 
 .calendar-day {
+    flex: 1 1 0;
     border-right: 1px solid #e8f0fe;
     min-width: 80px;
 }
@@ -1629,6 +1629,7 @@ ul {
 .time-slot {
     display: block;
     width: 100%;
+    box-sizing: border-box;
     padding: 7px 4px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -1639,7 +1640,7 @@ ul {
     color: #0DA99F;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-height: 36px;
+    min-height: 44px;
     white-space: nowrap;
     /* evita que el texto se divida en varias líneas */
 }
@@ -3237,7 +3238,7 @@ ul {
 }
 
 /* Ajustes móviles para el calendario de citas */
-@media (max-width: 640px) {
+@media (max-width: 767px) {
 
     /* Tarjeta del médico más compacta */
     .citas-doctor-summary {
@@ -3285,6 +3286,12 @@ ul {
         border-right: none !important;
     }
 
+    /* Ocultar cabecera del día en móvil: la fecha ya se muestra en
+       el label dedicado (#citas-day-label-mobile), evitando duplicados. */
+    .calendar-day-header {
+        display: none;
+    }
+
     /* Botones de hora más grandes */
     .time-slot {
         font-size: 1rem;
@@ -3317,6 +3324,7 @@ ul {
         margin-top: 15px;
     }
 }
+
 
 /* ==========================================================================
    SECCIÓN CONTACTO (Mejora visual)
@@ -4176,4 +4184,147 @@ ul {
     border-radius: 4px;
     font-size: 0.9rem;
     color: #0c4a6e;
+}
+
+/* ==========================================================================
+   DIRECTORIO DE ESPECIALISTAS – Buscador
+   Extraído de estilos inline para cumplir la prohibición de styles en HTML.
+   ========================================================================== */
+.directory-search {
+    max-width: 600px;
+    margin: 0 auto 40px auto;
+    position: relative;
+}
+
+.directory-search__icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    color: var(--gray-text);
+    pointer-events: none;
+}
+
+.input-buscador {
+    width: 100%;
+    padding: 15px 15px 15px 45px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: 'Roboto', sans-serif;
+    color: var(--text-main);
+    outline: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background-color: var(--white);
+}
+
+.input-buscador:focus {
+    border-color: var(--action-color);
+    box-shadow: 0 0 0 3px rgba(13, 169, 159, 0.12);
+}
+
+/* ==========================================================================
+   PASO 3 DE CITAS – Formulario de Identificación del Paciente
+   Extraído de estilos inline. Cumple Golden Rules (prohibición de style=).
+   ========================================================================== */
+.citas-form-wrapper {
+    max-width: 600px;
+    margin: 0 auto;
+    background: var(--white);
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.citas-form-header {
+    margin-bottom: 30px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.citas-form-divider {
+    text-align: center;
+    margin: 20px 0;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    color: var(--gray-text);
+}
+
+.citas-form-subheader {
+    margin-bottom: 25px;
+    font-size: 1.2rem;
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* Grupo de campo: margen inferior estándar */
+.citas-form-group {
+    margin-bottom: 20px;
+}
+
+/* Último grupo: más espacio antes del botón */
+.citas-form-group--last {
+    margin-bottom: 30px;
+}
+
+.citas-form-label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.citas-form-required {
+    color: #e74c3c;
+    margin-left: 2px;
+}
+
+/* Input del formulario del Paso 3 (extiende .form-control) */
+.citas-form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+    font-size: 0.95rem;
+    font-family: 'Roboto', sans-serif;
+    transition: border-color 0.3s ease;
+    background-color: var(--white);
+    color: var(--text-main);
+}
+
+.citas-form-control:focus {
+    border-color: var(--action-color);
+    box-shadow: 0 0 0 2px rgba(13, 169, 159, 0.1);
+}
+
+/* Span de error: oculto por defecto, JS lo muestra con display:block */
+.citas-error-msg {
+    display: none;
+    color: #e74c3c;
+    font-size: 0.85rem;
+    margin-top: 5px;
+    font-weight: 500;
+}
+
+/* Botón Siguiente del Paso 3: inicia visualmente deshabilitado.
+   app.js lo habilita (opacity:1, pointer-events:auto) cuando el form es válido. */
+.citas-btn-submit {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: default;
+    transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+@media (max-width: 767px) {
+    .citas-form-wrapper {
+        padding: 24px 16px;
+    }
 }

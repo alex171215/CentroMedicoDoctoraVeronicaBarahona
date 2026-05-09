@@ -128,6 +128,26 @@ const app = {
         if (errorFecha) { errorFecha.textContent = ''; errorFecha.style.display = 'none'; }
     },
 
+    // ── Utilidad: Validación contextual de celular (H9 – Mensajes de error útiles) ──
+    // Retorna el mensaje de error exacto (string) o null si el valor es válido.
+    // Fuente única de verdad: usada por app.registro y app.citas.
+    _validarCelular(valor) {
+        const v = (valor || '').trim();
+        if (v.length === 0) {
+            return 'El celular es obligatorio.';
+        }
+        if (!/^\d+$/.test(v) || v.length !== 10) {
+            return 'El celular debe tener exactamente 10 dígitos numéricos.';
+        }
+        if (!/^09/.test(v)) {
+            return 'El celular debe comenzar con 09.';
+        }
+        if (/^(0{10}|09{9}0|090{8})$/.test(v) || /^(\d)\1{9}$/.test(v)) {
+            return 'El número ingresado no es válido.';
+        }
+        return null; // Pasa todas las validaciones
+    },
+
     // ── Utilidad: Sincronizar cancelación entre stores (sanitas_mis_citas ↔ sanitas_citas) ──
     _sincronizarCancelacion(cita) {
         // Sincronizar hacia sanitas_citas (store público)
@@ -1235,14 +1255,17 @@ const app = {
                 }
                 if (cedulaParaLimite) {
                     const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso');
-                    const fechaBonita = this.horaSeleccionada ? this.horaSeleccionada.split(',')[0]?.trim() : ''; const especialidad = sessionStorage.getItem('especialidad_seleccionada') || document.getElementById('citas-doctor-specialty')?.textContent || '';
+                    const especialidad = sessionStorage.getItem('especialidad_seleccionada') || document.getElementById('citas-doctor-specialty')?.textContent?.trim() || '';
                     let idExcluir = null;
                     const modCtxStr = sessionStorage.getItem('cita_modificacion');
                     if (modCtxStr) {
                         try { const modCtx = JSON.parse(modCtxStr); idExcluir = modCtx.id_cita; } catch (e) { }
                     }
+                    // [BR-1 Debug] Auditoría Paso 3 (Invitado / Proxy)
+                    console.log('[BR-1 Debug] Trigger Paso 3', { cedula: cedulaParaLimite, fechaISO, especialidad, idExcluir });
                     if (this._verificarLimiteDiario(cedulaParaLimite, fechaISO, especialidad, idExcluir)) {
-                        this._mostrarModalLimiteDiario(especialidad, fechaBonita);
+                        // Pasar fechaISO al modal, nunca texto legible
+                        this._mostrarModalLimiteDiario(especialidad, fechaISO);
                         return;
                     }
                 }
@@ -1257,14 +1280,22 @@ const app = {
             if (!cedulaPaciente || !fecha || !especialidad) return false;
             // Obtener citas del store público (sanitas_citas) para cubrir invitados y logueados.
             const citas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            // Normalizar fecha para comparación (YYYY-MM-DD)
-            const fechaNorm = fecha; // Ya viene en formato ISO (YYYY-MM-DD)
+            // BR-1: Normalizar ESTRICTAMENTE el argumento a YYYY-MM-DD.
+            // Si viene un ISO completo (YYYY-MM-DDTHH:mm:ss), recortar a los primeros 10 chars.
+            // Si viene en cualquier otro formato legible, la validación falla de forma segura (no bloquea).
+            const ISO_REGEX = /^\d{4}-\d{2}-\d{2}/;
+            if (!ISO_REGEX.test(fecha)) return false; // Fecha no está en formato ISO → no bloquear
+            const fechaNorm = fecha.substring(0, 10); // Siempre YYYY-MM-DD
             const encontrada = citas.find(c => {
-                if (c.cedula !== cedulaPaciente) return false;
+                // technical-requirements.md: el campo de cédula en sanitas_citas es 'cedula_paciente'
+                const cCedula = String(c.cedula_paciente || c.cedula || '').trim();
+                if (cCedula !== String(cedulaPaciente).trim()) return false;
                 if (c.especialidad !== especialidad) return false;
                 if (c.estado === 'Cancelada') return false;
-                // Comparar fecha (puede venir de diferentes formatos, normalizar)
-                const cFecha = (c.fecha || '').trim();
+                // BR-1: Normalizar el campo del store de la misma manera (manzanas con manzanas).
+                // c.fecha puede ser ISO completo o YYYY-MM-DD; recortar a 10 chars.
+                const cFecha = (c.fecha || '').trim().substring(0, 10);
+                if (!ISO_REGEX.test(cFecha)) return false; // Dato corrupto en store → ignorar
                 if (cFecha !== fechaNorm) return false;
                 // Excluir la misma cita si se está modificando
                 if (idCitaExcluida && (c.id_cita === idCitaExcluida || c.id === idCitaExcluida)) return false;
@@ -1866,7 +1897,7 @@ const app = {
                 let cedulaTitular = '';
                 try {
                     const user = JSON.parse(localStorage.getItem('usuarioActivo'));
-                    cedulaTitular = user.identificacion || '';
+                    cedulaTitular = user?.identificacion || '';
                 } catch (e) { }
                 const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
                 const especialidad = cita.especialidad;
@@ -1875,9 +1906,34 @@ const app = {
                 if (modCtxStr) {
                     try { const modCtx = JSON.parse(modCtxStr); idExcluir = modCtx.id_cita; } catch (e) { }
                 }
-                if (this._verificarLimiteDiario(cedulaTitular, fechaISO, especialidad, idExcluir)) {
-                    this._mostrarModalLimiteDiario(especialidad, cita.fecha);
+                // [BR-1 Debug] Auditoría Paso 4 — Titular
+                console.log('[BR-1 Debug] Trigger Paso 4 (Titular)', { cedula: cedulaTitular, fechaISO, especialidad, idExcluir });
+                if (cedulaTitular && this._verificarLimiteDiario(cedulaTitular, fechaISO, especialidad, idExcluir)) {
+                    this._mostrarModalLimiteDiario(especialidad, fechaISO);
                     return;
+                }
+            }
+
+            // --- VALIDACIÓN DE LÍMITE DIARIO (Invitado o Proxy: red de seguridad en Paso 4) ---
+            // Cubre el caso en que el Paso 3 fue omitido (ej. flujo de modificación directa).
+            if (!estaLogueado || this.modoProxy) {
+                const inputCed = document.getElementById('citas-cedula');
+                // technical-requirements.md: cita usa 'cedula_paciente' como campo de identidad
+                const cedulaPaciente = (inputCed ? inputCed.value.trim() : '') || cita.cedula_paciente || cita.cedula || '';
+                if (cedulaPaciente) {
+                    const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
+                    const especialidad = cita.especialidad;
+                    let idExcluir = null;
+                    const modCtxStr2 = sessionStorage.getItem('cita_modificacion');
+                    if (modCtxStr2) {
+                        try { const modCtx2 = JSON.parse(modCtxStr2); idExcluir = modCtx2.id_cita; } catch (e) { }
+                    }
+                    // [BR-1 Debug] Auditoría Paso 4 — Invitado / Proxy
+                    console.log('[BR-1 Debug] Trigger Paso 4 (Invitado/Proxy)', { cedula: cedulaPaciente, fechaISO, especialidad, idExcluir });
+                    if (this._verificarLimiteDiario(cedulaPaciente, fechaISO, especialidad, idExcluir)) {
+                        this._mostrarModalLimiteDiario(especialidad, fechaISO);
+                        return;
+                    }
                 }
             }
             // --- FIN VALIDACIÓN ---
@@ -2371,7 +2427,7 @@ const app = {
             const diasNombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
             let html = '';
 
-            const esMobile = window.innerWidth <= 640;
+            const esMobile = window.innerWidth <= 767;
             const labelDiaMobile = document.getElementById('citas-day-label-mobile');
             // ── Smart Default: avanzar automáticamente al primer día con horarios ──
             if (autoSeek && esMobile && doc) {
@@ -2512,17 +2568,53 @@ const app = {
         },
 
         cambiarDiaMobile(direccion) {
-            this.diaSeleccionadoMobile += direccion;
-            // Cruzar límites de la semana (Lunes 0 – Sábado 5)
-            if (this.diaSeleccionadoMobile < 0) {
-                this.fechaBaseCalendario.setDate(this.fechaBaseCalendario.getDate() - 7);
-                this.diaSeleccionadoMobile = 5; // sábado de la semana anterior
-            } else if (this.diaSeleccionadoMobile > 5) {
-                this.fechaBaseCalendario.setDate(this.fechaBaseCalendario.getDate() + 7);
-                this.diaSeleccionadoMobile = 0; // lunes de la semana siguiente
-            }
+            const doc = this._doctorActual;
+            const diasLaborables = (doc && doc.horarios_atencion && doc.horarios_atencion.dias)
+                ? doc.horarios_atencion.dias
+                : [1, 2, 3, 4, 5, 6];
+
+            // ── Construir el día de inicio (el día actualmente visible) ──
+            const hoyBase = new Date(this.fechaBaseCalendario);
+            const diaSemanaBase = hoyBase.getDay();
+            const diffBaseAlLunes = diaSemanaBase === 0 ? -6 : 1 - diaSemanaBase;
+            let lunes = new Date(hoyBase);
+            lunes.setDate(hoyBase.getDate() + diffBaseAlLunes);
+            lunes.setHours(0, 0, 0, 0);
+
+            let diaActual = new Date(lunes);
+            diaActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
+
+            // ── Smart Jumps: avanzar/retroceder hasta el próximo día laborable ──
+            let iteraciones = 0;
+            const MAX_ITER = 14; // Límite de seguridad: máximo 2 semanas
+            do {
+                diaActual.setDate(diaActual.getDate() + direccion);
+
+                // Recalcular el lunes de la semana en la que cae diaActual
+                const dSem = diaActual.getDay();
+                const diffAlLunes = dSem === 0 ? -6 : 1 - dSem;
+                lunes = new Date(diaActual);
+                lunes.setDate(diaActual.getDate() + diffAlLunes);
+                lunes.setHours(0, 0, 0, 0);
+
+                // Actualizar el estado del calendario con la nueva semana/día
+                this.fechaBaseCalendario = new Date(lunes);
+                const diffDias = Math.round((diaActual - lunes) / 86400000);
+                this.diaSeleccionadoMobile = (diffDias >= 0 && diffDias <= 5) ? diffDias : 0;
+
+                // Verificar si este día es laborable para el médico actual
+                const diaSemanaIdx = diaActual.getDay(); // 0=Dom..6=Sáb
+                const diaLaboralNum = diaSemanaIdx === 0 ? 7 : diaSemanaIdx; // 1=Lun..7=Dom
+                if (diasLaborables.includes(diaLaboralNum)) break;
+
+                iteraciones++;
+            } while (iteraciones < MAX_ITER);
+            // Si el bucle agotó las iteraciones sin encontrar un día válido,
+            // se renderiza de todas formas (mostrará el empty state).
+
             this.generarCalendario();
         },
+
 
         irAlProximoDiaDisponible() {
             const doc = this._doctorActual;
@@ -2671,44 +2763,90 @@ const app = {
             const celOk = /^09\d{8}$/.test(celVal);
 
             if (mostrarErrores) {
-                // Nombres: mensaje diferenciado según el tipo de error
+                // Nombres: mensaje en cascada según el tipo de error (incluye vacío)
                 if (nomOk) {
                     this._setEstadoCampo(nom, 'error-nombres', true);
-                } else if (nomVal.length > 0) {
+                } else if (nomVal.length === 0) {
+                    // BUGFIX: campo vacío al perder foco → mensaje de obligatoriedad
+                    this._setEstadoCampo(nom, 'error-nombres', false, 'El nombre es obligatorio.');
+                } else {
                     const tieneNumeros = /\d/.test(nomVal);
                     this._setEstadoCampo(nom, 'error-nombres', false,
                         tieneNumeros ? 'Solo se aceptan letras.' : 'El nombre debe tener al menos 3 letras.');
                 }
 
-                // Cédula
+                // Cédula: mensaje en cascada según el tipo de error (incluye vacío)
                 if (cedOk) {
                     this._setEstadoCampo(ced, 'error-cedula', true);
-                } else if (cedVal.length > 0) {
+                } else if (cedVal.length === 0) {
+                    // BUGFIX: campo vacío al perder foco → mensaje de obligatoriedad
+                    this._setEstadoCampo(ced, 'error-cedula', false, 'La cédula es obligatoria.');
+                } else {
                     this._setEstadoCampo(ced, 'error-cedula', false,
                         'La cédula no es válida. Verifica los 10 dígitos.');
                 }
 
-                // Celular: mensaje diferenciado
-                // Celular: mensaje diferenciado según el error
+                // Celular: validación contextual en cascada (H9) – delegada a app._validarCelular()
                 if (celOk) {
                     this._setEstadoCampo(cel, 'error-celular', true);
-                } else if (celVal.length > 0) {
-                    let mensajeCel = '';
-                    if (celVal.length !== 10) {
-                        mensajeCel = 'El celular debe tener 10 dígitos.';
-                    } else if (!/^09/.test(celVal)) {
-                        mensajeCel = 'El celular debe empezar con 09. Ej: 0991234567.';
-                    } else if (/^0{10}$/.test(celVal)) {
-                        mensajeCel = 'Ingresa un número de celular válido (no pueden ser todos ceros).';
-                    } else {
-                        // Fallback por si acaso
-                        mensajeCel = 'El celular debe empezar con 09 y tener 10 dígitos.';
-                    }
+                } else {
+                    // app._validarCelular() ya maneja el caso vacío con "El celular es obligatorio."
+                    const mensajeCel = app._validarCelular(celVal) || 'El celular ingresado no es válido.';
                     this._setEstadoCampo(cel, 'error-celular', false, mensajeCel);
                 }
             }
 
             return nomOk && cedOk && celOk;
+        },
+
+        // ------------------------------------------------------------------
+        // Atomic Blur: Validación AISLADA de un solo campo.
+        // Cumple el estándar "Aislamiento de Validación (Atomic Blur)" de
+        // technical-requirements.md §6. Solo actúa sobre el inputId recibido;
+        // nunca toca ni evalúa otros campos del formulario.
+        // ------------------------------------------------------------------
+        _validarCampoAislado(inputId, errId) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            const val = el.value.trim();
+
+            if (inputId === 'citas-nombres') {
+                const nomOk = val.length >= 3;
+                if (nomOk) {
+                    this._setEstadoCampo(el, errId, true);
+                } else if (val.length === 0) {
+                    this._setEstadoCampo(el, errId, false, 'El nombre es obligatorio.');
+                } else {
+                    const tieneNumeros = /\d/.test(val);
+                    this._setEstadoCampo(el, errId, false,
+                        tieneNumeros ? 'Solo se aceptan letras.' : 'El nombre debe tener al menos 3 letras.');
+                }
+                return;
+            }
+
+            if (inputId === 'citas-cedula') {
+                const cedOk = /^\d{10}$/.test(val) && this.validarCedulaEcuatoriana(val);
+                if (cedOk) {
+                    this._setEstadoCampo(el, errId, true);
+                } else if (val.length === 0) {
+                    this._setEstadoCampo(el, errId, false, 'La cédula es obligatoria.');
+                } else {
+                    this._setEstadoCampo(el, errId, false, 'La cédula no es válida. Verifica los 10 dígitos.');
+                }
+                return;
+            }
+
+            if (inputId === 'citas-celular') {
+                const celOk = /^09\d{8}$/.test(val);
+                if (celOk) {
+                    this._setEstadoCampo(el, errId, true);
+                } else {
+                    // app._validarCelular() maneja vacío → "El celular es obligatorio."
+                    const msg = app._validarCelular(val) || 'El celular ingresado no es válido.';
+                    this._setEstadoCampo(el, errId, false, msg);
+                }
+                return;
+            }
         },
 
         // Helper único: aplica borde de color y mensaje de error al campo.
@@ -2757,9 +2895,10 @@ const app = {
                 const el = document.getElementById(item.id);
                 if (!el) return;
 
-                // AL ESCRIBIR (Input): Limpia el error y habilita el botón en silencio
+                // AL ESCRIBIR (Input): Sanitización + habilitación silenciosa del botón.
+                // Este listener NO debe pintar errores ni tocar otros campos.
                 el.addEventListener('input', (e) => {
-                    // Filtros de caracteres en tiempo real
+                    // Filtros de caracteres en tiempo real (Regex Whitelist)
                     if (item.id === 'citas-nombres') e.target.value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
                     else e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
 
@@ -2768,12 +2907,14 @@ const app = {
                     const errorEl = document.getElementById(item.err);
                     if (errorEl) errorEl.style.display = 'none';
 
+                    // Validación global SILENCIOSA: solo habilita/deshabilita el botón Siguiente
                     this.actualizarEstadoBotonSiguiente();
                 });
 
-                // AL SALIR DEL CAMPO (Blur): Mostramos el error si el dato es incorrecto
+                // AL SALIR DEL CAMPO (Blur): Validación ATÓMICA – solo actúa sobre e.target.
+                // PROHIBIDO llamar a validarPaso3(true) aquí (afectaría campos no visitados).
                 el.addEventListener('blur', () => {
-                    this.validarPaso3(true);
+                    this._validarCampoAislado(item.id, item.err);
                 });
             });
 
@@ -2848,7 +2989,7 @@ const app = {
                         <button id="btn-buffer-no-volver" class="btn btn--primario btn-full-width btn-margin-bottom">
                             No, volver
                         </button>
-                        <button id="btn-buffer-si-salir" class="btn btn--peligro btn-full-width" style=" color: white;">
+                        <button id="btn-buffer-si-salir" class="btn btn--peligro btn-full-width">
                             Sí, salir y borrar datos
                         </button>
                     </div>
@@ -3109,6 +3250,12 @@ const app = {
                 // Prevenir múltiples listeners si se llama varias veces
                 buscador.removeEventListener('input', this.manejarFiltro);
                 buscador.addEventListener('input', this.manejarFiltro.bind(this));
+
+                // Bloque A – Sanitización en tiempo real (Regex Whitelist)
+                // Solo permite letras (incluye tildes y ñ) y espacios. Borra números y símbolos al instante.
+                buscador.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                });
             }
 
             // Modal overlay click (Cerrar)
@@ -3847,7 +3994,12 @@ const app = {
                 if (hiddenUsername && hiddenPassword) {
                     hiddenUsername.value = identificacion;
                     hiddenPassword.value = password;
-                    document.getElementById('hidden-login-form').submit();
+                    // Simular clic en el botón interno: dispara el evento 'submit' del form,
+                    // el cual tiene su e.preventDefault() registrado → NO hay POST real al servidor.
+                    // NUNCA usar hiddenForm.submit() directamente: eso bypasea los event listeners.
+                    const hiddenForm = document.getElementById('hidden-login-form');
+                    const submitBtn = hiddenForm?.querySelector('button[type="submit"]');
+                    if (submitBtn) submitBtn.click();
                 }
                 // ──────────────────────────────────────────────────────────
 
@@ -4240,29 +4392,14 @@ const app = {
                 }
 
                 /* ── TELÉFONO CELULAR ── */
+                // Validación contextual en cascada (H9) – delegada a app._validarCelular()
                 case 'reg-celular': {
                     const val = (document.getElementById(id)?.value || '').trim();
-                    if (val.length === 0) {
-                        this._mostrarError(id, 'El número celular es requerido.');
+                    const errorCelular = app._validarCelular(val);
+                    if (errorCelular) {
+                        this._mostrarError(id, errorCelular);
                         return false;
                     }
-                    if (val.length !== 10) {
-                        this._mostrarError(id, 'El celular debe tener 10 dígitos.');
-                        return false;
-                    }
-                    if (!/^09/.test(val)) {
-                        this._mostrarError(id, 'El celular debe empezar con 09. Ej: 0991234567.');
-                        return false;
-                    }
-                    if (/^0{10}$/.test(val)) {
-                        this._mostrarError(id, 'Ingresa un número de celular válido (no pueden ser todos ceros).');
-                        return false;
-                    }
-                    if (!/^\d{10}$/.test(val)) {
-                        this._mostrarError(id, 'El celular solo puede contener números.');
-                        return false;
-                    }
-                    // Si pasa todas las validaciones
                     this._marcarExito(id);
                     return true;
                 }
@@ -4765,6 +4902,10 @@ const app = {
 
         // ------------------------------------------------------------------
         // 11.6 Guardar cambios en localStorage
+        // H3 (Control y Libertad): NO se cierra automáticamente.
+        // H1 (Visibilidad del Estado): Secuencia asíncrona con simulación de latencia.
+        // H5 (Prevención de Errores): disabled=true bloquea clics múltiples.
+        // Patrón de Edición Continua Asíncrona — golden-rules §3 / active-design v2
         // ------------------------------------------------------------------
         guardarCambios() {
             if (!this._validarCamposEdit()) return;
@@ -4772,12 +4913,18 @@ const app = {
             const raw = localStorage.getItem('usuarioActivo');
             if (!raw) { app.navegar('login'); return; }
 
-            const u = JSON.parse(raw);
+            // ── PASO 1 — Inicio de Transacción (H5: bloqueo inmediato anti-doble clic) ──
+            const btnGuardar = document.querySelector('#view-editar-perfil .btn--accion');
+            if (btnGuardar) {
+                btnGuardar.disabled = true;
+                btnGuardar.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Guardando...';
+            }
 
-            // Actualizar campos editables (manteniendo las claves originales del objeto)
+            // Capturar datos del formulario ANTES del timeout (cierre léxico seguro)
+            const u = JSON.parse(raw);
             const val = id => document.getElementById(id)?.value.trim() || '';
 
-            // Soportar ambas convenciones de claves
+            // Soportar ambas convenciones de claves (usuario demo vs. usuario registrado)
             if ('nombre_1' in u) {
                 u.nombre_1 = val('edit-nombre1');
                 u.nombre_2 = val('edit-nombre2');
@@ -4790,30 +4937,46 @@ const app = {
                 u.apellido2 = val('edit-apellido2');
             }
             u.celular = val('edit-celular');
-            u.email = val('edit-email');
+            u.email   = val('edit-email');
 
-            // 1. Actualizar usuarioActivo
-            localStorage.setItem('usuarioActivo', JSON.stringify(u));
-
-            // 2. Actualizar dentro de sanitas_usuarios (buscar por identificación)
-            const lista = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
-            const idx = lista.findIndex(x => x.identificacion === u.identificacion);
-            if (idx !== -1) {
-                lista[idx] = { ...lista[idx], ...u };
-                localStorage.setItem('sanitas_usuarios', JSON.stringify(lista));
-            }
-            // Refrescar el botón del header y barra inferior con el nuevo nombre
-            app.iniciarSesionUsuario();
-
-            // 3. Mostrar mensaje de éxito y volver al perfil tras 1.5s
-            const msg = document.getElementById('edit-success-msg');
-            if (msg) msg.style.display = 'flex';
-
+            // ── PASO 2 — Procesamiento (800ms simulan latencia de red) ──
             setTimeout(() => {
-                if (msg) msg.style.display = 'none';
-                app.navegar('home');
-                app.perfil.abrirModal();
-            }, 1800);
+
+                // Persistir en localStorage (lógica atómica dentro del timeout)
+                localStorage.setItem('usuarioActivo', JSON.stringify(u));
+
+                const lista = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
+                const idx = lista.findIndex(x => x.identificacion === u.identificacion);
+                if (idx !== -1) {
+                    lista[idx] = { ...lista[idx], ...u };
+                    localStorage.setItem('sanitas_usuarios', JSON.stringify(lista));
+                }
+
+                // Refrescar header y barra inferior con el nuevo nombre
+                app.iniciarSesionUsuario();
+
+                // ── PASO 3 — Resolución: restaurar botón + mostrar mensaje (misma tarea) ──
+                // El botón se reactiva aquí para que el usuario pueda guardar de nuevo
+                // ANTES de que el mensaje desaparezca — sin condición de carrera visual.
+                if (btnGuardar) {
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Guardar Cambios';
+                }
+
+                const msg = document.getElementById('edit-success-msg');
+                if (msg) {
+                    msg.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> <span>✅ Cambios guardados correctamente</span>';
+                    msg.style.display = 'flex';
+
+                    // ── PASO 4 — Limpieza: ocultar SOLO el mensaje (3000ms anidados) ──
+                    // El botón ya está activo; este timer solo elimina el aviso visual.
+                    // EL USUARIO PERMANECE EN LA VISTA — es él quien decide cuándo salir.
+                    setTimeout(() => {
+                        msg.style.display = 'none';
+                    }, 3000);
+                }
+
+            }, 800);
         }
     },
 
