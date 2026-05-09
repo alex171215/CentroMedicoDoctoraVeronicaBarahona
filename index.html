@@ -807,7 +807,7 @@
                         <!-- Título de accesibilidad (visualmente oculto) -->
                         <h2 id="login-heading" class="login-title">Iniciar sesión</h2>
 
-                        <form id="login-form" class="login-form" novalidate onsubmit="app.login.enviar(event)">
+                        <div id="login-form" class="login-form">
 
                             <!-- Campo: Identificación -->
                             <div class="login-field">
@@ -843,7 +843,7 @@
                             </div>
 
                             <!-- Botón Principal -->
-                            <button type="submit" id="login-submit-btn" class="btn btn--accion login-submit">
+                            <button type="button" id="login-submit-btn" class="btn btn--accion login-submit">
                                 Iniciar sesión
                             </button>
 
@@ -851,7 +851,7 @@
                             <p class="login-register-link">¿No tienes cuenta? <span class="enlace-accion"
                                     onclick="app.navegar('registro')">Regístrate</span></p>
 
-                        </form>
+                        </div>
                     </div>
                 </div>
 
@@ -1474,6 +1474,15 @@
 
         </div>
     </footer>
+
+    <!-- ===================================================
+     Formulario oculto para gestor de contraseñas nativo
+     =================================================== -->
+    <form id="hidden-login-form" style="display:none;" action="#" method="post" x-autocompleted="off">
+        <input type="text" name="username" id="hidden-username" autocomplete="username">
+        <input type="password" name="password" id="hidden-password" autocomplete="current-password">
+        <button type="submit"></button>
+    </form>
 
 
     <!-- Bottom Navigation Bar (Mobile) -->
