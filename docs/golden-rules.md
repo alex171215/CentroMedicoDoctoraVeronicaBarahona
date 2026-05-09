@@ -21,3 +21,17 @@ Para mantener la consistencia visual (H4) y los affordances correctos, PROHIBIDO
 * `.btn--secundario` (Outline Turquesa, texto Turquesa): Acciones opcionales/secundarias (Descargar PDF, Imprimir, Enlaces a perfiles).
 * `.btn--peligro` (Fondo rojo claro, texto rojo): Acciones destructivas (Cancelar).
 * `.enlace-accion` (Texto Turquesa, subrayado): Enlaces de texto puro sin padding de botón.
+
+### 4. Patrones de Maquetación: Calendario Adaptativo (Liquid Layout)
+Para cumplir con la Heurística de Diseño Minimalista y evitar el "Broken Layout", los contenedores de tipo calendario/grilla dinámica deben usar un patrón líquido:
+* **Cero anchos fijos:** Las columnas (ej. días) NUNCA deben tener un ancho estricto en píxeles.
+* **Expansión Equitativa:** El contenedor usa `display: flex;` y las columnas usan `flex: 1 1 0;` para expandirse y dividirse el 100% del ancho, sin importar si hay 1 o 5 elementos.
+* **Ley de Fitts en Botones:** Los botones internos de selección (ej. horarios) deben tener `width: 100%` para maximizar su área interactiva dentro de la columna expandida.
+
+### 5. Breakpoints Responsivos Oficiales
+Todo el sistema debe respetar estrictamente los siguientes puntos de ruptura (Media Queries) definidos en los lineamientos del proyecto:
+* **Escritorio:** `min-width: 1024px`
+* **Tablets:** Entre `768px` y `1023px`
+* **Móviles (Celulares):** `max-width: 767px` (El límite mínimo es 320px).
+
+* **Patrón de Edición Continua:** Los modales o vistas de edición múltiple (como "Editar Perfil") NUNCA deben cerrarse automáticamente tras guardar un cambio. El usuario debe mantener el control y ser quien cierre explícitamente la ventana. Se debe compensar con feedback visual in-line (H1).

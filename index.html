@@ -863,12 +863,13 @@
             style="display: none; background-padding: 40px 0; min-height: 80vh;">
             <div class="container">
                 <!-- Barra de Búsqueda -->
-                <div class="directory-search" style="max-width: 600px; margin: 0 auto 40px auto; position: relative;">
-                    <i class="fa-solid fa-magnifying-glass"
-                        style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 1.2rem;"></i>
+                <div class="directory-search">
+                    <i class="fa-solid fa-magnifying-glass directory-search__icon" aria-hidden="true"></i>
                     <input type="text" id="buscador-especialistas"
+                        class="input-buscador"
                         placeholder="Busca por nombre de médico o especialidad..."
-                        style="width: 100%; padding: 15px 15px 15px 45px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: border-color 0.3s;">
+                        aria-label="Buscar especialistas por nombre o especialidad"
+                        autocomplete="off">
                 </div>
 
                 <!-- Contenedor del Directorio -->
@@ -1261,63 +1262,50 @@
                         <button type="button" onclick="app.citas.irAtras()" class="btn-back-minimalist">
                             <i class="fa-solid fa-arrow-left"></i> Volver al Calendario
                         </button>
-                        <div class="citas-form-wrapper"
-                            style="max-width: 600px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                            <h2 style="margin-bottom: 30px; text-align: center; font-size: 1.2rem;">¿Ya
+                        <div class="citas-form-wrapper">
+                            <h2 class="citas-form-header">¿Ya
                                 registrado?
                                 <a href="javascript:void(0)" onclick="app.navegar('login')"
                                     class="enlace-accion">Acceder</a>
                             </h2>
-                            <div
-                                style="text-align: center; margin: 20px 0; text-transform: uppercase; font-size: 0.9rem;">
-                                O</div>
-                            <h3 style="margin-bottom: 25px; font-size: 1.2rem;">¿Todavía no está
+                            <div class="citas-form-divider">O</div>
+                            <h3 class="citas-form-subheader">¿Todavía no está
                                 registrado?
                                 Rellene el siguiente formulario</h3>
 
                             <form id="form-citas-identificacion"
                                 onsubmit="event.preventDefault(); app.citas.avanzarPaso();" novalidate>
-                                <div class="form-group" style="margin-bottom: 20px;">
-                                    <label for="citas-nombres"
-                                        style="display: block; font-weight: bold; margin-bottom: 8px;">Nombres
-                                        completos <span style="">*</span></label>
-                                    <input type="text" id="citas-nombres" class="form-control" required
+                                <div class="citas-form-group">
+                                    <label for="citas-nombres" class="citas-form-label">Nombres
+                                        completos <span class="citas-form-required">*</span></label>
+                                    <input type="text" id="citas-nombres" class="form-control citas-form-control" required
                                         placeholder="Ej. Juan Pérez"
-                                        style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; outline: none; transition: border-color 0.3s;">
-                                    <span class="error-msg" id="error-nombres"
-                                        style="color: red; font-size: 0.85rem; display: none; margin-top: 5px;">Solo se
-                                        permiten letras.</span>
+                                        aria-describedby="error-nombres">
+                                    <span class="error-msg citas-error-msg" id="error-nombres"
+                                        role="alert"></span>
                                 </div>
 
-                                <div class="form-group" style="margin-bottom: 20px;">
-                                    <label for="citas-cedula"
-                                        style="display: block; font-weight: bold; margin-bottom: 8px;">Cédula
-                                        <span style="">*</span></label>
-                                    <input type="text" id="citas-cedula" class="form-control" required
+                                <div class="citas-form-group">
+                                    <label for="citas-cedula" class="citas-form-label">Cédula
+                                        <span class="citas-form-required">*</span></label>
+                                    <input type="text" id="citas-cedula" class="form-control citas-form-control" required
                                         placeholder="Ej: 1715811293" maxlength="10"
-                                        style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; outline: none; transition: border-color 0.3s;">
-                                    <span class="error-msg" id="error-cedula"
-                                        style="color: red; font-size: 0.85rem; display: none; margin-top: 5px;">La
-                                        cédula
-                                        ingresada no es válida. Por favor, verifica los números e intenta de
-                                        nuevo</span>
+                                        aria-describedby="error-cedula">
+                                    <span class="error-msg citas-error-msg" id="error-cedula"
+                                        role="alert"></span>
                                 </div>
 
-                                <div class="form-group" style="margin-bottom: 30px;">
-                                    <label for="citas-celular"
-                                        style="display: block; font-weight: bold; margin-bottom: 8px;">Celular
-                                        <span style="">*</span></label>
-                                    <input type="tel" id="citas-celular" class="form-control" required
+                                <div class="citas-form-group citas-form-group--last">
+                                    <label for="citas-celular" class="citas-form-label">Celular
+                                        <span class="citas-form-required">*</span></label>
+                                    <input type="tel" id="citas-celular" class="form-control citas-form-control" required
                                         placeholder="09xxxxxxx" maxlength="10"
-                                        style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; outline: none; transition: border-color 0.3s;">
-                                    <span class="error-msg" id="error-celular"
-                                        style="color: red; font-size: 0.85rem; display: none; margin-top: 5px;">Debe
-                                        tener
-                                        10 dígitos numéricos.</span>
+                                        aria-describedby="error-celular">
+                                    <span class="error-msg citas-error-msg" id="error-celular"
+                                        role="alert"></span>
                                 </div>
 
-                                <button type="submit" id="btn-citas-siguiente" class="btn btn--accion"
-                                    style="width: 100%;  opacity: 0.5; pointer-events: none; padding: 15px; font-size: 1.1rem; font-weight: bold; transition: all 0.3s;">Siguiente</button>
+                                <button type="submit" id="btn-citas-siguiente" class="btn btn--accion citas-btn-submit">Siguiente</button>
                             </form>
                         </div>
                     </div>
@@ -1478,7 +1466,7 @@
     <!-- ===================================================
      Formulario oculto para gestor de contraseñas nativo
      =================================================== -->
-    <form id="hidden-login-form" style="display:none;" action="#" method="post" x-autocompleted="off">
+    <form id="hidden-login-form" style="display:none;" action="javascript:void(0);" x-autocompleted="off">
         <input type="text" name="username" id="hidden-username" autocomplete="username">
         <input type="password" name="password" id="hidden-password" autocomplete="current-password">
         <button type="submit"></button>
