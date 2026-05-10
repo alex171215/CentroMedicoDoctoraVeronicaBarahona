@@ -1274,9 +1274,12 @@ const app = {
                     return;
                 }
 
-                // ─── Flujo normal (para mí o invitado sin proxy) ───
+                // ── BR-2/BR-3: Trigger de Identidad ──
+                // El titular logueado salta directamente al resumen (Paso 4).
+                // Las colisiones y buffer se validan en confirmarCita() con su cédula confirmada.
                 if (estaLogueado) {
-                    this._verificarColisionYContinuar(true);
+                    this.prepararResumenFinal(true);
+                    this.mostrarPaso(4);
                 } else {
                     this.mostrarPaso(3);
                     this._configurarPaso3Modificacion();
@@ -1576,6 +1579,7 @@ const app = {
         },
 
         mostrarConfirmacionCancelacion(idCita, callback) {
+            // Reutilizar modal existente o crear uno nuevo
             let modal = document.getElementById('modal-confirmar-cancelacion');
             if (modal) modal.remove();
 
@@ -1584,20 +1588,22 @@ const app = {
             modal.className = 'modal-overlay';
             modal.setAttribute('role', 'alertdialog');
             modal.setAttribute('aria-modal', 'true');
-            modal.style.display = 'flex';
 
+            // ── FASE 1: Advertencia (H5 - Prevención de Errores) ──
+            // Muestra el mensaje de riesgo y dos botones claros antes de actuar.
+            // .btn--peligro para la acción destructiva, .btn--secundario para el escape.
             modal.innerHTML = `
                 <div class="modal-content modal-colision-content">
-                    <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e74c3c;"></i>
+                    <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true"></i>
                     <h2 class="modal-colision-title">Cancelar Cita</h2>
                     <p class="modal-colision-text">
-                        ¿Estás seguro de que deseas cancelar esta cita?
+                        ¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.
                     </p>
                     <div class="modal-colision-actions">
                         <button id="btn-cancelar-no" class="btn btn--secundario btn-full-width btn-margin-bottom">
                             No, mantener cita
                         </button>
-                        <button id="btn-cancelar-si" class="btn btn--primario btn-full-width" style="">
+                        <button id="btn-cancelar-si" class="btn btn--peligro btn-full-width">
                             Sí, cancelar cita
                         </button>
                     </div>
@@ -1606,13 +1612,51 @@ const app = {
 
             document.body.appendChild(modal);
 
+            // Escape: cerrar sin acción
             document.getElementById('btn-cancelar-no').addEventListener('click', () => {
                 modal.remove();
             });
 
+            // Confirmar: Fase 2 → Fase 3 → Fase 4
             document.getElementById('btn-cancelar-si').addEventListener('click', () => {
-                modal.remove();
-                if (typeof callback === 'function') callback(idCita);
+                const btnSi = document.getElementById('btn-cancelar-si');
+                const btnNo = document.getElementById('btn-cancelar-no');
+
+                // ── FASE 2: Procesando (H1 - Visibilidad del Estado del Sistema) ──
+                if (btnSi) { btnSi.disabled = true; btnSi.textContent = 'Cancelando...'; }
+                if (btnNo) { btnNo.disabled = true; }
+
+                // Simula latencia de red (800ms) antes de persistir el cambio
+                setTimeout(() => {
+                    // Ejecutar la lógica real de cancelación en localStorage
+                    if (typeof callback === 'function') callback(idCita);
+
+                    // ── FASE 3: Resolución / Punto Final (H4 - Consistencia) ──
+                    // El modal NO se cierra automáticamente: transiciona al estado de éxito.
+                    const contenido = modal.querySelector('.modal-content');
+                    if (contenido) {
+                        contenido.innerHTML = `
+                            <i class="fa-solid fa-circle-check icono-exito-modal" aria-hidden="true"></i>
+                            <h2 class="modal-colision-title">Cita Cancelada</h2>
+                            <p class="modal-colision-text">
+                                La cita ha sido cancelada exitosamente y el horario ha sido liberado.
+                            </p>
+                            <button id="btn-cerrar-resolucion" class="btn btn--primario btn-full-width">
+                                Entendido
+                            </button>
+                        `;
+
+                        // ── FASE 4: Cierre y Refresco (Feedback Controlado) ──
+                        // El usuario controla cuándo sale. Al cerrar, se actualiza la lista.
+                        document.getElementById('btn-cerrar-resolucion').addEventListener('click', () => {
+                            modal.remove();
+                            // Refrescar la lista de citas del dashboard si el módulo está activo
+                            if (typeof app.salud?.renderizarCitas === 'function') {
+                                app.salud.renderizarCitas(app.salud._filtroActual || 'proximas');
+                            }
+                        });
+                    }
+                }, 800);
             });
         },
 
@@ -1802,39 +1846,57 @@ const app = {
 
             const fechaHora = this.horaSeleccionada;
 
-            let paciente = "Paciente";
+            let paciente = "";
             let cedulaPaciente = "";
-            let cedulaTitular = null;   // NUEVO
-            if (logueado) {
+            let cedulaTitular = null;
+
+            if (logueado && !this.modoProxy) {
+                // ── Titular agendando para sí mismo ──
+                // Resolución de Nombre (H2): cubre ambas convenciones de campo
+                // (nombre_1 del usuario demo vs nombre1 del registro nuevo).
                 try {
                     const userActivoStr = localStorage.getItem('usuarioActivo');
                     if (userActivoStr) {
                         const user = JSON.parse(userActivoStr);
-                        paciente = `${user.nombre_1 || ''} ${user.nombre_2 || ''} ${user.apellido_1 || ''} ${user.apellido_2 || ''}`.replace(/\s+/g, ' ').trim() || "Paciente";
-                        cedulaPaciente = user.identificacion || "";
-                        cedulaTitular = user.identificacion;   // NUEVO
+                        const n1 = (user.nombre_1 || user.nombre1 || '').trim();
+                        const n2 = (user.nombre_2 || user.nombre2 || '').trim();
+                        const a1 = (user.apellido_1 || user.apellido1 || '').trim();
+                        const a2 = (user.apellido_2 || user.apellido2 || '').trim();
+                        // Formato: Nombre + Apellido (sin campos vacíos intermedios)
+                        paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Usuario Sanitas';
+                        cedulaPaciente = user.identificacion || '';
+                        cedulaTitular = user.identificacion || null;
                     }
                 } catch (e) { }
-                // Si está en modo proxy, el paciente es el familiar (se toma del formulario)
-                if (this.modoProxy) {
-                    const inputCedula = document.getElementById('citas-cedula');
-                    if (inputCedula) cedulaPaciente = inputCedula.value.trim();
-                    const inputNombres = document.getElementById('citas-nombres') || document.getElementById('cita-nombres');
-                    if (inputNombres) paciente = inputNombres.value.trim();
-                    // cedulaTitular sigue siendo la del usuario logueado
-                }
+                // Fallback de seguridad: si la sesión está corrupta, nombre digno
+                if (!paciente) paciente = 'Usuario Sanitas';
+
+            } else if (logueado && this.modoProxy) {
+                // ── Titular agendando para un familiar (Proxy) ──
+                // Cédula del titular se extrae del usuario logueado
+                try {
+                    const userActivoStr = localStorage.getItem('usuarioActivo');
+                    if (userActivoStr) {
+                        const user = JSON.parse(userActivoStr);
+                        cedulaTitular = user.identificacion || null;
+                    }
+                } catch (e) { }
+                // Nombre y cédula del paciente vienen del formulario del familiar
+                const inputNombres = document.getElementById('citas-nombres');
+                const inputCedula  = document.getElementById('citas-cedula');
+                if (inputNombres) paciente      = inputNombres.value.trim() || 'Familiar';
+                if (inputCedula)  cedulaPaciente = inputCedula.value.trim();
+
             } else {
-                // Invitado: toma datos del formulario
-                const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
+                // ── Invitado sin cuenta ──
+                const inputNombres   = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
                 const inputApellidos = document.getElementById('cita-apellidos');
-                const inputCedula = document.getElementById('citas-cedula');
-                let n = inputNombres ? inputNombres.value : '';
-                let a = inputApellidos ? inputApellidos.value : '';
-                let nombreForm = `${n} ${a}`.trim();
-                if (nombreForm) paciente = nombreForm;
+                const inputCedula    = document.getElementById('citas-cedula');
+                const n = inputNombres   ? inputNombres.value.trim()   : '';
+                const a = inputApellidos ? inputApellidos.value.trim() : '';
+                paciente      = [n, a].filter(Boolean).join(' ') || 'Paciente';
                 if (inputCedula) cedulaPaciente = inputCedula.value.trim();
-                // Cambia esta línea:
-                cedulaTitular = cedulaPaciente;   // ← MODIFICADO
+                cedulaTitular = cedulaPaciente;
             }
 
             const fechaHoraStr = this.horaSeleccionada;
@@ -1957,7 +2019,61 @@ const app = {
                     this._mostrarModalLimiteDiario(especialidad, fechaISO);
                     return;
                 }
-            }
+
+                // ── BR-2/BR-3 Titular en Paso 4 (Trigger de Identidad) ──
+                // El titular confirmó la cita para sí mismo. Es el primer punto donde
+                // su cédula es conocida con certeza → validamos colisión y buffer ahora.
+                if (cedulaTitular) {
+                    const horaStr = this.horaSeleccionada&&this.horaSeleccionada.includes(',') ? this.horaSeleccionada.split(', ')[1] : '';
+                    const citasPublicasT = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+
+                    // BR-2: Colisión exacta (misma hora del paciente)
+                    const colisionT = citasPublicasT.find(c =>
+                        c.cedula === cedulaTitular &&
+                        c.fecha === fechaISO &&
+                        c.hora === horaStr &&
+                        c.estado !== 'Cancelada' &&
+                        !(idExcluir && (c.id_cita === idExcluir || c.id === idExcluir))
+                    );
+                    if (colisionT) {
+                        this._mostrarModalColision(colisionT, fechaISO, horaStr, fechaISO);
+                        return;
+                    }
+
+                    // BR-3: Buffer de 30 min bidireccional
+                    const doc = this._doctorActual;
+                    const duracionNueva = doc ? (doc.duracion_minutos || 30) : 30;
+                    const [hN, mN] = horaStr.split(':').map(Number);
+                    const inicioNueva = hN * 60 + mN;
+                    const finNueva = inicioNueva + duracionNueva;
+                    const citasMismoDiaT = citasPublicasT.filter(c =>
+                        c.cedula === cedulaTitular &&
+                        c.fecha === fechaISO &&
+                        c.estado !== 'Cancelada' &&
+                        !(idExcluir && (c.id_cita === idExcluir || c.id === idExcluir))
+                    );
+                    const dbT = JSON.parse(localStorage.getItem('sanitasFam_db'));
+                    for (const citaT of citasMismoDiaT) {
+                        let durExt = 30;
+                        if (dbT && dbT.cartera_especialistas) {
+                            const espT = dbT.cartera_especialistas.find(e => e.especialidad === citaT.especialidad);
+                            if (espT) durExt = espT.duracion_minutos || 30;
+                        }
+                        const [hE, mE] = citaT.hora.split(':').map(Number);
+                        const inicioExt = hE * 60 + mE;
+                        const finExt = inicioExt + durExt;
+                        if ((finNueva + 30 > inicioExt) && (finExt + 30 > inicioNueva)) {
+                            const minSug = finExt + 30;
+                            const hSug = Math.floor(minSug / 60);
+                            const mSug = minSug % 60;
+                            const horaSug = `${String(hSug).padStart(2, '0')}:${String(mSug).padStart(2, '0')}`;
+                            const detalle = `${citaT.especialidad || 'Especialidad'} con ${citaT.medico || 'Médico'} a las ${citaT.hora}`;
+                            this._mostrarModalBuffer(detalle, durExt, horaSug);
+                            return;
+                        }
+                    }
+                }
+            } // fin if (estaLogueado && !this.modoProxy)
 
             // --- VALIDACIÓN DE LÍMITE DIARIO (Invitado o Proxy: red de seguridad en Paso 4) ---
             // Cubre el caso en que el Paso 3 fue omitido (ej. flujo de modificación directa).
@@ -1986,6 +2102,8 @@ const app = {
             const modCtxStr = sessionStorage.getItem('cita_modificacion');
             let modCtx = null;
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
+            // Capturar flag ANTES de que los removeItem borren cita_modificacion del sessionStorage
+            const esModificacion = !!modCtx;
 
             const fechaHoraStr = this.horaSeleccionada; // Asegurar que tenemos la hora
             const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
@@ -2089,6 +2207,16 @@ const app = {
             document.getElementById('resumen-fecha').textContent = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
             document.getElementById('resumen-paciente').textContent = cita.paciente;
 
+            // ── Feedback Contextual y Adaptativo ──
+            // Si la cita provino de un flujo de modificación, el título debe reflejar
+            // la acción real: "Reagendada" en lugar del genérico "Agendada".
+            // esModificacion se evaluó ANTES de que sessionStorage fuera limpiado.
+            const tituloPaso5 = document.querySelector('#citas-step-5 h2');
+            if (tituloPaso5) {
+                tituloPaso5.textContent = esModificacion
+                    ? '¡Cita reagendada con éxito!'
+                    : '¡Cita agendada con éxito!';
+            }
 
             this.mostrarPaso(5);
             sessionStorage.removeItem('_citaTemporal_respaldo');   // limpiar respaldo
@@ -4703,7 +4831,27 @@ const app = {
             });
             this._tipoDoc = '';
             this._sexo = '';
-            app.navegar('home');
+
+            // ── H1 - Punto Final de Registro: Pantalla de Éxito post-Verificación ──
+            // El usuario ya está registrado y logueado (iniciarSesionUsuario ya fue llamado).
+            // En lugar de navegar abruptamente al Home, mostramos la confirmación visual.
+            // El botón de la pantalla lleva al Home como acción explícita del usuario.
+            const contenedorRegistro = document.getElementById('view-registro');
+            if (contenedorRegistro) {
+                contenedorRegistro.innerHTML = `
+                    <div class="pantalla-exito-registro">
+                        <i class="fa-solid fa-circle-check icono-exito-grande"></i>
+                        <h2>¡Cuenta creada con éxito!</h2>
+                        <p>Bienvenido al sistema. Ahora puedes gestionar tus citas médicas y revisar tu historial en Mi Salud.</p>
+                        <button class="btn btn--primario" onclick="app.navegar('home')">
+                            Continuar al Inicio
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Fallback: si el contenedor no está disponible, navegar directamente
+                app.navegar('home');
+            }
 
         },
 
@@ -4834,11 +4982,12 @@ const app = {
             this._pasoActual = 1;
             clearInterval(this._countdownInterval);
 
-            // Limpiar borrador
+            // Limpiar borrador del sessionStorage (la cuenta aún no es oficial hasta verificar el código).
+            // La pantalla de éxito se muestra después de la verificación en validarCodigo().
             sessionStorage.removeItem('sanitas_borrador_registro');
 
-            // 5. Redirigir al login
-            app.navegar('login');
+            // 5. Avanzar al paso de verificación de código (Paso 3)
+            this.mostrarPaso(3);
         }
     },
 
