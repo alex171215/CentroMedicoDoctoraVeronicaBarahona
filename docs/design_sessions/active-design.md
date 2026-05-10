@@ -1,19 +1,19 @@
-# Sesión de Diseño Activa: Validación Atómica y Aislada (Paso 3)
+# Sesión de Diseño Activa: Ocultamiento Inteligente de Navegación (Hide vs Disable)
 
 ## 1. Objetivo
-Corregir el comportamiento de validación masiva en el Paso 3, asegurando que los errores solo se muestren en el campo específico que pierde el foco (`blur`), respetando el flujo natural del usuario.
+Aplicar la regla de "Ocultar en lugar de Deshabilitar" al botón de retroceso cuando el usuario se encuentre en el primer día hábil, mejorando el diseño minimalista (H8) y eliminando affordances engañosos, preservando la estabilidad del layout.
 
-## 2. Instrucciones Técnicas para Antigravity (Claude)
+## 2. Instrucciones Técnicas para Antigravity
 
-### A. Refactorización de Listeners (app.js)
-* **El Problema:** Al salir de un campo, el sistema valida todo el formulario y muestra errores en campos no visitados.
-* **Acción:** Modifica los Event Listeners de `blur` para los inputs del Paso 3.
-* **Lógica Atómica:**
-  1. La función ejecutada en el `blur` debe recibir el evento y actuar ÚNICAMENTE sobre `e.target`.
-  2. Valida el valor del `target`. Si está vacío o es inválido, muestra el mensaje de error **solo para ese ID**.
-  3. No llames a funciones globales de validación (como las que habilitan el botón "Siguiente") que tengan efectos secundarios visuales en otros campos durante el `blur`.
+### A. Persistencia del Límite de Inicio (app.js)
+* **Acción:** En la inicialización del calendario, guarda el primer día con horarios útiles en `this.fechaInicioDisponible`.
 
-### B. Sincronización de Botón "Siguiente"
-* **Acción:** Mantén la validación global (habilitar/deshabilitar botón) únicamente para el evento `input`, pero asegúrate de que esa función no inyecte clases de error (`--error`) ni muestre mensajes de texto. El evento `input` debe ser silencioso.
+### B. Control de Visibilidad (app.js)
+* **Localización:** Función de renderizado de la navegación móvil o actualización de UI.
+* **Lógica:** 1. Compara `this.fechaBaseCalendario` con `this.fechaInicioDisponible` (reseteando horas a 00:00:00).
+    2. Si son iguales (es el primer día): Aplica `style.visibility = "hidden"` al botón de retroceso (`cambiarDiaMobile(-1)`).
+    3. Si el usuario avanzó a fechas futuras: Aplica `style.visibility = "visible"`.
+    4. Elimina cualquier rastro de la lógica anterior que usaba `opacity` o `pointer-events`.
 
-**Restricción Estricta:** No alteres el diseño de los modales ni la lógica de las colisiones de 30 minutos.
+### C. Guarda Lógica en JS (Seguridad)
+* **Acción:** En `cambiarDiaMobile(direccion)`, mantén el `return;` si `direccion === -1` y la fecha es igual al inicio disponible, por si el usuario intenta forzar la función desde la consola.
