@@ -72,6 +72,16 @@ Esta sección contiene patrones de diseño obligatorios implementados en el cód
 * **Sanitización en Tiempo Real:** Los campos de búsqueda y nombres deben usar Regex en el evento `input` para impedir físicamente la entrada de caracteres no permitidos (Whitelist).
 * **Mensajes Granulares:** No usar mensajes genéricos. El sistema debe distinguir entre "Campo vacío", "Formato incorrecto" y "Valor inválido por lógica de negocio".
 * **Aislamiento de Validación (Atomic Blur):** El evento `blur` debe ser atómico. Solo se debe validar y mostrar error en el elemento específico que perdió el foco (`event.target`). Está PROHIBIDO disparar validaciones visuales en campos que el usuario aún no ha visitado o modificado.
+* **Validación de Colisiones por Identidad:**
+  - El sistema debe permitir la selección de cualquier horario disponible en la agenda del médico en el Paso 2.
+  - La lógica de "Cruce de horarios del paciente" se debe encapsular en una función que reciba `(cedula, fechaISO, horaInicio, duracion)`.
+  - Esta función solo se invoca en los puntos de validación de identidad (Pasos 3 y 4).
+
+* **Resolución de Nombre del Paciente (H2/H5):**
+  - **Lógica de Selección:**
+    1. Si `modoProxy` es TRUE: Usar los nombres/apellidos del formulario del Paso 3.
+    2. Si `modoProxy` es FALSE: Concatenar `nombre_1` + `apellido_1` del `usuarioActivo`.
+  - **Fallback de Seguridad:** Si el objeto de usuario está vacío o indefinido por error de sesión, el sistema debe mostrar un valor genérico pero digno (ej. "Usuario Sanitas") en lugar de un string técnico como "null" o "undefined".
 
 
 ## 7. Interfaz de Calendario: Restricciones y Consistencia

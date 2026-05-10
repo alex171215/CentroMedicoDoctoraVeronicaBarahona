@@ -27,7 +27,8 @@ Todo flujo de agendamiento o modificación DEBE respetar las siguientes reglas m
     1. **Flujo Invitado/Proxy:** En el Paso 3, al hacer clic en "Siguiente" tras llenar el formulario.
     2. **Flujo Titular (Para sí mismo):** En el Paso 4, al hacer clic en "Confirmar Cita".
 * **Acción ante Fallo:** Si la validación falla, se debe interrumpir la ejecución (`return`), mostrar el modal de alerta y mantener al usuario en la pantalla actual para que pueda corregir los datos o elegir otro día.
-* **BR-2 (Colisión Exacta):** Un paciente no puede tener dos citas a la misma hora exacta en la misma fecha.
-* **BR-3 (Buffer de Traslado):** Debe existir un espacio mínimo de 30 minutos libres antes y después de cada cita del paciente (sumado a la duración de la cita previa) para permitir el traslado dentro del centro médico.
-
+* **BR-2 (Colisión Exacta) y BR-3 (Buffer de 30 min):** - **Regla:** Un paciente no puede tener dos citas que se traslapen o que tengan menos de 30 min de diferencia entre ellas.
+  - **Trigger de Validación (REGLA DE ORO):** Estas comprobaciones NO deben realizarse al seleccionar la hora en el Calendario (Paso 2). Deben ejecutarse únicamente cuando la cédula del paciente sea confirmada:
+    1. **Paso 3 (Invitado/Proxy):** Al hacer clic en "Siguiente".
+    2. **Paso 4 (Titular):** Al hacer clic en el botón de "Confirmar Cita" definitivo.
 

@@ -4328,3 +4328,43 @@ ul {
         padding: 24px 16px;
     }
 }
+
+/* ── Pantalla de Éxito: Creación de Cuenta (H1 - Punto Final) ── */
+.pantalla-exito-registro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 24px;
+    max-width: 520px;
+    margin: 0 auto;
+    gap: 16px;
+}
+
+.pantalla-exito-registro h2 {
+    font-size: 1.5rem;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.pantalla-exito-registro p {
+    color: var(--gray-text);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.icono-exito-grande {
+    color: var(--action-color);
+    font-size: 4rem;
+    margin-bottom: 4px;
+}
+
+/* ── Ícono de éxito dentro del modal de resolución (cancelación de cita) ── */
+/* Usa visibility del layout modal: margen inferior mayor para separar del título. */
+.icono-exito-modal {
+    color: var(--action-color);
+    font-size: 3.5rem;
+    margin-bottom: 16px;
+    display: block;
+}

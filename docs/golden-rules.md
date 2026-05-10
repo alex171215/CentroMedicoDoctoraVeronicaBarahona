@@ -35,3 +35,20 @@ Todo el sistema debe respetar estrictamente los siguientes puntos de ruptura (Me
 * **Móviles (Celulares):** `max-width: 767px` (El límite mínimo es 320px).
 
 * **Patrón de Edición Continua:** Los modales o vistas de edición múltiple (como "Editar Perfil") NUNCA deben cerrarse automáticamente tras guardar un cambio. El usuario debe mantener el control y ser quien cierre explícitamente la ventana. Se debe compensar con feedback visual in-line (H1).
+
+
+## 6. Estándares de Retroalimentación de Éxito (Puntos Finales)
+
+Para cerrar correctamente el ciclo cognitivo del usuario (H1), el sistema aplicará los siguientes patrones según la acción:
+
+1. **Pantallas de Éxito (Redirección):** Para acciones mayores.
+   * *Crear Cuenta:* Redirigir al `Home` o `Login` con un mensaje de bienvenida.
+   * *Agendar Cita:* Redirigir al `Paso 5 (Confirmación)` con el resumen y código.
+2. **Toasts Asíncronos (Feedback no obstructivo):** Para acciones de actualización.
+   * *Modificar Cita / Editar Perfil:* Inyectar mensaje temporal (3 segundos) sin cambiar de vista ni requerir clics adicionales.
+3. **Modales de Resolución:** Para acciones destructivas.
+   * *Cancelar Cita:* Modal de confirmación previa -> Cambio a estado de éxito -> Redirección obligatoria al Dashboard al cerrar.
+
+* **H1 - Punto Final de Registro:** La confirmación de "Cuenta creada" debe aparecer ÚNICAMENTE tras la validación exitosa del código de verificación. Es el cierre del ciclo cognitivo. Queda prohibido navegar al Home o Login antes de que el usuario vea y acepte esta pantalla de éxito.
+
+* **Feedback Contextual y Adaptativo:** Los mensajes de éxito deben reflejar la intención específica del usuario. Si la acción fue una modificación, el mensaje debe usar términos como "Reagendada" o "Actualizada". Se prohíbe el uso de mensajes genéricos que oculten la naturaleza de la transacción realizada.

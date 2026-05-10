@@ -1,19 +1,12 @@
-# Sesión de Diseño Activa: Ocultamiento Inteligente de Navegación (Hide vs Disable)
+# Sesión de Diseño Activa: Corrección de Identidad en Resumen (H2)
 
 ## 1. Objetivo
-Aplicar la regla de "Ocultar en lugar de Deshabilitar" al botón de retroceso cuando el usuario se encuentre en el primer día hábil, mejorando el diseño minimalista (H8) y eliminando affordances engañosos, preservando la estabilidad del layout.
+Asegurar que el resumen de la cita muestre el nombre real del titular de la cuenta cuando este agenda para sí mismo, eliminando el placeholder "Paciente".
 
-## 2. Instrucciones Técnicas para Antigravity
-
-### A. Persistencia del Límite de Inicio (app.js)
-* **Acción:** En la inicialización del calendario, guarda el primer día con horarios útiles en `this.fechaInicioDisponible`.
-
-### B. Control de Visibilidad (app.js)
-* **Localización:** Función de renderizado de la navegación móvil o actualización de UI.
-* **Lógica:** 1. Compara `this.fechaBaseCalendario` con `this.fechaInicioDisponible` (reseteando horas a 00:00:00).
-    2. Si son iguales (es el primer día): Aplica `style.visibility = "hidden"` al botón de retroceso (`cambiarDiaMobile(-1)`).
-    3. Si el usuario avanzó a fechas futuras: Aplica `style.visibility = "visible"`.
-    4. Elimina cualquier rastro de la lógica anterior que usaba `opacity` o `pointer-events`.
-
-### C. Guarda Lógica en JS (Seguridad)
-* **Acción:** En `cambiarDiaMobile(direccion)`, mantén el `return;` si `direccion === -1` y la fecha es igual al inicio disponible, por si el usuario intenta forzar la función desde la consola.
+## 2. Instrucciones Técnicas para Antigravity (app.js)
+* **Localización:** Función que genera el resumen del Paso 4 y la pantalla de éxito del Paso 5.
+* **Refactorización de Variable `nombrePaciente`:**
+    * Crear una variable local que determine el nombre a mostrar.
+    * Si el usuario está logueado y NO es flujo de familiar: extraer los datos de `app.usuarioActivo` (o del objeto recuperado de `sanitas_usuarios`).
+    * Formato: `Firstname + Lastname`.
+* **Inyección en DOM:** Asegurarse de que el elemento que muestra "Paciente: ..." reciba esta variable procesada.
