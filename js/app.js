@@ -1119,6 +1119,22 @@ const app = {
                 this.modoProxy = false;
             }
 
+            // ── Regla G: Consistencia de Etiqueta del botón Volver en Paso 2 ──
+            // El texto del botón debe coincidir con el destino real del retroceso.
+            // Si hay 1 médico → destino es Especialidades (Paso 0).
+            // Si hay >1 médico → destino es Médicos (Paso 1).
+            if (nuevoPaso === 2) {
+                const backBtnPaso2 = document.querySelector('#citas-step-2 .btn-back-minimalist');
+                if (backBtnPaso2) {
+                    const numMedicos = this._contarMedicosEspecialidad();
+                    if (numMedicos === 1) {
+                        backBtnPaso2.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Volver a Especialidades';
+                    } else {
+                        backBtnPaso2.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Volver a Médicos';
+                    }
+                }
+            }
+
             // --- FIN DE LA INSERCIÓN ---
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -1145,23 +1161,58 @@ const app = {
             }
         },
 
+        // ── Helper: cuenta los médicos de la especialidad activa en la DB ──
+        // Retorna el número de doctores válidos para sessionStorage:'especialidad_seleccionada'.
+        // Usado por irAtras() y mostrarPaso() para aplicar la Regla G.
+        _contarMedicosEspecialidad() {
+            const esp = sessionStorage.getItem('especialidad_seleccionada');
+            if (!esp) return 0;
+            try {
+                const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
+                if (!db || !db.cartera_especialistas) return 0;
+                return db.cartera_especialistas.filter(e => e.especialidad === esp && e.doctor).length;
+            } catch (e) { return 0; }
+        },
+
         irAtras() {
-            if (this.historialPasos.length > 0) {
-                const pasoAnterior = this.historialPasos.pop();
+            // ── Regla de Oro de Retorno (Navegación Secuencial Determinista) ──
+            // Fuente única de verdad para TODO retroceso en el módulo de citas.
+            //
+            // Flujo Titular Logueado: 4 → 2 → 1 → 0  (Paso 3 se omite porque no lo visitó)
+            // Flujo Invitado / Proxy: 4 → 3 → 2 → 1 → 0  (orden inverso estricto)
 
-                // MATA-BUGS VISUAL: Si estamos saliendo del Calendario (Paso 2), 
-                // vaciamos la imagen para que no haya un "flash" con la cara equivocada la próxima vez.
+            const esTitularLogueado = localStorage.getItem('usuarioLogueado') === 'true' && !this.modoProxy;
+
+            // Caso especial: Titular en Paso 4 salta directamente al Paso 2 (Calendario)
+            if (this.pasoActual === 4 && esTitularLogueado) {
+                this.mostrarPaso(2);
+                return;
+            }
+
+            // ── Regla G: Asimetría de Retorno (Back-jump Condicional) ──
+            // Si el usuario está en el Calendario (Paso 2) y la especialidad tiene
+            // exactamente 1 médico, nunca pasó por el Paso 1 (lista de médicos).
+            // Ir a Paso 1 mostraría una pantalla vacía → se salta directamente al Paso 0.
+            if (this.pasoActual === 2 && this._contarMedicosEspecialidad() === 1) {
+                const imgEl = document.getElementById('citas-doctor-img');
+                if (imgEl) imgEl.src = '';
+                this.mostrarPaso(0);
+                return;
+            }
+
+            // Caso general: retroceder N-1
+            const pasoDeterminista = this.pasoActual - 1;
+
+            if (pasoDeterminista >= 0) {
+                // MATA-BUGS VISUAL: Al salir del Calendario (Paso 2), limpiar imagen
+                // para evitar flash con la foto del médico equivocado la próxima vez.
                 if (this.pasoActual === 2) {
-                    document.getElementById('citas-doctor-img').src = '';
+                    const imgEl = document.getElementById('citas-doctor-img');
+                    if (imgEl) imgEl.src = '';
                 }
-
-                document.querySelectorAll('.citas-step').forEach(el => el.style.display = 'none');
-                document.getElementById(`citas-step-${pasoAnterior}`).style.display = 'block';
-                this.pasoActual = pasoAnterior;
-                this.actualizarBarraProgreso();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                this.mostrarPaso(pasoDeterminista);
             } else {
-                // Fallback por si acaso
+                // Fallback de seguridad: si ya estamos en el paso 0, salir de citas
                 app.navegar('home');
             }
         },
@@ -1853,17 +1904,11 @@ const app = {
             `;
 
             // Configurar botón Volver
+            // REGLA DE ORO: Delegar SIEMPRE a irAtras().
+            // No asignar lógica local aquí: irAtras() es la única fuente de verdad.
             const backBtn = document.getElementById('btn-back-review');
             if (backBtn) {
-                backBtn.onclick = () => {
-                    // Retroceder al paso anterior según el historial
-                    if (this.historialPasos.length > 0) {
-                        const anterior = this.historialPasos.pop();
-                        this.mostrarPaso(anterior);
-                    } else {
-                        this.mostrarPaso(2);
-                    }
-                };
+                backBtn.onclick = () => app.citas.irAtras();
             }
 
             // Configurar botón Confirmar Cita
@@ -2332,6 +2377,10 @@ const app = {
 
         diaSeleccionadoMobile: 0,   // 0 = Lunes, 1 = Martes, …, 5 = Sábado
         modoProxy: false,
+        // C1: Límite Dinámico de Retroceso — se fija tras el Smart Jump inicial.
+        // Representa el primer día con disponibilidad real encontrado al cargar el calendario.
+        // El usuario no puede retroceder más allá de esta fecha.
+        fechaInicioDisponible: null,
         _citaTemporal: null,
 
         // Mapeo de duración (minutos) por especialidad
@@ -2429,31 +2478,50 @@ const app = {
 
             const esMobile = window.innerWidth <= 767;
             const labelDiaMobile = document.getElementById('citas-day-label-mobile');
-            // ── Smart Default: avanzar automáticamente al primer día con horarios ──
-            if (autoSeek && esMobile && doc) {
+            // ── Smart Default: avanzar al primer día con disponibilidad real ──
+            if (autoSeek && doc) {
+                // ── C2: Smart Jumps con Disponibilidad Real (H7) ──
+                // Criterio de parada: el día debe ser laborable Y tener al menos
+                // un slot cuya hora sea posterior al instante actual Y no esté ocupado.
+                // Cálculo puramente lógico: sin escrituras al DOM dentro del bucle.
                 const settings = { duracion, diasLaborables, horaInicio, horaFin, horaFinSabado };
                 let diaActual = new Date(lunes);
                 diaActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
-                let contador = 0;
-                while (contador < 30) {
-                    const slots = this._obtenerSlotsDia(diaActual, settings);
-                    const disponibles = slots.filter(s => !s.yaPaso && !s.estaOcupada);
-                    if (disponibles.length > 0) break;
-                    // avanzar un día
+                let intentos = 0;
+
+                // Función auxiliar interna: devuelve el conteo de slots interactuables
+                // para un día dado, usando _obtenerSlotsDia() (lectura pura, sin DOM write).
+                const contarDisponibles = (fecha) => {
+                    const slots = this._obtenerSlotsDia(new Date(fecha), settings);
+                    return slots.filter(s => !s.yaPaso && !s.estaOcupada).length;
+                };
+
+                // El bucle avanza mientras el día actual NO tenga slots reales disponibles.
+                // Condición de escape estricta: máximo 14 iteraciones (2 semanas).
+                while (contarDisponibles(diaActual) === 0 && intentos < 14) {
                     diaActual.setDate(diaActual.getDate() + 1);
-                    // recalcular lunes y día de la semana
+                    // Recalcular el lunes de la semana en la que cae el nuevo día
                     const dSem = diaActual.getDay();
                     const diff = dSem === 0 ? -6 : 1 - dSem;
                     lunes = new Date(diaActual);
                     lunes.setDate(diaActual.getDate() + diff);
+                    lunes.setHours(0, 0, 0, 0);
                     this.fechaBaseCalendario = new Date(lunes);
                     this.diaSeleccionadoMobile = Math.round((diaActual - lunes) / 86400000);
-                    contador++;
+                    intentos++;
                 }
-                // Si no encontró, se queda en el último día (mostrará empty state)
-                // Actualizar la etiqueta del mes ya que lunes pudo cambiar
+                // Si el bucle agotó las 14 iteraciones sin encontrar disponibilidad,
+                // se queda en la última fecha evaluada y mostrará el empty state.
+
+                // ── C1: Fijar el Límite Dinámico de Retroceso ──
+                // Se registra el día en el que aterrizó el Smart Jump como fecha mínima navegable.
+                // Este valor persiste mientras el usuario no cambie de médico o especialidad.
+                this.fechaInicioDisponible = new Date(diaActual);
+                this.fechaInicioDisponible.setHours(0, 0, 0, 0);
+
+                // Actualizar etiqueta del mes ya que lunes pudo haber cambiado
                 if (labelMes) labelMes.textContent = `${meses[lunes.getMonth()]} ${lunes.getFullYear()}`;
-                // También actualizar label dia móvil si procede
+                // Actualizar label del día en móvil
                 const diaSelect = new Date(lunes);
                 diaSelect.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
                 const nombreDia = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][diaSelect.getDay()];
@@ -2512,14 +2580,22 @@ const app = {
                         }
                         html += `</div></div>`;
                     } else {
-                        // Renderizado normal (código que ya tenías antes)
-                        html += `<div class="calendar-day${esPasado ? ' calendar-day--past' : ''}">`;
-                        html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
-                        html += `<div class="calendar-slots">`;
-
                         if (esPasado) {
-                            html += `<span class="time-slot time-slot--unavailable">No disponible</span>`;
+                            // ── C3: Empty State Estandarizado (H4) — día pasado ──
+                            // Los días pasados usan el mismo diseño que los días sin slots.
+                            html += `<div class="calendar-day calendar-day--past">`;
+                            if (!esMobile) {
+                                html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
+                            }
+                            html += `<div class="calendar-slots calendar-slots--empty">`;
+                            html += `<div class="empty-state-diario" style="text-align:center; padding:20px; opacity:0.6;"><i class="fa-solid fa-calendar-xmark fa-2x"></i><p>No hay horarios disponibles para este día</p></div>`;
+                            html += `</div></div>`;
                         } else {
+                            // Renderizado normal con slots activos
+                            html += `<div class="calendar-day">`;
+                            html += `<div class="${headerClass}">${diasNombres[i]}<br><strong>${diaNum} ${mesCorto}</strong></div>`;
+                            html += `<div class="calendar-slots">`;
+
                             const [hI, mI] = horaInicio.split(':').map(Number);
                             const inicioMin = hI * 60 + mI;
                             const [hF, mF] = (esSabado ? horaFinSabado : horaFin).split(':').map(Number);
@@ -2550,19 +2626,57 @@ const app = {
                                 }
                                 slotCount++;
                             }
+                            html += `</div></div>`;
                         }
-                        html += `</div></div>`;
                     }
                 }
             }
 
             grid.innerHTML = html || '<p style="text-align:center; padding:20px;">No hay horarios disponibles esta semana.</p>';
 
+            // ── C1 UI (Escritorio): Ocultar botón "Anterior" en la semana de inicio ──
+            // Usa visibility:hidden (no display:none) para mantener el layout Flexbox estable.
+            const hoyNorm = new Date();
+            hoyNorm.setHours(0, 0, 0, 0);
+            const lunesNorm = new Date(lunes);
+            lunesNorm.setHours(0, 0, 0, 0);
+            const btnAnterior = document.querySelector('.citas-calendar-header .calendar-nav-btn:first-child');
+            if (btnAnterior) {
+                btnAnterior.style.visibility = lunesNorm <= hoyNorm ? 'hidden' : 'visible';
+            }
+
+            // ── C1 UI (Móvil): Ocultar botón "Día anterior" en el origen de disponibilidad ──
+            // visibility:hidden oculta el botón sin colapsar el espacio que ocupa en el flex,
+            // evitando el salto visual que causaría display:none. El botón vuelve a 'visible'
+            // en cuanto el usuario avanza a cualquier día posterior al límite mínimo.
+            if (esMobile) {
+                const diaVisibleMobile = new Date(lunes);
+                diaVisibleMobile.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
+                diaVisibleMobile.setHours(0, 0, 0, 0);
+                const limiteMinimo = this.fechaInicioDisponible
+                    ? new Date(this.fechaInicioDisponible)
+                    : (() => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; })();
+                const btnDiaAnterior = document.querySelector('.citas-day-nav-mobile .calendar-nav-btn:first-child');
+                if (btnDiaAnterior) {
+                    btnDiaAnterior.style.visibility = diaVisibleMobile <= limiteMinimo ? 'hidden' : 'visible';
+                }
+            }
+
             this._bloquearConfirmar();
         },
 
         cambiarSemana(direccion) {
-            // Heurística #5: al cambiar semana se pierde la selección anterior
+            // ── C1: Bloqueo del Pasado (H5) ──
+            // Si el usuario intenta ir hacia atrás, calculamos la nueva fecha base
+            // y comparamos contra hoy normalizando las horas para no bloquear el día actual.
+            if (direccion === -1) {
+                const nuevaFecha = new Date(this.fechaBaseCalendario);
+                nuevaFecha.setDate(nuevaFecha.getDate() - 7);
+                nuevaFecha.setHours(0, 0, 0, 0);
+                const hoyNorm = new Date();
+                hoyNorm.setHours(0, 0, 0, 0);
+                if (nuevaFecha < hoyNorm) return; // Abortar: no se puede ir al pasado
+            }
             this.fechaBaseCalendario.setDate(this.fechaBaseCalendario.getDate() + (direccion * 7));
             this.generarCalendario();
         },
@@ -2583,6 +2697,24 @@ const app = {
 
             let diaActual = new Date(lunes);
             diaActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
+
+            // ── C1: Blindaje del Límite Inferior (H5) ──
+            // Compara el día visible ACTUAL (no el destino potencial) contra hoy.
+            // Si el día que se muestra actualmente YA ES hoy, no hay a dónde retroceder.
+            // Usa setHours(0,0,0,0) en ambos para eliminar errores de hora/minuto/segundo.
+            if (direccion === -1) {
+                const diaVisibleActual = new Date(lunes);
+                diaVisibleActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
+                diaVisibleActual.setHours(0, 0, 0, 0);
+                // ── C1 Lógico: Blindaje contra fechaInicioDisponible ──
+                // El límite dinámico reemplaza la comparación contra "hoy".
+                // Si el usuario ya está en el primer día con disponibilidad,
+                // no tiene sentido retroceder (solo vería días sin slots).
+                const limiteMinimo = this.fechaInicioDisponible
+                    ? new Date(this.fechaInicioDisponible)
+                    : (() => { const h = new Date(); h.setHours(0,0,0,0); return h; })();
+                if (diaVisibleActual <= limiteMinimo) return; // Blindaje infranqueable
+            }
 
             // ── Smart Jumps: avanzar/retroceder hasta el próximo día laborable ──
             let iteraciones = 0;

@@ -42,6 +42,8 @@ La persistencia actual es LocalStorage (con miras a migración a Firebase). La e
 * **Formato Obligatorio:** Toda comparación de fechas para la regla BR-1 debe realizarse exclusivamente en formato ISO (`YYYY-MM-DD`). 
 * **Acceso a Datos:** En el bucle de validación sobre `sanitas_citas`, el campo identificador es `cedula_paciente`. Está prohibido usar `c.cedula` si el objeto no tiene esa propiedad.
 
+
+
 ## 5. Decisiones Arquitectónicas y de Seguridad (Blindaje de IA)
 Esta sección contiene patrones de diseño obligatorios implementados en el código. NINGUNA refactorización debe alterar este comportamiento:
 
@@ -53,6 +55,15 @@ Esta sección contiene patrones de diseño obligatorios implementados en el cód
   * Los campos de Login se vacían estrictamente al abandonar la vista.
 * **D. Edición Continua Asíncrona (Perfil):** Los formularios de actualización múltiple NO se auto-cierran. Al guardar, el botón se deshabilita (`disabled = true`), muestra "Guardando...", simula latencia y luego muestra un mensaje de éxito que desaparece a los 3 segundos.
 * **E. Smart Jumps (Calendario Móvil):** En pantallas `<= 767px`, el calendario usa un bucle `while` para saltar automáticamente los días sin atención y mostrar el primer día laborable disponible.
+* **F. Navegación Secuencial Determinista (Regla de Oro de Retorno):**
+  La función `irAtras()` y los botones `.btn-back-minimalist` deben seguir estrictamente el orden inverso del flujo activo:
+  * **Flujo Invitado/Proxy:** 4 (Revisión) -> 3 (Datos) -> 2 (Calendario) -> 1 (Médicos) -> 0 (Especialidad).
+  * **Flujo Titular Logueado:** 4 (Revisión) -> 2 (Calendario) -> 1 (Médicos) -> 0 (Especialidad). (Nota: El paso 3 se omite).
+  * **Prohibición:** Está terminantemente prohibido que un botón "Volver" navegue hacia un paso superior al actual (ej. de 2 a 4) o que use `app.navegar()` si el cambio es interno del módulo de citas.
+
+* **G. Salto de Paso Condicional (Asimetría de Retorno):**
+  - **Avance:** Si una especialidad tiene exactamente un (1) médico, el flujo salta automáticamente del Paso 0 (Especialidad) al Paso 2 (Calendario).
+  - **Retorno (Regla Crítica):** La función `irAtras()` debe reflejar este salto. Si el usuario está en el Paso 2 y la especialidad seleccionada tiene solo 1 médico, el retroceso debe apuntar obligatoriamente al Paso 0. El texto del botón de retroceso en el Paso 2 debe adaptarse dinámicamente a este destino.
 
 ## 6. Estándares de Validación y Eventos
 * **Regex Whitelisting (`input` event):** Campos de búsqueda blindados en tiempo real contra XSS/SQLi permitiendo solo caracteres alfabéticos.
@@ -61,3 +72,15 @@ Esta sección contiene patrones de diseño obligatorios implementados en el cód
 * **Sanitización en Tiempo Real:** Los campos de búsqueda y nombres deben usar Regex en el evento `input` para impedir físicamente la entrada de caracteres no permitidos (Whitelist).
 * **Mensajes Granulares:** No usar mensajes genéricos. El sistema debe distinguir entre "Campo vacío", "Formato incorrecto" y "Valor inválido por lógica de negocio".
 * **Aislamiento de Validación (Atomic Blur):** El evento `blur` debe ser atómico. Solo se debe validar y mostrar error en el elemento específico que perdió el foco (`event.target`). Está PROHIBIDO disparar validaciones visuales en campos que el usuario aún no ha visitado o modificado.
+
+
+## 7. Interfaz de Calendario: Restricciones y Consistencia
+* **C1. Límite Dinámico de Retroceso (Ocultamiento de Affordance):** El sistema bloquea el retroceso a fechas anteriores al "Primer Día Disponible".
+* **Comportamiento Visual:** Para evitar affordances falsos (botones que invitan al clic pero no funcionan), el botón de "Día anterior" (`.calendar-nav-btn`) DEBE ocultarse usando `visibility: hidden` cuando la fecha en pantalla sea igual al origen de disponibilidad (`fechaLimiteMinima`). NO usar `display: none` para no romper el centrado del layout. El botón volverá a `visibility: visible` al avanzar a días futuros.
+* **C2. Smart Jumps (Disponibilidad Real - H7):** Al inicializar el calendario o cambiar de especialista, el sistema debe garantizar que la vista inicial sea un día con slots interactuables. 
+* **Criterio de Éxito:** Un día se considera "hábil" solo si: 
+    1. El médico atiende en esa fecha (pertenece a `diasLaborables`).
+    2. Existe al menos un slot cuya hora sea posterior a la hora actual del sistema (`slot_time > Date.now()`).
+    3. El slot no está ocupado en el `localStorage`.
+* **Lógica:** El sistema debe iterar (máximo 14 días) hasta que se cumplan estas tres condiciones simultáneamente.
+* **C3. Empty States Estandarizados (H4):** Los días sin horarios deben renderizar UN SOLO estilo: un contenedor centrado con un ícono (`fa-calendar-xmark` o similar) y el texto "No hay horarios disponibles para este día". Queda prohibido el uso de mini-recuadros grises.
