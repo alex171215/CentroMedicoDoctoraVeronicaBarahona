@@ -98,6 +98,81 @@ const app = {
             overlaysVisibles[overlaysVisibles.length - 1].style.display = 'none';
         });
 
+        // ── Bloque E: Focus Trap y retorno de foco en modales (WCAG 2.1) ──
+        // Cubre .modal-overlay y .reg-modal-overlay. Excluye alertdialog.
+        const _FOCUSABLE_SEL = [
+            'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+            'select:not([disabled])', 'textarea:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])'
+        ].join(', ');
+
+        // Pila de modales abiertos: { overlay, trigger }
+        const _focusTrapStack = [];
+
+        // Devuelve los elementos enfocables visibles dentro de un overlay
+        function _getFocusables(overlay) {
+            return Array.from(overlay.querySelectorAll(_FOCUSABLE_SEL))
+                .filter(el => el.offsetParent !== null);
+        }
+
+        // MutationObserver: detecta apertura/cierre por cambio del atributo style
+        const _overlaySelector = ['modal-overlay', 'reg-modal-overlay'];
+        const _modalObserver = new MutationObserver((mutations) => {
+            for (const mut of mutations) {
+                if (mut.type !== 'attributes' || mut.attributeName !== 'style') continue;
+                const el = mut.target;
+                if (!el.classList || !_overlaySelector.some(cls => el.classList.contains(cls))) continue;
+                if (el.getAttribute('role') === 'alertdialog') continue;
+
+                const visible = el.style.display !== '' && el.style.display !== 'none';
+
+                if (visible && !_focusTrapStack.find(x => x.overlay === el)) {
+                    // Modal se abrió: guardar trigger y mover foco al primer elemento
+                    _focusTrapStack.push({ overlay: el, trigger: document.activeElement });
+                    requestAnimationFrame(() => {
+                        const focusables = _getFocusables(el);
+                        if (focusables.length) focusables[0].focus();
+                    });
+                } else if (!visible) {
+                    // Modal se cerró: restaurar foco al elemento que lo abrió
+                    const idx = _focusTrapStack.findIndex(x => x.overlay === el);
+                    if (idx !== -1) {
+                        const { trigger } = _focusTrapStack.splice(idx, 1)[0];
+                        if (trigger && typeof trigger.focus === 'function') {
+                            requestAnimationFrame(() => trigger.focus());
+                        }
+                    }
+                }
+            }
+        });
+        _modalObserver.observe(document.body, {
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style']
+        });
+
+        // Tab trap: cicla el foco dentro del modal activo más reciente
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab' || _focusTrapStack.length === 0) return;
+            const { overlay } = _focusTrapStack[_focusTrapStack.length - 1];
+            if (!overlay || overlay.style.display === 'none') return;
+
+            const focusables = _getFocusables(overlay);
+            if (focusables.length === 0) return;
+
+            const primero = focusables[0];
+            const ultimo = focusables[focusables.length - 1];
+            const activo = document.activeElement;
+
+            if (e.shiftKey && activo === primero) {
+                e.preventDefault();
+                ultimo.focus();
+            } else if (!e.shiftKey && activo === ultimo) {
+                e.preventDefault();
+                primero.focus();
+            }
+        });
+
         // 3. Carga Inicial (First Load)
         const hashInicial = window.location.hash.replace('#', '');
         if (hashInicial) {
