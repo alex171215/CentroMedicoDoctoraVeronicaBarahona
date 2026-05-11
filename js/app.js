@@ -62,6 +62,25 @@ const app = {
             }
         });
 
+        // ── Bloque D: Salida segura de modales (H3 – Control y Libertad) ──
+        // Cierra cualquier modal activo al hacer clic en el overlay o en la equis (X).
+        // Excluye alertdialog (modales de confirmación/colisión que requieren decisión explícita).
+        document.addEventListener('click', (e) => {
+            // Clic directo sobre el fondo oscuro (.modal-overlay), no sobre su contenido interior
+            if (e.target.classList.contains('modal-overlay') &&
+                e.target.getAttribute('role') !== 'alertdialog') {
+                e.target.style.display = 'none';
+            }
+            // Clic sobre el botón de cierre (.modal-close o .btn-close)
+            const btnClose = e.target.closest('.modal-close, .btn-close');
+            if (btnClose) {
+                const overlay = btnClose.closest('.modal-overlay');
+                if (overlay && overlay.getAttribute('role') !== 'alertdialog') {
+                    overlay.style.display = 'none';
+                }
+            }
+        });
+
         // 3. Carga Inicial (First Load)
         const hashInicial = window.location.hash.replace('#', '');
         if (hashInicial) {
@@ -6587,7 +6606,7 @@ const app = {
                     <span class="modal-consulta__val">${cita.medico || '—'}</span>
                 </div>`;
 
-            // Botones CRUD solo si la cita NO está cancelada y se encontró en el store
+            // Botones CRUD y documento solo si la cita NO está cancelada y se encontró en el store
             if (!esCancelada && indexEnPublicas !== -1) {
                 html += `
                 <div class="cita-acciones" role="group" aria-label="Acciones de cita">
@@ -6598,6 +6617,16 @@ const app = {
                     <button type="button" class="cita-acciones__btn cita-acciones__btn--cancelar"
                         onclick="app.widgetInvitado.cancelarCita('${cita.id_cita || indexEnPublicas}')">
                         <i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar Cita
+                    </button>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+                    <button class="btn btn--documento"
+                        onclick="app.widgetInvitado.imprimirCitaWidget('${cita.id_cita || indexEnPublicas}')">
+                        <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
+                    </button>
+                    <button class="btn btn--documento"
+                        onclick="app.widgetInvitado.descargarPDFCitaWidget('${cita.id_cita || indexEnPublicas}')">
+                        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
                     </button>
                 </div>`;
             }
@@ -6699,6 +6728,34 @@ const app = {
                 }
                 if (body) body.innerHTML = this._renderDetalle(cita, this._resultadosActuales.length > 1);
             });
+        },
+
+        // ── Imprimir comprobante de cita (invitado) ──
+        imprimirCitaWidget(idStr) {
+            let cita = (this._resultadosActuales || []).find(c => c.id_cita === idStr);
+            if (!cita && !isNaN(parseInt(idStr, 10))) {
+                const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                cita = citasPublicas[parseInt(idStr, 10)];
+            }
+            if (!cita) {
+                console.warn('[app.widgetInvitado] imprimirCitaWidget: cita no encontrada', idStr);
+                return;
+            }
+            app.utilidades.imprimirCita(cita);
+        },
+
+        // ── Descargar PDF de cita (invitado) ──
+        descargarPDFCitaWidget(idStr) {
+            let cita = (this._resultadosActuales || []).find(c => c.id_cita === idStr);
+            if (!cita && !isNaN(parseInt(idStr, 10))) {
+                const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                cita = citasPublicas[parseInt(idStr, 10)];
+            }
+            if (!cita) {
+                console.warn('[app.widgetInvitado] descargarPDFCitaWidget: cita no encontrada', idStr);
+                return;
+            }
+            app.utilidades.descargarPDFCita(cita);
         },
 
         // ── Bloque B: Preparar modificación desde modal de invitado ──
