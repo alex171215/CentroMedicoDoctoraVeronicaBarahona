@@ -8,9 +8,10 @@
 ## 2. Estructura de Archivos
 * `/index.html`: Estructura SPA principal, modales y vistas inyectables.
 * `/css/styles.css`: Hoja de estilos única.
-* `/js/app.js`: Controlador principal (Enrutamiento, UI, validaciones).
+* `/js/main.js`: Controlador principal y Entry Point (Módulo ES6).
+* `/js/estado.js`: Gestor de estado global.
+* `/js/modulos/`: Directorio de módulos lógicos (`citas.js`, `salud.js`, `utilidades.js`).
 * `/js/data.js`: Base de datos simulada y funciones de inicialización.
-* `/assets/img/`: Recursos gráficos (SVG y WebP).
 
 ## 3. Modelos de Datos Actuales (LocalStorage)
 La persistencia actual es LocalStorage (con miras a migración a Firebase). La estructura JSON debe respetarse estrictamente:
