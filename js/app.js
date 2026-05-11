@@ -81,6 +81,23 @@ const app = {
             }
         });
 
+        // ── Bloque D2: Cerrar modal con tecla Escape (H3 – Control y Libertad) ──
+        // Detecta la tecla Escape y cierra el modal visible de mayor z-index.
+        // Mantiene la misma regla: los alertdialog NO se cierran con Escape.
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            // Buscar todos los overlays actualmente visibles que no sean alertdialog
+            const overlaysVisibles = Array.from(
+                document.querySelectorAll('.modal-overlay')
+            ).filter(el =>
+                el.style.display !== 'none' &&
+                el.getAttribute('role') !== 'alertdialog'
+            );
+            if (overlaysVisibles.length === 0) return;
+            // Cerrar el último overlay visible (el más al frente)
+            overlaysVisibles[overlaysVisibles.length - 1].style.display = 'none';
+        });
+
         // 3. Carga Inicial (First Load)
         const hashInicial = window.location.hash.replace('#', '');
         if (hashInicial) {
