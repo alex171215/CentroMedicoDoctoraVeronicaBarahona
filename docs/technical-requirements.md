@@ -72,6 +72,7 @@ Esta sección contiene patrones de diseño obligatorios implementados en el cód
 * **Sanitización en Tiempo Real:** Los campos de búsqueda y nombres deben usar Regex en el evento `input` para impedir físicamente la entrada de caracteres no permitidos (Whitelist).
 * **Mensajes Granulares:** No usar mensajes genéricos. El sistema debe distinguir entre "Campo vacío", "Formato incorrecto" y "Valor inválido por lógica de negocio".
 * **Aislamiento de Validación (Atomic Blur):** El evento `blur` debe ser atómico. Solo se debe validar y mostrar error en el elemento específico que perdió el foco (`event.target`). Está PROHIBIDO disparar validaciones visuales en campos que el usuario aún no ha visitado o modificado.
+* **Estándar de Generación:** Queda PROHIBIDO descargar o imprimir capturas directas del DOM de la interfaz de usuario (UI). Todo documento debe generarse a partir de una plantilla HTML limpia e independiente (`_generarTicketHTML` o `_generarRecetaHTML`) inyectada en una ventana efímera o procesada por jsPDF con coordenadas fijas.
 * **Validación de Colisiones por Identidad:**
   - El sistema debe permitir la selección de cualquier horario disponible en la agenda del médico en el Paso 2.
   - La lógica de "Cruce de horarios del paciente" se debe encapsular en una función que reciba `(cedula, fechaISO, horaInicio, duracion)`.
@@ -94,3 +95,22 @@ Esta sección contiene patrones de diseño obligatorios implementados en el cód
     3. El slot no está ocupado en el `localStorage`.
 * **Lógica:** El sistema debe iterar (máximo 14 días) hasta que se cumplan estas tres condiciones simultáneamente.
 * **C3. Empty States Estandarizados (H4):** Los días sin horarios deben renderizar UN SOLO estilo: un contenedor centrado con un ícono (`fa-calendar-xmark` o similar) y el texto "No hay horarios disponibles para este día". Queda prohibido el uso de mini-recuadros grises.
+
+## 8. Generación de Documentos y Portabilidad
+* **Impresión Nativa:** Se debe usar `window.print()`. Requiere obligatoriamente una regla `@media print` en CSS que oculte barras de navegación, botones y fondos innecesarios, dejando solo el contenido limpio de la cita o receta.
+* **Descarga PDF:** Se implementará mediante la librería externa `html2pdf.js`. El archivo debe adoptar un naming convention dinámico (ej. `Cita_Sanitas_[Fecha].pdf`).
+* **Estándar de Generación (Aislamiento Total):** Queda ESTRICTAMENTE PROHIBIDO descargar o imprimir capturas directas del DOM (interfaz de usuario). Todo documento PDF o de impresión debe generarse a partir de una "Plantilla HTML Aislada" (`_generarTicketHTML`, `_generarRecetaHTML`) inyectada en una ventana efímera (`window.open`), o procesada nativamente por `jsPDF` utilizando coordenadas absolutas.
+
+## 9. Arquitectura Modular (ES6 Modules)
+El código Javascript debe estar estrictamente modularizado para evitar un archivo monolítico. Se prohíbe el uso de un objeto global gigante `const app = {}`.
+
+### A. Estructura de Directorios JS
+* `/js/main.js`: Punto de entrada (Entry point). Maneja la inicialización global, el enrutador (`navegar`) y el carrusel principal.
+* `/js/estado.js`: Módulo de gestión de estado global. Debe exportar un objeto reactivo o variables let/const para compartir `usuarioActivo`, `citas` y `recetas` entre módulos.
+* `/js/modulos/citas.js`: Lógica exclusiva del calendario, smart jumps, y agendamiento.
+* `/js/modulos/salud.js`: Lógica exclusiva del dashboard, historial médico y detalle de recetas.
+* `/js/modulos/utilidades.js`: Funciones puras (PDFs, impresión, validaciones de formato de celular, sanitización Regex).
+
+### B. Reglas de Importación
+* Todas las importaciones deben incluir la extensión `.js` (ej. `import { imprimirCita } from '../modulos/utilidades.js';`).
+* El archivo `/index.html` DEBE cargar el script principal como módulo: `<script type="module" src="js/main.js"></script>`. Se deben eliminar las llamadas a funciones globales desde el HTML (como los `onclick=""`), reemplazándolas por Event Listeners dentro de sus respectivos módulos, o exponiéndolas explícitamente en el objeto `window` si es estrictamente necesario para el Liquid Layout actual.

@@ -52,3 +52,5 @@ Para cerrar correctamente el ciclo cognitivo del usuario (H1), el sistema aplica
 * **H1 - Punto Final de Registro:** La confirmación de "Cuenta creada" debe aparecer ÚNICAMENTE tras la validación exitosa del código de verificación. Es el cierre del ciclo cognitivo. Queda prohibido navegar al Home o Login antes de que el usuario vea y acepte esta pantalla de éxito.
 
 * **Feedback Contextual y Adaptativo:** Los mensajes de éxito deben reflejar la intención específica del usuario. Si la acción fue una modificación, el mensaje debe usar términos como "Reagendada" o "Actualizada". Se prohíbe el uso de mensajes genéricos que oculten la naturaleza de la transacción realizada.
+
+* **Botones de Documento (`.btn--documento`):** Deben tener borde y texto en color Turquesa (`#0DA99F`) con fondo transparente o blanco. Se usan exclusivamente para acciones de portabilidad ("Descargar PDF" e "Imprimir"). Deben incluir siempre un icono representativo (`fa-file-pdf` o `fa-print`) para rápida identificación visual (H4 - Consistencia y Estándares).

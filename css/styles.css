@@ -4368,3 +4368,65 @@ ul {
     margin-bottom: 16px;
     display: block;
 }
+/* ======================================================================
+   BOTONES DE DOCUMENTO — Portabilidad (Imprimir / Descargar PDF)
+   Golden Rule: fondo transparente, borde y texto en Turquesa (#0DA99F)
+   Icono representativo obligatorio (fa-file-pdf / fa-print) — H4
+   ====================================================================== */
+.btn--documento {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: #0DA99F;
+    border: 1.5px solid #0DA99F;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    min-height: 44px; /* Fitts's Law */
+    min-width: 44px;
+}
+
+.btn--documento:hover,
+.btn--documento:focus-visible {
+    background-color: rgba(13, 169, 159, 0.08);
+    box-shadow: 0 0 0 3px rgba(13, 169, 159, 0.25);
+    outline: none;
+}
+
+.btn--documento:active {
+    background-color: rgba(13, 169, 159, 0.18);
+}
+
+/* ======================================================================
+   MEDIA PRINT — Ocultar elementos de navegación y acción al imprimir
+   ====================================================================== */
+@media print {
+    header,
+    footer,
+    .bottom-nav,
+    .btn--documento,
+    .btn--primario,
+    .btn--accion,
+    .btn--secundario,
+    .btn--peligro,
+    .enlace-accion {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    main,
+    .vista-activa {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+}
