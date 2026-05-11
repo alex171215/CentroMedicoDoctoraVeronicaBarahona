@@ -98,13 +98,17 @@ const app = {
             overlaysVisibles[overlaysVisibles.length - 1].style.display = 'none';
         });
 
-        // ── Bloque E: Focus Trap y retorno de foco en modales (WCAG 2.1) ──
+        // ── Bloque E: Focus Trap, retorno de foco y aria-hidden en modales ──
+        // Principios POUR (Perceptible, Operable, Comprensible, Robusto) + WCAG 2.1
         // Cubre .modal-overlay y .reg-modal-overlay. Excluye alertdialog.
         const _FOCUSABLE_SEL = [
             'a[href]', 'button:not([disabled])', 'input:not([disabled])',
             'select:not([disabled])', 'textarea:not([disabled])',
             '[tabindex]:not([tabindex="-1"])'
         ].join(', ');
+
+        // Contenedores de fondo que se ocultarán a lectores de pantalla cuando haya un modal activo
+        const _FONDO_SELS = ['header.header', '#main-content', '#site-footer', 'nav.bottom-nav'];
 
         // Pila de modales abiertos: { overlay, trigger }
         const _focusTrapStack = [];
@@ -113,6 +117,19 @@ const app = {
         function _getFocusables(overlay) {
             return Array.from(overlay.querySelectorAll(_FOCUSABLE_SEL))
                 .filter(el => el.offsetParent !== null);
+        }
+
+        // Aplica o elimina aria-hidden en los contenedores de fondo (POUR – Perceptible)
+        function _setAriaHiddenFondo(hidden) {
+            _FONDO_SELS.forEach(sel => {
+                const el = document.querySelector(sel);
+                if (!el) return;
+                if (hidden) {
+                    el.setAttribute('aria-hidden', 'true');
+                } else {
+                    el.removeAttribute('aria-hidden');
+                }
+            });
         }
 
         // MutationObserver: detecta apertura/cierre por cambio del atributo style
@@ -127,17 +144,20 @@ const app = {
                 const visible = el.style.display !== '' && el.style.display !== 'none';
 
                 if (visible && !_focusTrapStack.find(x => x.overlay === el)) {
-                    // Modal se abrió: guardar trigger y mover foco al primer elemento
+                    // Modal se abrió: ocultar fondo a AT si es el primero de la pila
+                    if (_focusTrapStack.length === 0) _setAriaHiddenFondo(true);
                     _focusTrapStack.push({ overlay: el, trigger: document.activeElement });
                     requestAnimationFrame(() => {
                         const focusables = _getFocusables(el);
                         if (focusables.length) focusables[0].focus();
                     });
                 } else if (!visible) {
-                    // Modal se cerró: restaurar foco al elemento que lo abrió
+                    // Modal se cerró: restaurar foco al trigger
                     const idx = _focusTrapStack.findIndex(x => x.overlay === el);
                     if (idx !== -1) {
                         const { trigger } = _focusTrapStack.splice(idx, 1)[0];
+                        // Restaurar fondo a AT solo cuando no queda ningún modal abierto
+                        if (_focusTrapStack.length === 0) _setAriaHiddenFondo(false);
                         if (trigger && typeof trigger.focus === 'function') {
                             requestAnimationFrame(() => trigger.focus());
                         }
@@ -151,7 +171,7 @@ const app = {
             attributeFilter: ['style']
         });
 
-        // Tab trap: cicla el foco dentro del modal activo más reciente
+        // Tab trap: cicla el foco dentro del modal activo más reciente (POUR – Operable)
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Tab' || _focusTrapStack.length === 0) return;
             const { overlay } = _focusTrapStack[_focusTrapStack.length - 1];
