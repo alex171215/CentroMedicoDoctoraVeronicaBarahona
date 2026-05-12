@@ -111,6 +111,12 @@ ul {
     outline: none;
 }
 
+/* Foco programático (WCAG skip / encabezado de página): sin anillo visual */
+[tabindex="-1"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 /* 2. Botones primarios (fondo sólido oscuro/verde) — anillo blanco + sombra corporativa */
 .btn--primario:focus-visible,
 .btn--accion:focus-visible {

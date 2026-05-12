@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Contacto, ubicación y horarios — Centro Médico Familiar Dra. Verónica Barahona">
+    <link rel="icon" type="image/png" href="assets/img/Logo.png">
+    <title>Contacto — Centro Médico Dra. Verónica Barahona</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+
+</head>
+<body>
+    <!-- Bypass Block: Skip Link (WCAG 2.4.1) -->
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+
+    <!-- Encabezado / Header -->
+    <header class="header" role="banner">
+        <!-- Barra superior -->
+        <div class="header__top">
+            <div class="header__top-container">
+                <div class="header__top-links">
+                </div>
+                <div class="header__top-buttons">
+                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
+                        <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navegación principal -->
+        <nav class="header__main" aria-label="Navegación principal">
+            <div class="header__main-container">
+                <a href="index.html" class="header__logo"
+                    aria-label="Inicio">
+                    <span class="header__logo-text">
+                        <img src="assets/img/Logo.png" alt="Logo Centro Médico" class="header__logo-img">
+                        <span class="header__logo-words">Centro Médico Familiar<br><strong>Dra. Verónica
+                                Barahona</strong></span>
+                    </span>
+                </a>
+
+
+                <!-- Botón hamburguesa (móvil) -->
+                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="main-menu">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
+
+                <!-- Menú horizontal de escritorio -->
+                <div class="header__nav-wrapper" id="main-menu">
+                    <ul class="header__nav-list">
+                        <li class="header__nav-item"><a href="index.html" class="header__nav-link">Inicio</a></li>
+                        <li class="header__nav-item"><a href="especialistas.html" class="header__nav-link">Especialistas</a></li>
+                        <li class="header__nav-item"><a href="farmacia.html" class="header__nav-link">Farmacia</a></li>
+                        <li class="header__nav-item" id="nav-mi-salud" style="display:none;"><a href="mi-salud.html" class="header__nav-link">Mi Salud</a></li>
+                        <li class="header__nav-item"><a href="citas.html" class="header__nav-link" onclick="event.preventDefault(); app.agendarCitaGeneral();">Agendar Cita</a></li>
+                        <li class="header__nav-item"><a href="contacto.html" class="header__nav-link header__nav-link--active" aria-current="page">Contacto</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main id="main-content">
+        <section id="contacto" aria-labelledby="contacto-heading" style="padding: 40px 0; min-height: 80vh; background: #FAFCFE;">
+            <div class="container" style="max-width: 1100px; margin: 0 auto;">
+                <h2 id="contacto-heading" style="font-family: 'Montserrat', sans-serif; font-size: 2rem; text-align: center; margin-bottom: 30px;">
+                    Contacto
+                </h2>
+                <div class="contacto-grid">
+                    <!-- Columna de información -->
+                    <div class="contacto-col-info">
+                        <div class="contacto-card">
+                            <h3><i class="fa-solid fa-location-dot"></i> Estamos aquí</h3>
+                            <p>Pifo, Ignacio Jarrín y Tulio Garzón, 170175 Quito</p>
+                            <p class="contacto-horario">
+                                <i class="fa-solid fa-clock"></i> Lun-Vie: 7:00 — 17:00 &nbsp;|&nbsp; Sáb: 8:00 — 13:00
+                            </p>
+                            <a href="https://maps.app.goo.gl/YwkDycizBWUpwCPo9" target="_blank" rel="noopener"
+                                class="btn btn--secundario">
+                                <i class="fa-solid fa-map-pin"></i> Cómo llegar
+                            </a>
+                        </div>
+                        <div class="contacto-card">
+                            <h3> Contacto directo</h3>
+                            <a href="https://wa.me/593998908034" target="_blank" class="contacto-telefono">
+                                <i class="fa-brands fa-whatsapp"></i> 099 890 8034
+                            </a>
+                            <a href="tel:+593998908034" class="contacto-telefono secundario">
+                                <i class="fa-solid fa-phone"></i> (02) 123 4567
+                            </a>
+                        </div>
+                    </div>
+                    <!-- Columna del mapa -->
+                    <div class="contacto-col-mapa">
+                        <div class="contacto-mapa-wrapper">
+                            <iframe
+                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.786584611146!2d-78.3388399!3d-0.22852599999999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x91d5947d6650dae9%3A0x6c5629a017cfce0a!2sCentro%20de%20Especialidades%20Dra%20Veronica%20Barahona!5e0!3m2!1ses!2sec!4v1777336590342!5m2!1ses!2sec"
+                                width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy"
+                                referrerpolicy="no-referrer-when-downgrade"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+        <div id="modal-perfil" class="perfil-overlay" style="display:none;" role="dialog" aria-modal="true"
+            aria-labelledby="perfil-modal-title">
+            <div class="perfil-modal" role="document">
+
+                <!-- Header del modal -->
+                <div class="perfil-modal__header">
+                    <h2 id="perfil-modal-title" class="perfil-modal__title">Mi Perfil</h2>
+                    <button class="perfil-modal__close" aria-label="Cerrar modal de perfil"
+                        onclick="app.perfil.cerrarModal()">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <!-- Área del Avatar -->
+                <div class="perfil-avatar-wrap" aria-hidden="true">
+                    <div class="perfil-avatar" id="perfil-avatar-iniciales">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+
+                <!-- Nombre completo -->
+                <h3 class="perfil-nombre" id="perfil-nombre-completo">—</h3>
+
+                <!-- Teléfono -->
+                <div class="perfil-telefono">
+                    <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                    <p id="perfil-celular">—</p>
+                </div>
+
+                <!-- Menú de opciones -->
+                <ul class="perfil-menu" role="menu">
+                    <li class="perfil-menu__item" role="menuitem" tabindex="0" aria-label="Mi Salud: Citas y Recetas"
+                        onclick="app.perfil.irAMiSalud()">
+                        <div class="perfil-menu__left">
+                            <i class="fa-regular fa-calendar-check perfil-menu__icon" aria-hidden="true"></i>
+                            <span class="perfil-menu__label">Mi Salud (Citas y Recetas)</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right perfil-menu__arrow" aria-hidden="true"></i>
+                    </li>
+                    <li class="perfil-menu__item" role="menuitem" tabindex="0" aria-label="Editar Información Personal"
+                        onclick="app.perfil.irAEditar()">
+                        <div class="perfil-menu__left">
+                            <i class="fa-regular fa-pen-to-square perfil-menu__icon" aria-hidden="true"></i>
+                            <span class="perfil-menu__label">Editar Información Personal</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right perfil-menu__arrow" aria-hidden="true"></i>
+                    </li>
+                </ul>
+
+                <!-- Botón Cerrar Sesión -->
+                <button type="button" class="perfil-logout-btn" onclick="app.perfil.cerrarSesion()">
+                    <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                    Cerrar Sesión
+                </button>
+
+            </div>
+        </div>
+    <footer class="footer" id="site-footer" role="contentinfo">
+        <div class="container">
+            <div class="footer__grid">
+                <!-- Columna 1: Logo del Centro Médico -->
+                <div class="footer__col footer__col--brand">
+                    <img src="assets/img/Logo.png" alt="Logo Centro Médico Familiar Dra. Verónica Barahona"
+                        style="width: 140px; height: auto; margin-bottom: 15px;">
+                    <p class="footer__tagline">Cuidando de su salud integralmente</p>
+                </div>
+
+                <!-- Columna 2: Enlaces rápidos -->
+                <div class="footer__col footer__col--links">
+                    <h3 class="footer__title">EXPLORA</h3>
+                    <ul class="footer__nav">
+                        <li><a href="index.html" class="footer__link">Inicio</a>
+                        </li>
+                        <li><a href="especialistas.html"
+                                class="footer__link">Especialistas</a></li>
+                        <li><a href="farmacia.html"
+                                class="footer__link">Farmacia</a></li>
+                        <li><a href="contacto.html"
+                                class="footer__link">Contacto</a></li>
+                        <li><a href="citas.html" onclick="event.preventDefault(); app.agendarCitaGeneral();" class="footer__link">Agendar
+                                Cita</a></li>
+                    </ul>
+                </div>
+
+                <!-- Columna 3: Ubicación y contacto -->
+                <div class="footer__col footer__col--locations">
+                    <h3 class="footer__title">ATENCIÓN</h3>
+                    <ul class="footer__address-list">
+                        <li>
+                            <a href="https://maps.app.goo.gl/YwkDycizBWUpwCPo9" target="_blank"
+                                rel="noopener noreferrer">
+                                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                                <span>Pifo, Ignacio Jarrín y Tulio Garzón<br>170175 Quito</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="tel:+593998908034">
+                                <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                                <span>099 890 8034</span>
+                            </a>
+                        </li>
+                        <li>
+                            <span class="footer__horario">
+                                <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                                Lun-Vie: 7:00 — 17:00 | Sáb: 8:00 — 13:00
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Columna 4: Redes sociales -->
+                <div class="footer__col footer__col--social">
+                    <h3 class="footer__title">SÍGUENOS</h3>
+                    <div class="footer__social">
+                        <a href="https://www.facebook.com/p/Centro-Medico-Familiar-Dra-Veronica-Barahona-100063595058008/?locale=es_LA"
+                            aria-label="Visitar página de Facebook" target="_blank" rel="noopener noreferrer"
+                            class="footer__social-link"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i></a>
+                        <a href="https://www.instagram.com/centromedicodraveronicab/"
+                            aria-label="Visitar perfil de Instagram" target="_blank" rel="noopener noreferrer"
+                            class="footer__social-link"><i class="fa-brands fa-instagram" aria-hidden="true"></i></a>
+                        <a href="https://wa.me/593998908034" aria-label="Contactar por WhatsApp" target="_blank"
+                            rel="noopener noreferrer" class="footer__social-link"><i class="fa-brands fa-whatsapp"
+                                aria-hidden="true"></i></a>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Barra inferior legal -->
+            <div class="footer__legal">
+                <p class="footer__copyright">Centro Médico Familiar Dra. Verónica Barahona. Todos los derechos
+                    reservados.<br>© 2026</p>
+            </div>
+
+
+        </div>
+    </footer>
+
+    <!-- ===================================================
+     Formulario oculto para gestor de contraseñas nativo
+     =================================================== -->
+    <form id="hidden-login-form" style="display:none;" action="javascript:void(0);" x-autocompleted="off">
+        <input type="text" name="username" id="hidden-username" autocomplete="username">
+        <input type="password" name="password" id="hidden-password" autocomplete="current-password">
+        <button type="submit"></button>
+    </form>
+
+
+    <!-- Bottom Navigation Bar (Mobile) -->
+    <nav class="bottom-nav" aria-label="Navegación móvil">
+
+        <a href="citas.html" class="bottom-nav__item">
+            <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
+            <span>Citas</span>
+        </a>
+        <a href="especialistas.html" class="bottom-nav__item">
+            <i class="fa-solid fa-stethoscope" aria-hidden="true"></i>
+            <span>Médicos</span>
+        </a>
+        <a href="index.html" class="bottom-nav__item">
+            <i class="fa-solid fa-house" aria-hidden="true"></i>
+            <span>Inicio</span>
+        </a>
+        <a href="farmacia.html" class="bottom-nav__item">
+            <i class="fa-solid fa-pills" aria-hidden="true"></i>
+            <span>Farmacia</span>
+        </a>
+        <a href="login.html" id="bottom-auth-item" class="bottom-nav__item" aria-label="Iniciar Sesión">
+            <i class="fa-regular fa-user" aria-hidden="true"></i>
+            <span>Entrar</span>
+        </a>
+    </nav>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="js/data.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

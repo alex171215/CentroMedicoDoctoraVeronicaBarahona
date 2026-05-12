@@ -131,6 +131,8 @@ export const salud = {
         // 12.1 Inicializar: cargar datos y mostrar estado inicial
         // ------------------------------------------------------------------
         inicializar() {
+            if (!document.getElementById('view-mi-salud')) return;
+
             const rawCitas = localStorage.getItem('sanitas_mis_citas');
             const rawRecetas = localStorage.getItem('sanitas_mis_recetas');
             estado.citas = rawCitas ? JSON.parse(rawCitas) : this._citasDemo;
@@ -175,13 +177,17 @@ export const salud = {
         mostrarSeccion(seccion) {
             this._seccionActual = seccion;
 
-            // Secciones
-            document.getElementById('salud-sec-citas').style.display = seccion === 'citas' ? 'block' : 'none';
-            document.getElementById('salud-sec-recetas').style.display = seccion === 'recetas' ? 'block' : 'none';
+            const secCitas = document.getElementById('salud-sec-citas');
+            const secRecetas = document.getElementById('salud-sec-recetas');
+            if (!secCitas || !secRecetas) return;
+
+            secCitas.style.display = seccion === 'citas' ? 'block' : 'none';
+            secRecetas.style.display = seccion === 'recetas' ? 'block' : 'none';
 
             // Sidenav botones
             const btnCitas = document.getElementById('salud-nav-citas');
             const btnRecetas = document.getElementById('salud-nav-recetas');
+            if (!btnCitas || !btnRecetas) return;
             btnCitas.classList.toggle('salud-sidenav__btn--active', seccion === 'citas');
             btnCitas.setAttribute('aria-selected', seccion === 'citas');
             btnRecetas.classList.toggle('salud-sidenav__btn--active', seccion === 'recetas');
@@ -220,6 +226,7 @@ export const salud = {
             this._filtroActual = filtro;
             const tabProximas   = document.getElementById('tab-proximas');
             const tabAnteriores = document.getElementById('tab-anteriores');
+            if (!tabProximas || !tabAnteriores) return;
 
             tabProximas.classList.toggle('salud-tab--active', filtro === 'proximas');
             tabProximas.setAttribute('aria-selected', filtro === 'proximas');
@@ -227,8 +234,10 @@ export const salud = {
             tabAnteriores.setAttribute('aria-selected', filtro === 'anteriores');
 
             // Ocultar detalle si está visible
-            document.getElementById('salud-cita-detalle').style.display = 'none';
-            document.getElementById('salud-citas-lista').style.display = 'block';
+            const detalle = document.getElementById('salud-cita-detalle');
+            const lista = document.getElementById('salud-citas-lista');
+            if (detalle) detalle.style.display = 'none';
+            if (lista) lista.style.display = 'block';
 
             this.renderizarCitas(filtro);
 
@@ -296,6 +305,7 @@ export const salud = {
             }
 
             const contenedor = document.getElementById('salud-citas-lista');
+            if (!contenedor) return;
             if (!filtradas.length) {
                 contenedor.innerHTML = '<p class="salud-empty">No hay citas en esta sección.</p>';
                 return;
@@ -354,6 +364,9 @@ export const salud = {
                 ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
                 : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
 
+            const detBody = document.getElementById('salud-cita-detalle-body');
+            if (!detBody) return;
+
             // Botones CRUD solo si la cita NO está cancelada
             const accionesHtml = !esCancelada ? `
                 <div class="cita-acciones" role="group" aria-label="Acciones de cita">
@@ -377,7 +390,7 @@ export const salud = {
                     </button>
                 </div>` : '';
 
-            document.getElementById('salud-cita-detalle-body').innerHTML = `
+            detBody.innerHTML = `
                 <div class="salud-det__row">
                     <span class="salud-det__label">Estado</span>
                     <span class="salud-det__val">${estadoBadge}</span>
@@ -421,9 +434,12 @@ export const salud = {
                 </div>` : ''}
                 ${accionesHtml}`;
 
-            document.getElementById('salud-citas-header').style.display = 'none';
-            document.getElementById('salud-citas-lista').style.display = 'none';
-            document.getElementById('salud-cita-detalle').style.display = 'block';
+            const h = document.getElementById('salud-citas-header');
+            const lista = document.getElementById('salud-citas-lista');
+            const det = document.getElementById('salud-cita-detalle');
+            if (h) h.style.display = 'none';
+            if (lista) lista.style.display = 'none';
+            if (det) det.style.display = 'block';
         },
 
         /**
@@ -461,6 +477,7 @@ export const salud = {
         // ------------------------------------------------------------------
         renderizarRecetas() {
             const contenedor = document.getElementById('salud-recetas-lista');
+            if (!contenedor) return;
             if (!estado.recetas.length) {
                 contenedor.innerHTML = '<p class="salud-empty">No hay recetas disponibles.</p>';
                 return;
@@ -488,6 +505,8 @@ export const salud = {
         verDetalleReceta(id) {
             const r = estado.recetas.find(x => x.id === id);
             if (!r) return;
+            const bodyEl = document.getElementById('salud-receta-detalle-body');
+            if (!bodyEl) return;
             const fechaFmt = r.fecha.split('-').reverse().join('/');
             const diags = r.diagnostico.map(d => `<li>– ${d}</li>`).join('');
             const meds = r.medicamentos.map(m => `
@@ -498,7 +517,7 @@ export const salud = {
                     <div class="salud-det__row"><span class="salud-det__label">Vía de administración</span><span class="salud-det__val salud-det__val--bold">${m.via}</span></div>
                 </div>`).join('');
 
-            document.getElementById('salud-receta-detalle-body').innerHTML = `
+            bodyEl.innerHTML = `
                 <div class="salud-det__row">
                     <span class="salud-det__label">Fecha</span>
                     <span class="salud-det__val">${fechaFmt}</span>
@@ -522,9 +541,12 @@ export const salud = {
                     </button>
                 </div>`;
 
-            document.getElementById('salud-recetas-header').style.display = 'none';
-            document.getElementById('salud-recetas-lista').style.display = 'none';
-            document.getElementById('salud-receta-detalle').style.display = 'block';
+            const rh = document.getElementById('salud-recetas-header');
+            const rl = document.getElementById('salud-recetas-lista');
+            const rd = document.getElementById('salud-receta-detalle');
+            if (rh) rh.style.display = 'none';
+            if (rl) rl.style.display = 'none';
+            if (rd) rd.style.display = 'block';
         },
 
         /**
@@ -560,15 +582,21 @@ export const salud = {
         // ------------------------------------------------------------------
         volverALista(tipo) {
             if (tipo === 'citas') {
-                document.getElementById('salud-cita-detalle').style.display = 'none';
-                document.getElementById('salud-citas-header').style.display = 'block';
-                document.getElementById('salud-citas-lista').style.display = 'block';
+                const d1 = document.getElementById('salud-cita-detalle');
+                const h1 = document.getElementById('salud-citas-header');
+                const l1 = document.getElementById('salud-citas-lista');
+                if (d1) d1.style.display = 'none';
+                if (h1) h1.style.display = 'block';
+                if (l1) l1.style.display = 'block';
                 // H1: Re-renderizar la lista para reflejar cambios
                 this.renderizarCitas(this._filtroActual);
             } else {
-                document.getElementById('salud-receta-detalle').style.display = 'none';
-                document.getElementById('salud-recetas-header').style.display = 'block';
-                document.getElementById('salud-recetas-lista').style.display = 'block';
+                const d2 = document.getElementById('salud-receta-detalle');
+                const h2 = document.getElementById('salud-recetas-header');
+                const l2 = document.getElementById('salud-recetas-lista');
+                if (d2) d2.style.display = 'none';
+                if (h2) h2.style.display = 'block';
+                if (l2) l2.style.display = 'block';
             }
         },
 

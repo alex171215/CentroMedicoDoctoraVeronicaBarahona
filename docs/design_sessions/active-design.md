@@ -1,20 +1,22 @@
-# Sesión de Diseño Activa: Sanitización Dinámica y UX de Scroll
+# Sesión de Diseño Activa: Blindaje de Fechas y Edición de Perfil
 
 ## 1. Objetivo
-Reparar la sanitización del campo de identificación para que respete el tipo de documento seleccionado (Pasaporte vs Cédula) e implementar el scroll automático al cambiar de paso en formularios multi-paso para reducir la carga cognitiva.
+Implementar límites dinámicos de edad (18 a 120 años para creación de cuenta), proteger el envío del formulario mediante JS y permitir la edición de este dato en el perfil de usuario.
 
-## 2. Instrucciones Técnicas para Antigravity (app.js / main.js)
+## 2. Instrucciones Técnicas para el Agente (app.js / HTML)
 
-### A. Sanitización Dinámica de Identificación (Bug Pasaporte)
-* **Localización:** Función o Event Listener que sanitiza `#reg-identificacion`.
-* **El Problema:** Actualmente no diferencia si el usuario eligió Cédula o Pasaporte en `#reg-tipo-doc`.
-* **La Solución:** Dentro del evento `input` de `#reg-identificacion`, debes leer el valor actual del tipo de documento (ej. verificando el `value` o texto de `#reg-tipo-doc` o el estado interno).
-  1. **Si es Pasaporte:** Aplicar regex Alfanumérica: `replace(/[^a-zA-Z0-9]/g, '')`.
-  2. **Si es Cédula:** Aplicar regex Numérica: `replace(/[^0-9]/g, '')`.
-* **Feedback:** Si la regex elimina algún carácter, debe disparar la clase `.input-rechazado` creada en la sesión anterior para dar retroalimentación visual.
+### A. Límites Dinámicos en HTML (Registro y Edición)
+* **Localización:** Funciones de inicialización de formularios (Registro y Perfil).
+* **Lógica:** Calcula la fecha actual. 
+  - `maxDate` (Titular): Fecha exacta de hace 18 años (ej. `2008-MM-DD`).
+  - `minDate`: Fecha exacta de hace 120 años.
+* **Acción:** Aplica estos valores a los atributos `min` y `max` de los inputs de fecha de nacimiento. Dejar que el input abra por defecto en el `maxDate` para mejorar la UX.
 
-### B. Gestión de Scroll en Formularios (Bug de Salto de Paso)
-* **Localización:** Funciones que gestionan el avance de pasos. Principalmente en `app.registro.avanzarPaso()` (o similar) y `app.citas.mostrarPaso()`.
-* **La Solución:** Inmediatamente después de ocultar el paso anterior y mostrar el nuevo paso, inyecta la siguiente instrucción para subir la pantalla suavemente:
-  `window.scrollTo({ top: 0, behavior: 'smooth' });`
-* **Validación:** Asegúrate de que esto se aplique tanto en el flujo de Registro de Cuentas como en el de Agendamiento de Citas.
+### B. Validación Anti-Hack en el Submit (JS)
+* **Localización:** Función de validación final antes de crear la cuenta o guardar el perfil (ej. `app.registro.crearCuenta`).
+* **Acción:** Convierte el valor del input a un objeto `Date` y compáralo con las fechas límite en JS. Si la fecha es mayor a hace 18 años o menor a hace 120 años, bloquea el envío y muestra un mensaje de error (ej. "Debes ser mayor de 18 años para crear una cuenta principal").
+
+### C. Edición de Perfil (Control del Usuario - H3)
+* **Acción:** Añade el input de "Fecha de Nacimiento" al formulario HTML de edición de perfil (si no existe).
+* **Carga:** Asegúrate de que, al abrir el modal/vista de perfil, este campo se llene con el dato actual del `usuarioActivo`.
+* **Guardado:** Asegúrate de que al guardar el perfil, la nueva fecha se actualice en el `localStorage`.

@@ -30,6 +30,8 @@ export function createCitas() {
         },
 
         iniciarFlujo() {
+            if (!document.getElementById('view-citas')) return;
+
             // ── NUEVO: Restauración post‑login desde citas ──
             const restoreStr = sessionStorage.getItem('citas_login_restore');
             if (restoreStr) {
@@ -797,12 +799,12 @@ export function createCitas() {
             document.body.appendChild(modal);
 
             // Asignar eventos manualmente para acceder a la variable cita sin riesgo de inyección
-            document.getElementById('btn-colision-otra').addEventListener('click', () => {
+            document.getElementById('btn-colision-otra')?.addEventListener('click', () => {
                 this.cerrarModalColision();
                 this.resetearSeleccionOtraHora();
             });
 
-            document.getElementById('btn-gestionar-cita').addEventListener('click', () => {
+            document.getElementById('btn-gestionar-cita')?.addEventListener('click', () => {
                 this._mostrarConfirmacionGestion(cita, fecha, hora, fechaISO);
             });
         },
@@ -835,11 +837,11 @@ export function createCitas() {
                 </div>
             `;
 
-            document.getElementById('btn-volver-opciones').addEventListener('click', () => {
+            document.getElementById('btn-volver-opciones')?.addEventListener('click', () => {
                 this._restaurarModalColision();
             });
 
-            document.getElementById('btn-ir-cita-anterior').addEventListener('click', () => {
+            document.getElementById('btn-ir-cita-anterior')?.addEventListener('click', () => {
                 this.cerrarModalColision();
                 this.gestionarConflicto(cita.codigo || '', cita.cedula, fechaISO, cita.id_cita);
             });
@@ -852,14 +854,19 @@ export function createCitas() {
 
                 // Reasignar eventos con la cita guardada
                 const cita = this._citaEnConflicto;
-                document.getElementById('btn-colision-otra').addEventListener('click', () => {
-                    this.cerrarModalColision();
-                    this.resetearSeleccionOtraHora();
-                });
-
-                document.getElementById('btn-gestionar-cita').addEventListener('click', () => {
-                    this._mostrarConfirmacionGestion(cita, '', '', '');   // fecha/hora no se usan en el mensaje de confirmación
-                });
+                const bOtra = document.getElementById('btn-colision-otra');
+                const bGes = document.getElementById('btn-gestionar-cita');
+                if (bOtra) {
+                    bOtra.addEventListener('click', () => {
+                        this.cerrarModalColision();
+                        this.resetearSeleccionOtraHora();
+                    });
+                }
+                if (bGes && cita) {
+                    bGes.addEventListener('click', () => {
+                        this._mostrarConfirmacionGestion(cita, '', '', '');   // fecha/hora no se usan en el mensaje de confirmación
+                    });
+                }
             }
         },
 
@@ -898,12 +905,12 @@ export function createCitas() {
             document.body.appendChild(modal);
 
             // Escape: cerrar sin acción
-            document.getElementById('btn-cancelar-no').addEventListener('click', () => {
+            document.getElementById('btn-cancelar-no')?.addEventListener('click', () => {
                 modal.remove();
             });
 
             // Confirmar: Fase 2 → Fase 3 → Fase 4
-            document.getElementById('btn-cancelar-si').addEventListener('click', () => {
+            document.getElementById('btn-cancelar-si')?.addEventListener('click', () => {
                 const btnSi = document.getElementById('btn-cancelar-si');
                 const btnNo = document.getElementById('btn-cancelar-no');
 
@@ -933,7 +940,7 @@ export function createCitas() {
 
                         // ── FASE 4: Cierre y Refresco (Feedback Controlado) ──
                         // El usuario controla cuándo sale. Al cerrar, se actualiza la lista.
-                        document.getElementById('btn-cerrar-resolucion').addEventListener('click', () => {
+                        document.getElementById('btn-cerrar-resolucion')?.addEventListener('click', () => {
                             modal.remove();
                             // Refrescar la lista de citas del dashboard si el módulo está activo
                             if (typeof window.app.salud?.renderizarCitas === 'function') {
@@ -2457,7 +2464,7 @@ export function createCitas() {
             // Controlador de Eventos Dinámicos
             const bindEvents = () => {
                 // Acción 1: Volver al calendario
-                document.getElementById('btn-limite-entendido').addEventListener('click', () => {
+                document.getElementById('btn-limite-entendido')?.addEventListener('click', () => {
                     this._cerrarModalLimiteDiario();
                     this._bloquearConfirmar();
                     document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
@@ -2474,13 +2481,13 @@ export function createCitas() {
                         modal.innerHTML = renderState2(); // Cambio de contexto en línea
 
                         // Acción 2.1: Arrepentirse y volver al aviso
-                        document.getElementById('btn-limite-no-volver').addEventListener('click', () => {
+                        document.getElementById('btn-limite-no-volver')?.addEventListener('click', () => {
                             modal.innerHTML = renderState1();
                             bindEvents(); // Re-atar eventos
                         });
 
                         // Acción 2.2: Confirmar abandono (Hard Reset)
-                        document.getElementById('btn-limite-si-salir').addEventListener('click', () => {
+                        document.getElementById('btn-limite-si-salir')?.addEventListener('click', () => {
                             ['reservaCita_preseleccion', 'especialidad_seleccionada', 'cita_modificacion', 'cita_hora_seleccionada', 'cita_fecha_iso', 'temp_datos_recuperacion'].forEach(key => sessionStorage.removeItem(key));
                             ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
                                 const el = document.getElementById(id);

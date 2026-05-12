@@ -354,3 +354,12 @@ Para prevenir XSS e Inyecciones (OWASP Top 10) y prevenir errores del usuario (H
 
 ## 12. Gestión de Foco y Scroll en Formularios (SPA)
 * **Scroll Automático (UX):** Al transicionar entre pasos en un formulario multi-paso (Registro, Agendamiento), el sistema DEBE resetear el scroll de la ventana hacia la parte superior (`window.scrollTo({ top: 0, behavior: 'smooth' })`) o enfocar el título del nuevo contenedor. Esto previene la desorientación del usuario y cumple con la gestión de foco establecida en el diseño centrado en el usuario.
+
+## 13. Estándares de Tiempo y Fechas de Nacimiento (H3, H5)
+
+Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
+* **Titulares de Cuenta:** Deben tener un mínimo de 18 años y un máximo de 120 años.
+* **Pacientes/Familiares (Dependientes):** Pueden tener desde 0 años (nacidos hoy) hasta 120 años.
+* **Prevención de Errores (H5):** Los inputs tipo `date` deben tener los atributos `min` y `max` calculados dinámicamente vía JavaScript al cargar la página (para evitar fechas futuras como 2030).
+* **Validación de Capa 2:** Independientemente de los límites del HTML, el evento `submit` del formulario debe validar la fecha mediante JS puro para prevenir manipulaciones del DOM (DevTools).
+* **Control y Libertad (H3):** El usuario debe ser capaz de editar su fecha de nacimiento en el módulo de "Mi Perfil" en caso de cometer un error tipográfico dentro del rango válido.
