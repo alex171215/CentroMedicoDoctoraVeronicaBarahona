@@ -120,7 +120,9 @@ export const utilidades = {
             const medico = cita.medico || '—';
             const especialidad = cita.especialidad || '—';
             const fechaHora = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
-            const paciente = cita.paciente || '—';
+            const paciente = cita.paciente ||
+                ((cita.nombre_1 || '') + ' ' + (cita.apellido_1 || '')).trim() ||
+                cita.nombres || '—';
 
             return `
                 <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px; text-align: center; font-family: sans-serif; box-sizing: border-box;">
@@ -154,39 +156,32 @@ export const utilidades = {
          */
         imprimirCita(cita) {
             const ticketHTML = this._generarTicketHTML(cita);
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
+            const iframeId = '__sanitas_print_cita__';
+            let iframe = document.getElementById(iframeId);
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = iframeId;
+                iframe.setAttribute('aria-hidden', 'true');
+                iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:-9999px;';
+                document.body.appendChild(iframe);
+            }
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(`<!DOCTYPE html>
                 <html>
                 <head>
                     <title>Imprimir Comprobante</title>
                     <style>
-                        body {
-                            margin: 0;
-                            padding: 0;
-                            background: #fff;
-                            display: flex;
-                            justify-content: center;
-                            align-items: flex-start;
-                        }
-                        @media print {
-                            @page { size: letter; margin: 0.5in; }
-                        }
+                        body { margin: 0; padding: 0; background: #fff; display: flex; justify-content: center; align-items: flex-start; }
+                        @media print { @page { size: letter; margin: 0.5in; } }
                     </style>
                 </head>
-                <body>
-                    ${ticketHTML}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.close();
-                            }, 500);
-                        }
-                    </script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
+                <body>${ticketHTML}</body>
+                </html>`);
+            doc.close();
+            iframe.onload = function () {
+                setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 300);
+            };
         },
 
         /**
@@ -198,7 +193,9 @@ export const utilidades = {
             const medico = cita.medico || '—';
             const especialidad = cita.especialidad || '—';
             const fechaHora = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
-            const paciente = cita.paciente || '—';
+            const paciente = cita.paciente ||
+                ((cita.nombre_1 || '') + ' ' + (cita.apellido_1 || '')).trim() ||
+                cita.nombres || '—';
 
             try {
                 const { jsPDF } = window.jspdf || window;
@@ -370,39 +367,32 @@ export const utilidades = {
          */
         imprimirReceta(receta) {
             const recetaHTML = this._generarRecetaHTML(receta);
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
+            const iframeId = '__sanitas_print_receta__';
+            let iframe = document.getElementById(iframeId);
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = iframeId;
+                iframe.setAttribute('aria-hidden', 'true');
+                iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:-9999px;';
+                document.body.appendChild(iframe);
+            }
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(`<!DOCTYPE html>
                 <html>
                 <head>
                     <title>Imprimir Receta Médica</title>
                     <style>
-                        body {
-                            margin: 0;
-                            padding: 0;
-                            background: #fff;
-                            display: flex;
-                            justify-content: center;
-                            align-items: flex-start;
-                        }
-                        @media print {
-                            @page { size: letter; margin: 0.5in; }
-                        }
+                        body { margin: 0; padding: 0; background: #fff; display: flex; justify-content: center; align-items: flex-start; }
+                        @media print { @page { size: letter; margin: 0.5in; } }
                     </style>
                 </head>
-                <body>
-                    ${recetaHTML}
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.close();
-                            }, 500);
-                        }
-                    </script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
+                <body>${recetaHTML}</body>
+                </html>`);
+            doc.close();
+            iframe.onload = function () {
+                setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 300);
+            };
         },
 
         /**

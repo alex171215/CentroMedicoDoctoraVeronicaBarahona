@@ -36,6 +36,7 @@ const app = {
         this.renderizarEspecialidadesHome();
         app.login.inicializar();
         app.widgetInvitado.inicializar();
+        this._initModalAccessibility();
 
         // ── Bloque A: Inyectar límites de fecha (hoy → hoy + 2 meses) en todos los date inputs ──
         this._aplicarLimitesFechaGlobal();
@@ -447,6 +448,131 @@ const app = {
 
         // ── NUEVO: Actualizar vista actual ──
         this.currentView = vistaId;
+
+        // ── WCAG 2.2: Gestión de foco SPA — enviar foco al encabezado de la nueva vista ──
+        this._enfocarEncabezadoVista(vistaId);
+    },
+
+    _enfocarEncabezadoVista(vistaId) {
+        // Mapa de vistas a sus selectores de encabezado principal
+        const selectores = {
+            home:           '.hero__title',
+            citas:          '#view-citas h2, #view-citas h3',
+            especialistas:  '#view-especialistas h2',
+            farmacia:       '#farmacia-heading',
+            contacto:       '#view-contacto h2',
+            login:          '#login-heading',
+            registro:       '#registro-heading',
+            'mi-salud':     '#mi-salud-heading',
+            'editar-perfil':'#editar-perfil-heading',
+        };
+        const selector = selectores[vistaId];
+        if (!selector) return;
+        const el = document.querySelector(selector);
+        if (!el) return;
+        if (!el.getAttribute('tabindex')) {
+            el.setAttribute('tabindex', '-1');
+        }
+        // Diferir para que el DOM sea visible antes de enfocar
+        requestAnimationFrame(() => { el.focus({ preventScroll: true }); });
+    },
+
+    // ======================================================================
+    // WCAG 2.2 — Accesibilidad Global de Modales
+    // Escape + clic en overlay cierran cualquier modal abierto,
+    // excepto si tiene role="alertdialog".
+    // Focus Trap: Tab/Shift+Tab no escapa del modal activo.
+    // ======================================================================
+    _initModalAccessibility() {
+        // ── Selectores focusables válidos dentro de un modal ──
+        const FOCUSABLES = [
+            'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+            'select:not([disabled])', 'textarea:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])'
+        ].join(', ');
+
+        // ── Función: obtener el modal visible más reciente ──
+        const _modalActivo = () => {
+            const overlays = [
+                ...document.querySelectorAll(
+                    '.modal-overlay, .perfil-overlay, .reg-modal-overlay'
+                )
+            ];
+            // Devolver el último overlay visible (z-index más alto en el DOM)
+            return overlays.reverse().find(el => {
+                const style = window.getComputedStyle(el);
+                return style.display !== 'none' && style.visibility !== 'hidden';
+            }) || null;
+        };
+
+        // ── Función: cerrar el modal activo (respeta alertdialog) ──
+        const _cerrarModal = (modal) => {
+            if (!modal) return;
+            if (modal.getAttribute('role') === 'alertdialog') return;
+
+            // Estrategia: buscar el botón de cierre explícito del modal
+            const closeBtn = modal.querySelector(
+                '.modal-close, .perfil-modal__close, .reg-modal__close'
+            );
+            if (closeBtn) {
+                closeBtn.click();
+                return;
+            }
+            // Fallback: ocultar directamente
+            modal.style.display = 'none';
+        };
+
+        // ── 1. Escape cierra el modal activo ──
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const modal = _modalActivo();
+            if (modal) {
+                e.preventDefault();
+                e.stopPropagation();
+                _cerrarModal(modal);
+            }
+        }, true);
+
+        // ── 2. Clic en el fondo/overlay cierra el modal ──
+        document.addEventListener('click', (e) => {
+            const overlays = document.querySelectorAll(
+                '.modal-overlay, .perfil-overlay, .reg-modal-overlay'
+            );
+            overlays.forEach(overlay => {
+                if (e.target === overlay) {
+                    _cerrarModal(overlay);
+                }
+            });
+        });
+
+        // ── 3. Focus Trap: Tab/Shift+Tab queda dentro del modal activo ──
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab') return;
+            const modal = _modalActivo();
+            if (!modal) return;
+
+            const focusables = Array.from(modal.querySelectorAll(FOCUSABLES))
+                .filter(el => {
+                    const s = window.getComputedStyle(el);
+                    return s.display !== 'none' && s.visibility !== 'hidden' && !el.disabled;
+                });
+            if (focusables.length === 0) { e.preventDefault(); return; }
+
+            const first = focusables[0];
+            const last  = focusables[focusables.length - 1];
+
+            if (e.shiftKey) {
+                if (document.activeElement === first || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        });
     },
 
     scrollAlFooter: function () {

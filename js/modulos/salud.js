@@ -183,29 +183,80 @@ export const salud = {
             const btnCitas = document.getElementById('salud-nav-citas');
             const btnRecetas = document.getElementById('salud-nav-recetas');
             btnCitas.classList.toggle('salud-sidenav__btn--active', seccion === 'citas');
-            btnCitas.setAttribute('aria-pressed', seccion === 'citas');
+            btnCitas.setAttribute('aria-selected', seccion === 'citas');
             btnRecetas.classList.toggle('salud-sidenav__btn--active', seccion === 'recetas');
-            btnRecetas.setAttribute('aria-pressed', seccion === 'recetas');
+            btnRecetas.setAttribute('aria-selected', seccion === 'recetas');
 
             if (seccion === 'citas') this.filtrarCitas(this._filtroActual);
             if (seccion === 'recetas') this.renderizarRecetas();
+
+            // ── WAI-ARIA APG: Registro único de teclado para el sidenav ──
+            if (!this._sidenavKeyboardInited) {
+                this._sidenavKeyboardInited = true;
+                const tabs = [btnCitas, btnRecetas];
+                tabs.forEach((btn, idx) => {
+                    btn.setAttribute('role', 'tab');
+                    btn.addEventListener('keydown', (e) => {
+                        let next = null;
+                        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                            next = tabs[(idx + 1) % tabs.length];
+                        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                            next = tabs[(idx - 1 + tabs.length) % tabs.length];
+                        } else if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            btn.click();
+                            return;
+                        }
+                        if (next) { e.preventDefault(); next.focus(); next.click(); }
+                    });
+                });
+            }
         },
 
         // ------------------------------------------------------------------
-        // 12.3 Tabs de citas
+        // 12.3 Tabs de citas (Próximas / Anteriores) — WAI-ARIA APG
         // ------------------------------------------------------------------
         filtrarCitas(filtro) {
             this._filtroActual = filtro;
-            document.getElementById('tab-proximas').classList.toggle('salud-tab--active', filtro === 'proximas');
-            document.getElementById('tab-proximas').setAttribute('aria-selected', filtro === 'proximas');
-            document.getElementById('tab-anteriores').classList.toggle('salud-tab--active', filtro === 'anteriores');
-            document.getElementById('tab-anteriores').setAttribute('aria-selected', filtro === 'anteriores');
+            const tabProximas   = document.getElementById('tab-proximas');
+            const tabAnteriores = document.getElementById('tab-anteriores');
+
+            tabProximas.classList.toggle('salud-tab--active', filtro === 'proximas');
+            tabProximas.setAttribute('aria-selected', filtro === 'proximas');
+            tabAnteriores.classList.toggle('salud-tab--active', filtro === 'anteriores');
+            tabAnteriores.setAttribute('aria-selected', filtro === 'anteriores');
 
             // Ocultar detalle si está visible
             document.getElementById('salud-cita-detalle').style.display = 'none';
             document.getElementById('salud-citas-lista').style.display = 'block';
 
             this.renderizarCitas(filtro);
+
+            // ── WAI-ARIA APG: Teclado en tabs Próximas / Anteriores ──
+            if (!this._citasTabKeyboardInited) {
+                this._citasTabKeyboardInited = true;
+                const tabs = [tabProximas, tabAnteriores];
+                const filtros = ['proximas', 'anteriores'];
+                tabs.forEach((tab, idx) => {
+                    tab.addEventListener('keydown', (e) => {
+                        let next = null;
+                        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                            next = idx + 1 < tabs.length ? idx + 1 : 0;
+                        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                            next = idx - 1 >= 0 ? idx - 1 : tabs.length - 1;
+                        } else if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            app.salud.filtrarCitas(filtros[idx]);
+                            return;
+                        }
+                        if (next !== null) {
+                            e.preventDefault();
+                            tabs[next].focus();
+                            app.salud.filtrarCitas(filtros[next]);
+                        }
+                    });
+                });
+            }
         },
 
         // ------------------------------------------------------------------

@@ -78,6 +78,104 @@ ul {
     border-width: 0;
 }
 
+/* ── Skip Link (Bypass Block) ── */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 8px;
+    background: var(--text-main);
+    color: var(--white);
+    padding: 10px 20px;
+    border-radius: 0 0 8px 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    z-index: 10000;
+    text-decoration: none;
+    transition: top 0.2s ease;
+}
+.skip-link:focus {
+    top: 0;
+    outline: 3px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WCAG 2.2 — :focus-visible Global System
+   Alto contraste: outline blanco + box-shadow corporativo en botones
+   Inputs: glow respetando border-radius, sin outline por defecto
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 1. Quitar outline nativo del navegador de forma selectiva */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* 2. Botones primarios (fondo sólido oscuro/verde) — anillo blanco + sombra corporativa */
+.btn--primario:focus-visible,
+.btn--accion:focus-visible {
+    outline: 3px solid var(--white);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px var(--action-color);
+}
+
+/* 3. Botones secundarios y de documento (fondo claro) — anillo corporativo directo */
+.btn--secundario:focus-visible,
+.btn--white:focus-visible,
+.btn--peligro:focus-visible {
+    outline: 3px solid var(--action-color);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px rgba(13, 169, 159, 0.25);
+}
+
+/* 4. Links y navegación — anillo corporativo */
+a:focus-visible,
+.header__nav-link:focus-visible,
+.footer__link:focus-visible,
+.footer__social-link:focus-visible,
+.enlace-accion:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+
+/* 5. Botones genéricos (modal-close, calendar-nav, etc.) */
+button:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* 6. Inputs con glow — respeta border-radius del elemento */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: none;
+    border-color: var(--action-color) !important;
+    box-shadow: 0 0 0 3px rgba(13, 169, 159, 0.22) !important;
+}
+
+/* 7. Tabs del sidenav Mi Salud */
+.salud-sidenav__btn:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: -2px;
+    border-radius: 8px;
+}
+
+/* 8. Tabs Próximas/Anteriores */
+.salud-tab:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+/* 9. Bottom nav items */
+.bottom-nav__item:focus-visible {
+    outline: 2px solid var(--action-color);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
 /* Botones */
 .btn {
     display: inline-flex;
@@ -299,6 +397,28 @@ ul {
 
 .header__logo-words strong {
     color: var(--action-color);
+}
+
+/* Hamburger toggle button (visible only on mobile) */
+.header__menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    min-height: 44px;
+    min-width: 44px;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 767px) {
+    .header__menu-toggle {
+        display: flex;
+    }
 }
 
 .header__nav-wrapper {

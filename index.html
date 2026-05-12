@@ -19,6 +19,9 @@
 </head>
 
 <body>
+    <!-- Bypass Block: Skip Link (WCAG 2.4.1) -->
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
     <!-- Encabezado / Header -->
     <header class="header" role="banner">
         <!-- Barra superior -->
@@ -45,6 +48,11 @@
                                 Barahona</strong></span>
                     </span>
                 </a>
+
+                <!-- Botón hamburguesa (móvil) -->
+                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="main-menu">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
 
                 <!-- Menú horizontal de escritorio -->
                 <div class="header__nav-wrapper" id="main-menu">
@@ -208,7 +216,7 @@
             aria-modal="true" aria-labelledby="modal-consulta-title">
             <div class="modal-content modal-consulta__content">
                 <button class="modal-close" aria-label="Cerrar modal" onclick="app.widgetInvitado.cerrarModal()">
-                    <i class="fa-solid fa-xmark"></i>
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
                 <div class="modal-consulta__icon" aria-hidden="true">
                     <i class="fa-solid fa-calendar-check"></i>
@@ -231,7 +239,7 @@
                         <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
                     </button>
 
-                    <div class="doctors__grid" id="doctors-carousel">
+                    <div class="doctors__grid" id="doctors-carousel" aria-live="polite" aria-label="Especialidades médicas">
                         <!-- Las tarjetas de especialidades se renderizarán dinámicamente aquí vía app.js -->
                     </div>
 
@@ -377,7 +385,7 @@
                             <h3 id="modal-filtros-title">Categorías</h3>
                             <button class="modal-close" aria-label="Cerrar filtros"
                                 onclick="app.farmacia.cerrarModalFiltros()">
-                                <i class="fa-solid fa-xmark"></i>
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                         </div>
                         <div class="filtros-bottom-sheet__body" id="farmacia-filtros-modal-list">
@@ -763,7 +771,7 @@
             aria-labelledby="modal-med-title">
             <div class="modal-content" style="max-width: 500px;">
                 <button class="modal-close" aria-label="Cerrar modal" onclick="app.farmacia.cerrarModalMedicamento()">
-                    <i class="fa-solid fa-xmark"></i>
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
                 <div style="text-align: center; margin-bottom: 10px;">
                     <img id="modal-med-img" src="" alt=""
@@ -873,7 +881,7 @@
                 </div>
 
                 <!-- Contenedor del Directorio -->
-                <div id="specialists-directory-grid" class="directory-grid">
+                <div id="specialists-directory-grid" class="directory-grid" aria-live="polite" aria-label="Directorio de especialistas">
                     <!-- Tarjetas inyectadas por JS -->
                 </div>
             </div>
@@ -882,7 +890,7 @@
             <div id="modal-especialista" class="modal-overlay" style="display: none;">
                 <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-doc-name">
                     <button id="modal-close-btn" class="modal-close" aria-label="Cerrar modal">
-                        <i class="fa-solid fa-xmark"></i>
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
                     <div class="modal-header" style="text-align: center; margin-bottom: 20px;">
                         <img id="modal-doc-img" src="" alt="Foto del especialista"
@@ -1067,16 +1075,18 @@
                 <!-- â”€â”€ Sidenav â”€â”€ -->
                 <nav class="salud-sidenav" aria-label="Navegación Mi Salud">
                     <p class="salud-sidenav__title">Mi salud</p>
-                    <ul class="salud-sidenav__list" role="list">
-                        <li>
+                    <ul class="salud-sidenav__list" role="tablist" aria-orientation="vertical">
+                        <li role="presentation">
                             <button id="salud-nav-citas" class="salud-sidenav__btn salud-sidenav__btn--active"
-                                aria-pressed="true" onclick="app.salud.mostrarSeccion('citas')">
+                                role="tab" aria-selected="true" aria-controls="salud-sec-citas"
+                                onclick="app.salud.mostrarSeccion('citas')">
                                 <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
                                 Mis citas
                             </button>
                         </li>
-                        <li>
-                            <button id="salud-nav-recetas" class="salud-sidenav__btn" aria-pressed="false"
+                        <li role="presentation">
+                            <button id="salud-nav-recetas" class="salud-sidenav__btn" role="tab"
+                                aria-selected="false" aria-controls="salud-sec-recetas"
                                 onclick="app.salud.mostrarSeccion('recetas')">
                                 <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
                                 Recetas
@@ -1091,7 +1101,7 @@
                     <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                          SUB-VISTA: MIS CITAS
                     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-                    <div id="salud-sec-citas" class="salud-sec">
+                    <div id="salud-sec-citas" class="salud-sec" role="tabpanel" aria-labelledby="salud-nav-citas">
                         <div class="salud-card">
                             <!-- Header: título + tabs (se oculta en vista detalle) -->
                             <div id="salud-citas-header">
@@ -1127,7 +1137,7 @@
                     <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                          SUB-VISTA: RECETAS
                     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-                    <div id="salud-sec-recetas" class="salud-sec" style="display:none;">
+                    <div id="salud-sec-recetas" class="salud-sec" role="tabpanel" aria-labelledby="salud-nav-recetas" style="display:none;">
                         <div class="salud-card">
                             <!-- Header: título recetas (se oculta en vista detalle) -->
                             <div id="salud-recetas-header">
@@ -1219,12 +1229,12 @@
                                     style="background: #e0f0f0; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; font-weight: bold; border-radius: 8px 8px 0 0;">
                                     <button onclick="app.citas.cambiarSemana(-1)" class="calendar-nav-btn"
                                         aria-label="Semana anterior" title="Semana anterior">
-                                        <i class="fa-solid fa-chevron-left"></i>
+                                        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
                                     </button>
-                                    <span id="citas-calendar-month-label">Cargando...</span>
+                                    <span id="citas-calendar-month-label" aria-live="polite" aria-atomic="true">Cargando...</span>
                                     <button onclick="app.citas.cambiarSemana(1)" class="calendar-nav-btn"
                                         aria-label="Semana siguiente" title="Semana siguiente">
-                                        <i class="fa-solid fa-chevron-right"></i>
+                                        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
                                     </button>
                                 </div>
 
@@ -1242,7 +1252,7 @@
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </button>
                                 </div>
-                                <div class="citas-calendar-grid" id="citas-calendar-grid">
+                                <div class="citas-calendar-grid" id="citas-calendar-grid" aria-live="polite" aria-label="Horarios disponibles">
                                     <!-- Inyectado por JS -->
                                 </div>
 
