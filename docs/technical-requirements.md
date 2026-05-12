@@ -115,3 +115,222 @@ El código Javascript debe estar estrictamente modularizado para evitar un archi
 ### B. Reglas de Importación
 * Todas las importaciones deben incluir la extensión `.js` (ej. `import { imprimirCita } from '../modulos/utilidades.js';`).
 * El archivo `/index.html` DEBE cargar el script principal como módulo: `<script type="module" src="js/main.js"></script>`. Se deben eliminar las llamadas a funciones globales desde el HTML (como los `onclick=""`), reemplazándolas por Event Listeners dentro de sus respectivos módulos, o exponiéndolas explícitamente en el objeto `window` si es estrictamente necesario para el Liquid Layout actual.
+
+---
+
+## 10. Estándares de Accesibilidad Estricta (WAI-ARIA y POUR)
+
+Esta sección es **OBLIGATORIA** y protege el cumplimiento WCAG 2.2 nivel AA del proyecto. Ninguna refactorización, nueva funcionalidad o corrección de bugs puede degradar estos estándares. Cada regla tiene su implementación de referencia en el código actual.
+
+---
+
+### A. Focus Rings `:focus-visible` y Focus Trap en Modales
+
+**Regla:** El sistema de foco de teclado se gestiona exclusivamente con `:focus-visible`, nunca con `:focus`. Está **PROHIBIDO** escribir `outline: none` o `outline: 0` sobre un selector que aplique a todos los estados de foco (debe ser siempre `:focus:not(:focus-visible)`).
+
+**Implementación de referencia** (`css/styles.css`):
+```css
+/* CORRECTO — suprime solo foco por click, no por teclado */
+*:focus:not(:focus-visible) { outline: none; }
+
+/* Botones primarios: anillo blanco + sombra corporativa (alto contraste) */
+.btn--primario:focus-visible,
+.btn--accion:focus-visible {
+    outline: 3px solid var(--white);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px var(--action-color);
+}
+
+/* Inputs: glow sin outline, respeta border-radius */
+input:focus-visible {
+    outline: none;
+    border-color: var(--action-color) !important;
+    box-shadow: 0 0 0 3px rgba(13, 169, 159, 0.22) !important;
+}
+```
+
+**Focus Trap en Modales** (`js/main.js` → `_initModalAccessibility()`):
+* Todo modal con `role="dialog"` o `role="alertdialog"` **DEBE** atrapar el foco al interior. La tecla `Tab` y `Shift+Tab` deben ciclar únicamente entre los elementos focusables del modal.
+* La tecla `Escape` **DEBE** cerrar el modal, salvo en modales con `role="alertdialog"` (decisión obligatoria del usuario).
+* Al cerrar el modal, el foco **DEBE** retornar al elemento que lo abrió (`_triggerElement`).
+* Implementación: `_initModalAccessibility()` se llama **una sola vez** en `app.init()` mediante delegación de eventos en `document`.
+
+---
+
+### B. Gestión de Foco en SPA (Cambio de Vista)
+
+**Regla:** Cada vez que el router `navegar()` muestra una nueva vista, **DEBE** mover el foco al encabezado principal (`h1` o `h2`) de esa vista para que los lectores de pantalla anuncien el cambio de contexto. El encabezado receptor **no** debe tener `tabindex` en el HTML estático; se añade programáticamente y se elimina tras el foco.
+
+**Implementación de referencia** (`js/main.js` → `_enfocarEncabezadoVista(vistaId)`):
+```js
+_enfocarEncabezadoVista(vistaId) {
+    requestAnimationFrame(() => {
+        const vista = document.getElementById(`view-${vistaId}`);
+        if (!vista) return;
+        const heading = vista.querySelector('h1, h2');
+        if (!heading) return;
+        heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: false });
+        heading.addEventListener('blur', () =>
+            heading.removeAttribute('tabindex'), { once: true });
+    });
+}
+```
+* `requestAnimationFrame` es **obligatorio** para garantizar que el DOM esté pintado antes de mover el foco.
+* Esta función se llama al **final** de `navegar()`, después de mostrar la vista destino.
+
+---
+
+### C. Semántica de Pestañas WAI-ARIA APG (Keyboard Navigation)
+
+**Regla:** Cualquier conjunto de pestañas (tabs) **DEBE** implementar el patrón APG Tab completo. Está **PROHIBIDO** usar solo `aria-pressed` en botones que actúan como pestañas.
+
+**Requisitos de marcado obligatorio:**
+
+| Elemento | Atributos obligatorios |
+|---|---|
+| Contenedor de pestañas | `role="tablist"` + `aria-label` o `aria-labelledby` |
+| Cada botón de pestaña | `role="tab"` + `aria-selected="true/false"` + `aria-controls="[id-panel]"` |
+| Cada panel de contenido | `role="tabpanel"` + `aria-labelledby="[id-tab]"` |
+| `<li>` envolvente (si existe) | `role="presentation"` |
+
+**Navegación de teclado obligatoria** (implementada en `js/modulos/salud.js`):
+* `ArrowRight` / `ArrowDown` → mueve el foco a la siguiente pestaña y la activa.
+* `ArrowLeft` / `ArrowUp` → mueve el foco a la pestaña anterior y la activa.
+* `Enter` / `Space` → activa la pestaña enfocada.
+* El ciclo es continuo (al llegar al último vuelve al primero y viceversa).
+* El registro de `keydown` se hace con un guard (`_sidenavKeyboardInited`) para evitar duplicados.
+
+**Actualización dinámica de ARIA:** la función `mostrarSeccion(seccion)` en `salud.js` **DEBE** usar `setAttribute('aria-selected', true/false)`. El uso de `aria-pressed` en este contexto está **PROHIBIDO**.
+
+---
+
+### D. Inyección Segura de Documentos: `<iframe>` Oculto en lugar de `window.open()`
+
+**Regla:** La impresión nativa **DEBE** realizarse mediante un `<iframe>` oculto pre-existente en el DOM, **no** con `window.open()`. El uso de `window.open()` para impresión está **PROHIBIDO** en este proyecto porque los bloqueadores de popups impiden su ejecución y rompen la experiencia del usuario.
+
+**Implementación de referencia** (`js/modulos/utilidades.js` → `imprimirCita` / `imprimirReceta`):
+```js
+// IDs reservados en el DOM para impresión:
+// <iframe id="__sanitas_print_cita__" ...>
+// <iframe id="__sanitas_print_receta__" ...>
+
+function imprimirConIframe(iframeId, htmlContent) {
+    let frame = document.getElementById(iframeId);
+    if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = iframeId;
+        frame.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:0;';
+        document.body.appendChild(frame);
+    }
+    frame.srcdoc = htmlContent;
+    frame.onload = () => { frame.contentWindow.focus(); frame.contentWindow.print(); };
+}
+```
+* La plantilla HTML inyectada en el `iframe` **DEBE** ser autónoma (`_generarTicketHTML`, `_generarRecetaHTML`) y no capturar el DOM visible de la interfaz.
+* Los PDFs se siguen generando con `html2pdf.js`.
+
+---
+
+### E. Formularios Estrictos (WCAG 1.3.1, 1.3.5, 3.3.1, 3.3.2)
+
+Todo `<input>`, `<select>` o `<textarea>` con validación dinámica **DEBE** cumplir las siguientes tres reglas simultáneamente:
+
+**E.1 — Vinculación de errores (`aria-describedby`)**
+```html
+<!-- CORRECTO -->
+<input id="campo" aria-describedby="campo-error" aria-required="true">
+<span id="campo-error" role="alert" style="display:none;"></span>
+```
+* El `id` del `<span>` de error **DEBE** coincidir exactamente con el valor `aria-describedby` del input.
+* El span **DEBE** tener `role="alert"` para que sea anunciado automáticamente por lectores de pantalla al aparecer.
+* Está **PROHIBIDO** mostrar errores solo visualmente sin actualizar el span vinculado.
+
+**E.2 — Propósito del campo (`autocomplete` — WCAG 1.3.5)**
+
+Tokens obligatorios por tipo de campo:
+
+| Campo | Token `autocomplete` |
+|---|---|
+| Primer nombre | `given-name` |
+| Segundo nombre | `additional-name` |
+| Primer apellido | `family-name` |
+| Segundo apellido | `off` (sin token estándar en WCAG 1.3.5) |
+| Cédula / ID nacional | `off` (sin token estándar) |
+| Teléfono / Celular | `tel` |
+| Email | `email` |
+| Contraseña actual | `current-password` |
+| Contraseña nueva | `new-password` |
+| Código OTP / verificación | `one-time-code` |
+| Fecha de nacimiento | `bday` |
+| Sexo | `sex` |
+| Usuario / Username | `username` |
+| Búsqueda (sin persistir) | `off` |
+
+**E.3 — Campos obligatorios (`aria-required`)**
+* Todo campo requerido por lógica de negocio **DEBE** tener `aria-required="true"` además del atributo HTML `required`.
+* El atributo HTML `required` controla la validación nativa del navegador; `aria-required="true"` comunica la obligatoriedad a tecnologías asistivas que ignoran el atributo HTML nativo.
+
+---
+
+### F. Íconos Decorativos y Regiones Dinámicas
+
+**F.1 — Íconos FontAwesome (`aria-hidden`)**
+* Todo ícono `<i class="fa-...">` puramente decorativo (que acompaña texto visible) **DEBE** tener `aria-hidden="true"`.
+* Los botones que contienen **únicamente** un ícono (sin texto visible) **DEBEN** tener un `aria-label` descriptivo en el elemento `<button>`, y el ícono interno **DEBE** tener `aria-hidden="true"`.
+
+```html
+<!-- CORRECTO: ícono decorativo junto a texto -->
+<button aria-label="Cerrar modal">
+    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+</button>
+
+<!-- PROHIBIDO: ícono sin aria-hidden ni aria-label en el botón -->
+<button><i class="fa-solid fa-xmark"></i></button>
+```
+
+**F.2 — Regiones dinámicas (`aria-live`)**
+
+Cualquier contenedor cuyo contenido se actualice mediante JavaScript sin recarga de página **DEBE** tener `aria-live`:
+
+| Contenedor | Valor | Razón |
+|---|---|---|
+| Listados de citas/recetas | `aria-live="polite"` | Actualización no urgente |
+| Grids de productos/especialistas | `aria-live="polite"` | Búsqueda/filtrado |
+| Grilla del calendario de citas | `aria-live="polite"` | Cambio de semana |
+| Etiqueta del mes en calendario | `aria-live="polite"` + `aria-atomic="true"` | El mes cambia como unidad |
+| Detalle de cita/receta (maestro-detalle) | `aria-live="polite"` | Navegación interna |
+| Mensajes de éxito en formularios | `role="status"` + `aria-live="polite"` | Confirmación no urgente |
+| Errores críticos / alertas | `role="alert"` (implica `aria-live="assertive"`) | Urgente, interrumpe |
+
+**F.3 — Bypass Block (Skip Link)**
+* El primer elemento dentro de `<body>` **DEBE** ser siempre el skip link:
+```html
+<a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+```
+* Visualmente oculto (`top: -100%`) hasta recibir foco, momento en que aparece con estilos de alto contraste.
+* El destino (`#main-content`) **DEBE** existir en el DOM como `id` del elemento `<main>`.
+
+**F.4 — Barra de Progreso de Citas**
+* Los pasos completados **DEBEN** incluir `<span class="sr-only">Completado</span>` junto al ícono de check.
+* El paso activo **DEBE** tener `aria-current="step"` en su elemento contenedor.
+* Los números de paso deben estar en `<span aria-hidden="true">` para que el lector de pantalla no los repita si el label ya los describe.
+
+---
+
+### G. Checklist de Revisión de Accesibilidad
+
+Antes de entregar cualquier cambio que afecte HTML, CSS o JS interactivo, verificar:
+
+- [ ] Todos los `<input>` con validación tienen `aria-describedby` apuntando a su `<span role="alert">`.
+- [ ] Todos los `<input>` obligatorios tienen `aria-required="true"`.
+- [ ] Todos los `<input>` tienen un token `autocomplete` apropiado (o `autocomplete="off"` explícito).
+- [ ] Todos los íconos decorativos tienen `aria-hidden="true"`.
+- [ ] Todos los botones icon-only tienen `aria-label` descriptivo.
+- [ ] Los contenedores actualizados por JS tienen `aria-live="polite"` (o `role="alert"` si es urgente).
+- [ ] Los conjuntos de pestañas usan `role="tablist"` / `role="tab"` / `role="tabpanel"` con navegación por flechas.
+- [ ] Los modales tienen `role="dialog"` + `aria-modal="true"` + `aria-labelledby` + Focus Trap.
+- [ ] El router SPA llama a `_enfocarEncabezadoVista()` al final de cada cambio de vista.
+- [ ] La impresión usa `<iframe>` oculto, nunca `window.open()`.
+- [ ] El skip link `<a href="#main-content" class="skip-link">` es el primer hijo de `<body>`.
+- [ ] El `<meta name="viewport">` **no** contiene `maximum-scale` ni `user-scalable=no`.

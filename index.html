@@ -460,7 +460,7 @@
                                 <label for="reg-identificacion" class="login-field__label">Identificación *</label>
                                 <input type="text" id="reg-identificacion" class="login-field__input"
                                     placeholder="Ej: 1712345678" inputmode="numeric" maxlength="13" aria-required="true"
-                                    aria-describedby="reg-ident-error">
+                                    autocomplete="off" aria-describedby="reg-ident-error">
                                 <span id="reg-ident-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -497,7 +497,7 @@
                             <div class="login-field">
                                 <label for="reg-apellido2" class="login-field__label">Segundo apellido</label>
                                 <input type="text" id="reg-apellido2" class="login-field__input" placeholder=""
-                                    aria-describedby="reg-apellido2-error">
+                                    autocomplete="off" aria-describedby="reg-apellido2-error">
                                 <span id="reg-apellido2-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -506,7 +506,7 @@
                             <div class="login-field">
                                 <label for="reg-fecha-nac" class="login-field__label">Fecha de nacimiento *</label>
                                 <input type="date" id="reg-fecha-nac" class="login-field__input" aria-required="true"
-                                    aria-describedby="reg-fecha-error">
+                                    autocomplete="bday" aria-describedby="reg-fecha-error">
                                 <span id="reg-fecha-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -555,7 +555,7 @@
                                 <label for="reg-celular" class="login-field__label">Teléfono celular *</label>
                                 <input type="tel" id="reg-celular" class="login-field__input"
                                     placeholder="Ej: 0991234567" inputmode="numeric" maxlength="10" aria-required="true"
-                                    aria-describedby="reg-celular-error">
+                                    autocomplete="tel" aria-describedby="reg-celular-error">
                                 <span id="reg-celular-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -627,7 +627,7 @@
                                 <label for="reg-codigo" class="login-field__label">Código de verificación *</label>
                                 <input type="text" id="reg-codigo" class="login-field__input" placeholder="123456"
                                     inputmode="numeric" maxlength="6" aria-required="true"
-                                    aria-describedby="reg-codigo-error"
+                                    autocomplete="one-time-code" aria-describedby="reg-codigo-error"
                                     style="letter-spacing: 6px; font-size:1.2rem; text-align:center;">
                                 <span id="reg-codigo-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -1017,7 +1017,7 @@
                             <div class="login-field">
                                 <label for="edit-apellido2" class="login-field__label">Segundo apellido</label>
                                 <input type="text" id="edit-apellido2" class="login-field__input"
-                                    aria-describedby="edit-apellido2-error">
+                                    autocomplete="off" aria-describedby="edit-apellido2-error">
                                 <span id="edit-apellido2-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -1027,7 +1027,7 @@
                                 <label for="edit-celular" class="login-field__label">Teléfono celular *</label>
                                 <input type="tel" id="edit-celular" class="login-field__input"
                                     placeholder="Ej: 0991234567" inputmode="numeric" maxlength="10" aria-required="true"
-                                    aria-describedby="edit-celular-error">
+                                    autocomplete="tel" aria-describedby="edit-celular-error">
                                 <span id="edit-celular-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -1291,7 +1291,7 @@
                                     <label for="citas-nombres" class="citas-form-label">Nombres
                                         completos <span class="citas-form-required">*</span></label>
                                     <input type="text" id="citas-nombres" class="form-control citas-form-control" required
-                                        placeholder="Ej. Juan Pérez"
+                                        placeholder="Ej. Juan Pérez" autocomplete="name" aria-required="true"
                                         aria-describedby="error-nombres">
                                     <span class="error-msg citas-error-msg" id="error-nombres"
                                         role="alert"></span>
@@ -1301,8 +1301,8 @@
                                     <label for="citas-cedula" class="citas-form-label">Cédula
                                         <span class="citas-form-required">*</span></label>
                                     <input type="text" id="citas-cedula" class="form-control citas-form-control" required
-                                        placeholder="Ej: 1715811293" maxlength="10"
-                                        aria-describedby="error-cedula">
+                                        placeholder="Ej: 1715811293" maxlength="10" autocomplete="off"
+                                        aria-required="true" aria-describedby="error-cedula">
                                     <span class="error-msg citas-error-msg" id="error-cedula"
                                         role="alert"></span>
                                 </div>
@@ -1311,8 +1311,8 @@
                                     <label for="citas-celular" class="citas-form-label">Celular
                                         <span class="citas-form-required">*</span></label>
                                     <input type="tel" id="citas-celular" class="form-control citas-form-control" required
-                                        placeholder="09xxxxxxx" maxlength="10"
-                                        aria-describedby="error-celular">
+                                        placeholder="09xxxxxxx" maxlength="10" autocomplete="tel"
+                                        aria-required="true" aria-describedby="error-celular">
                                     <span class="error-msg citas-error-msg" id="error-celular"
                                         role="alert"></span>
                                 </div>
