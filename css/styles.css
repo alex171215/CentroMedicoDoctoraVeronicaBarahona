@@ -2290,6 +2290,24 @@ textarea:focus-visible {
     color: var(--action-color);
 }
 
+/* ── Sanitización en tiempo real: feedback de carácter rechazado (H1 + H9) ──
+   Se añade/retira via JS con un setTimeout de 300ms.
+   La animación inputRejectedFlash genera el efecto "parpadeo" de alerta sutil.
+   !important para sobrescribir :focus y otros estados activos. */
+@keyframes inputRejectedFlash {
+    0%   { border-color: #e74c3c; box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25); }
+    50%  { border-color: #c0392b; box-shadow: 0 0 0 5px rgba(231, 76, 60, 0.15); }
+    100% { border-color: #e74c3c; box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25); }
+}
+
+.input-rechazado,
+.input-rechazado:focus {
+    border-color: #e74c3c !important;
+    background-color: #fff5f5 !important;
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.20) !important;
+    animation: inputRejectedFlash 0.3s ease-in-out;
+}
+
 /* Wrapper de contraseña (input + ojo) */
 .login-field__password-wrap {
     position: relative;

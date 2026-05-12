@@ -351,3 +351,6 @@ Para prevenir XSS e Inyecciones (OWASP Top 10) y prevenir errores del usuario (H
 * **F. Antispam Global:** Ningún campo puede enviarse vacío o compuesto únicamente por espacios.
 * **G. Disparadores (Triggers):** 1. Evento `input`: Bloqueo físico en tiempo real (Regex reemplaza caracteres no deseados mientras el usuario teclea).
     2. Evento `blur`: Aplica `.trim()` para limpiar espacios residuales al perder el foco.
+
+## 12. Gestión de Foco y Scroll en Formularios (SPA)
+* **Scroll Automático (UX):** Al transicionar entre pasos en un formulario multi-paso (Registro, Agendamiento), el sistema DEBE resetear el scroll de la ventana hacia la parte superior (`window.scrollTo({ top: 0, behavior: 'smooth' })`) o enfocar el título del nuevo contenedor. Esto previene la desorientación del usuario y cumple con la gestión de foco establecida en el diseño centrado en el usuario.

@@ -108,6 +108,64 @@ const app = {
         });
     },
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // SANITIZACIÓN EN TIEMPO REAL — Helper centralizado (OWASP + H1 + H9)
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // Problema que resuelve: asignar e.target.value directamente resetea el
+    // cursor al final del input cuando el usuario edita en medio del texto.
+    // Solución: preservar selectionStart/selectionEnd y restaurarlos tras
+    // el reemplazo, usando setSelectionRange().
+    //
+    // Parámetros:
+    //   input   — el elemento HTMLInputElement
+    //   regex   — regex de caracteres PERMITIDOS (whitelist), ej. /[^a-zA-Z]/g
+    //   extra   — (opcional) función adicional de transformación, ej. valor =>
+    //             valor.replace(/\s{2,}/g, ' ').replace(/^\s/, '')
+    //
+    // Retorna true si hubo caracteres rechazados (para uso en blur/submit).
+    // ───────────────────────────────────────────────────────────────────────
+    _sanitizarInput(input, regex, extra) {
+        const valorOriginal = input.value;
+
+        // 1. Aplicar whitelist regex
+        let valorLimpio = valorOriginal.replace(regex, '');
+
+        // 2. Aplicar transformación adicional (doble-espacio, espacio inicial, etc.)
+        if (typeof extra === 'function') {
+            valorLimpio = extra(valorLimpio);
+        }
+
+        // 3. Si no hubo cambio, no hacer nada (evita ciclos innecesarios)
+        if (valorOriginal === valorLimpio) return false;
+
+        // 4. Preservar posición del cursor ANTES de modificar el valor
+        //    (setSelectionRange solo funciona en inputs de tipo text)
+        const pos = input.selectionStart;
+        const deletedBefore = valorOriginal.substring(0, pos)
+            .replace(regex, '')
+            .replace(/\s{2,}/g, ' ')
+            .replace(/^\s/, '').length;
+
+        // 5. Asignar el valor sanitizado (el único punto donde se escribe el DOM)
+        input.value = valorLimpio;
+
+        // 6. Restaurar cursor a la posición equivalente en el texto sanitizado
+        const nuevaPos = Math.min(deletedBefore, valorLimpio.length);
+        try {
+            input.setSelectionRange(nuevaPos, nuevaPos);
+        } catch (_) { /* ignorar en inputs de tipo date/number */ }
+
+        // 7. Feedback visual: añadir clase de rechazo y retirarla tras 300ms
+        if (input._rechazadoTimer) clearTimeout(input._rechazadoTimer);
+        input.classList.add('input-rechazado');
+        input._rechazadoTimer = setTimeout(() => {
+            input.classList.remove('input-rechazado');
+        }, 300);
+
+        return true; // hubo caracteres rechazados
+    },
+
     // ── Bloque C: Limpieza de privacidad del widget de invitados ──
     _limpiarWidgetInvitado() {
         const inputCedula = document.getElementById('widget-cedula');
@@ -1650,61 +1708,116 @@ const app = {
                 identInput.value = '';
             }
 
-            // Bloquear letras en teléfonos (input)
+            // ── Sanitización en tiempo real + ON-BLUR (valida) ──
+            // Reglas OWASP por tipo de campo:
+            //   Nombres/Apellidos → solo letras (con tildes y ñ) + un espacio simple
+            //   Email/Password    → sin espacios
+            //   Cédula/Teléfono   → solo dígitos (manejados antes de este bloque)
+            //
+            // El helper app._sanitizarInput() aplica la regex, preserva el cursor
+            // y dispara la clase .input-rechazado si hubo rechazo.
+
+            // — Teléfonos: solo dígitos —
             ['reg-celular', 'reg-fijo'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.addEventListener('input', e => {
-                    e.target.value = e.target.value.replace(/\D/g, '');
-                });
+                if (!el) return;
+                el.removeEventListener('input', el._inputHandler);
+                el._inputHandler = () => {
+                    app._sanitizarInput(el, /\D/g);
+                    this._limpiarError(id);
+                };
+                el.addEventListener('input', el._inputHandler);
+
+                el.removeEventListener('blur', el._blurHandler);
+                el._blurHandler = () => this._validarCampo(id);
+                el.addEventListener('blur', el._blurHandler);
             });
 
-            // Bloquear letras en cédula (input)
+            // — Identificación: sanitización CONDICIONAL según tipo de documento —
+            // Cédula   → solo dígitos         `/[^0-9]/g`
+            // Pasaporte → alfanumérico         `/[^a-zA-Z0-9]/g`
+            // Si no hay tipo seleccionado aún, no se sanitiza (campo deshabilitado).
             const regIdent = document.getElementById('reg-identificacion');
-            if (regIdent) regIdent.addEventListener('input', e => {
-                if (this._tipoDoc === 'Cédula') {
-                    e.target.value = e.target.value.replace(/\D/g, '');
-                }
-            });
+            if (regIdent) {
+                regIdent.removeEventListener('input', regIdent._inputHandler);
+                regIdent._inputHandler = () => {
+                    if (this._tipoDoc === 'Cédula') {
+                        app._sanitizarInput(regIdent, /[^0-9]/g);
+                    } else if (this._tipoDoc === 'Pasaporte') {
+                        app._sanitizarInput(regIdent, /[^a-zA-Z0-9]/g);
+                    }
+                    this._limpiarError('reg-ident');
+                };
+                regIdent.addEventListener('input', regIdent._inputHandler);
 
-            // ── ON-BLUR (valida) + ON-INPUT (limpia error al instante) ──
-            // La lista es la misma para ambos eventos.
-            const camposConBlur = [
-                'reg-identificacion',
-                'reg-nombre1',
-                'reg-nombre2',
-                'reg-apellido1',
-                'reg-apellido2',
-                'reg-fecha-nac',
-                'reg-celular',
-                'reg-email',
-                'reg-password'
-            ];
+                regIdent.removeEventListener('blur', regIdent._blurHandler);
+                regIdent._blurHandler = () => this._validarCampo('reg-identificacion');
+                regIdent.addEventListener('blur', regIdent._blurHandler);
+            }
 
-            camposConBlur.forEach(id => {
+            // — Campos de texto del paso 1: nombres, apellidos —
+            // Regex de nombres: solo letras latinas (con tildes/ñ) y UNO espacio.
+            // La función 'extra' elimina dobles-espacios y espacio inicial.
+            const REGEX_NOMBRE = /[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g;
+            const EXTRA_NOMBRE = v => v.replace(/\s{2,}/g, ' ').replace(/^\s/, '');
+
+            ['reg-nombre1', 'reg-nombre2', 'reg-apellido1', 'reg-apellido2'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
 
-                // — Eliminar handlers previos (evita duplicados al re-inicializar) —
-                el.removeEventListener('blur', el._blurHandler);
                 el.removeEventListener('input', el._inputHandler);
-                el.removeEventListener('change', el._changeHandler);
+                el._inputHandler = () => {
+                    app._sanitizarInput(el, REGEX_NOMBRE, EXTRA_NOMBRE);
+                    this._limpiarError(id);
+                };
+                el.addEventListener('input', el._inputHandler);
 
-                // BLUR → valida el campo al salir
+                el.removeEventListener('blur', el._blurHandler);
                 el._blurHandler = () => this._validarCampo(id);
                 el.addEventListener('blur', el._blurHandler);
-
-                // INPUT → limpia el error en cuanto el usuario empieza a escribir
-                // Excepción: fecha usa 'change' porque no tiene 'input' en todos los browsers
-                if (id === 'reg-fecha-nac') {
-                    el._changeHandler = () => this._limpiarError('reg-fecha');
-                    el.addEventListener('change', el._changeHandler);
-                } else {
-                    // Para identificación el errorId es 'reg-ident', no el id del input
-                    const errorId = id === 'reg-identificacion' ? 'reg-ident' : id;
-                    el._inputHandler = () => this._limpiarError(errorId);
-                    el.addEventListener('input', el._inputHandler);
-                }
             });
+
+            // — Email: sin espacios —
+            const regEmail = document.getElementById('reg-email');
+            if (regEmail) {
+                regEmail.removeEventListener('input', regEmail._inputHandler);
+                regEmail._inputHandler = () => {
+                    app._sanitizarInput(regEmail, /\s/g);
+                    this._limpiarError('reg-email');
+                };
+                regEmail.addEventListener('input', regEmail._inputHandler);
+
+                regEmail.removeEventListener('blur', regEmail._blurHandler);
+                regEmail._blurHandler = () => this._validarCampo('reg-email');
+                regEmail.addEventListener('blur', regEmail._blurHandler);
+            }
+
+            // — Password: sin espacios —
+            const regPwd = document.getElementById('reg-password');
+            if (regPwd) {
+                regPwd.removeEventListener('input', regPwd._inputHandler);
+                regPwd._inputHandler = () => {
+                    app._sanitizarInput(regPwd, /\s/g);
+                    this._limpiarError('reg-password');
+                };
+                regPwd.addEventListener('input', regPwd._inputHandler);
+
+                regPwd.removeEventListener('blur', regPwd._blurHandler);
+                regPwd._blurHandler = () => this._validarCampo('reg-password');
+                regPwd.addEventListener('blur', regPwd._blurHandler);
+            }
+
+            // — Fecha de nacimiento: solo 'change' (no input en todos los browsers) —
+            const regFecha = document.getElementById('reg-fecha-nac');
+            if (regFecha) {
+                regFecha.removeEventListener('change', regFecha._changeHandler);
+                regFecha._changeHandler = () => this._limpiarError('reg-fecha');
+                regFecha.addEventListener('change', regFecha._changeHandler);
+
+                regFecha.removeEventListener('blur', regFecha._blurHandler);
+                regFecha._blurHandler = () => this._validarCampo('reg-fecha-nac');
+                regFecha.addEventListener('blur', regFecha._blurHandler);
+            }
 
             // ── Restaurar borrador si existe ──
             this._cargarBorrador();
@@ -1823,6 +1936,9 @@ const app = {
                 if (emailEl) emailEl.textContent = emailVal;
                 this._iniciarCountdown(60);
             }
+            // Regla 12 – Gestión de Foco y Scroll (TR-12):
+            // Al transicionar entre pasos el usuario debe ver el inicio del nuevo contenido.
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
         siguientePaso(pasoActual) {

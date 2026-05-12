@@ -2283,12 +2283,21 @@ export function createCitas() {
                 const el = document.getElementById(item.id);
                 if (!el) return;
 
-                // AL ESCRIBIR (Input): Sanitización + habilitación silenciosa del botón.
-                // Este listener NO debe pintar errores ni tocar otros campos.
-                el.addEventListener('input', (e) => {
-                    // Filtros de caracteres en tiempo real (Regex Whitelist)
-                    if (item.id === 'citas-nombres') e.target.value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
-                    else e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                // AL ESCRIBIR (Input): Sanitización real via helper centralizado.
+                // app._sanitizarInput preserva la posición del cursor y dispara
+                // .input-rechazado si hubo caracteres rechazados.
+                // Este listener NO pinta errores ni toca otros campos.
+                el.addEventListener('input', () => {
+                    if (item.id === 'citas-nombres') {
+                        // Solo letras latinas (con tildes/ñ) + un espacio simple
+                        const REGEX_N = /[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g;
+                        const EXTRA_N = v => v.replace(/\s{2,}/g, ' ').replace(/^\s/, '');
+                        app._sanitizarInput(el, REGEX_N, EXTRA_N);
+                    } else {
+                        // Cédula y celular: solo dígitos (máx 10)
+                        app._sanitizarInput(el, /\D/g);
+                        if (el.value.length > 10) el.value = el.value.slice(0, 10);
+                    }
 
                     // Devolvemos el campo a estado neutral mientras el usuario escribe
                     el.style.borderColor = '#ccc';
