@@ -78,6 +78,27 @@ ul {
     border-width: 0;
 }
 
+/* ── Skip link: Bypass Block (WCAG 2.4.1) ─────────────────────────── */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    z-index: 10000;
+    padding: 12px 20px;
+    background: var(--text-main);
+    color: var(--white);
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 0 0 6px 0;
+    text-decoration: none;
+    transition: top 0.15s ease;
+}
+.skip-link:focus {
+    top: 0;
+    outline: 3px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
 /* ======================================================================
    ACCESIBILIDAD: Indicadores de foco para navegación por teclado
    WCAG 2.1 AA — Criterio 2.4.7 (Foco visible) + 1.4.11 (Contraste no textual)

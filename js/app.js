@@ -6104,13 +6104,13 @@ const app = {
             document.getElementById('salud-sec-citas').style.display = seccion === 'citas' ? 'block' : 'none';
             document.getElementById('salud-sec-recetas').style.display = seccion === 'recetas' ? 'block' : 'none';
 
-            // Sidenav botones
+            // Sidenav botones (tab pattern)
             const btnCitas = document.getElementById('salud-nav-citas');
             const btnRecetas = document.getElementById('salud-nav-recetas');
             btnCitas.classList.toggle('salud-sidenav__btn--active', seccion === 'citas');
-            btnCitas.setAttribute('aria-pressed', seccion === 'citas');
+            btnCitas.setAttribute('aria-selected', seccion === 'citas');
             btnRecetas.classList.toggle('salud-sidenav__btn--active', seccion === 'recetas');
-            btnRecetas.setAttribute('aria-pressed', seccion === 'recetas');
+            btnRecetas.setAttribute('aria-selected', seccion === 'recetas');
 
             if (seccion === 'citas') this.filtrarCitas(this._filtroActual);
             if (seccion === 'recetas') this.renderizarRecetas();
