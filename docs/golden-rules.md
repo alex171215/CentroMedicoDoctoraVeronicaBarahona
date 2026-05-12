@@ -58,3 +58,5 @@ Para cerrar correctamente el ciclo cognitivo del usuario (H1), el sistema aplica
 ### Manejo de Eventos en Templates (Prevención de XSS y Colisiones)
 * **Paso de Parámetros Seguros:** Queda ESTRICTAMENTE PROHIBIDO inyectar objetos completos convertidos a cadena (ej. `JSON.stringify`) dentro de atributos de eventos HTML en línea (como `onclick`). 
 * **Regla de Delegación:** En los templates literales, los manejadores de eventos solo deben recibir identificadores primitivos (strings simples, IDs o números). La función receptora será responsable de buscar el objeto completo en el estado (`this._citas`, `localStorage`, etc.) utilizando dicho ID.
+
+* **Integridad de Codificación (UTF-8 Strict):** Queda estrictamente prohibida la introducción de caracteres corruptos o "Mojibake" (ej. `â€“`, `Ã³`, `â€`) en el HTML o JS. El agente debe asegurar que todo texto, placeholder o inyección del DOM respete la codificación UTF-8 nativa (usando acentos y eñes correctamente: á, é, í, ó, ú, ñ). Al refactorizar UI, se debe validar que la tipografía y los símbolos especiales (como guiones o comillas) se mantengan limpios.
