@@ -599,7 +599,22 @@ const app = {
         // Forzar el scroll hacia arriba al cambiar de vista
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        // ── NUEVO: Actualizar vista actual ──
+        // ── Gestión de foco para SPA (WCAG 2.4.3 — Operable) ───────────────
+        // Envía el foco al contenedor de la nueva vista para que los lectores
+        // de pantalla anuncien el contexto correcto sin interrumpir Tab normal.
+        setTimeout(function () {
+            const idMap = { 'home': 'main-content', 'registro-1': 'view-registro' };
+            const elId = idMap[vistaId] || ('view-' + vistaId);
+            const focusTarget = document.getElementById(elId);
+            if (focusTarget) {
+                if (!focusTarget.hasAttribute('tabindex')) {
+                    focusTarget.setAttribute('tabindex', '-1');
+                }
+                focusTarget.focus({ preventScroll: true });
+            }
+        }, 80);
+
+        // ── Actualizar vista actual ──
         this.currentView = vistaId;
     },
 
@@ -6078,6 +6093,35 @@ const app = {
             this._filtroActual = 'proximas';
             this._seccionActual = 'citas';
             this.mostrarSeccion('citas');
+
+            // ── Teclado: WAI-ARIA tablist (flechas + Home/End) ──────────────
+            if (!this._keyboardInicializado) {
+                this._keyboardInicializado = true;
+                const tabs = [
+                    document.getElementById('salud-nav-citas'),
+                    document.getElementById('salud-nav-recetas')
+                ];
+                tabs.forEach((tab, idx) => {
+                    if (!tab) return;
+                    tab.addEventListener('keydown', (e) => {
+                        let nuevoIdx = null;
+                        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                            nuevoIdx = (idx + 1) % tabs.length;
+                        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                            nuevoIdx = (idx - 1 + tabs.length) % tabs.length;
+                        } else if (e.key === 'Home') {
+                            nuevoIdx = 0;
+                        } else if (e.key === 'End') {
+                            nuevoIdx = tabs.length - 1;
+                        }
+                        if (nuevoIdx !== null) {
+                            e.preventDefault();
+                            tabs[nuevoIdx].focus();
+                            tabs[nuevoIdx].click();
+                        }
+                    });
+                });
+            }
 
             // ── Deep linking desde colisión de horarios ──
             const deepLinkStr = sessionStorage.getItem('abrir_detalle_pendiente');
