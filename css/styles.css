@@ -78,6 +78,91 @@ ul {
     border-width: 0;
 }
 
+/* ======================================================================
+   ACCESIBILIDAD: Indicadores de foco para navegación por teclado
+   WCAG 2.1 AA — Criterio 2.4.7 (Foco visible) + 1.4.11 (Contraste no textual)
+   Principios POUR: Perceptible · Operable
+   Técnica: doble capa (halo blanco + anillo de color) → contraste ≥ 3:1
+   sobre cualquier fondo, sin afectar a usuarios de ratón (:focus-visible).
+   ====================================================================== */
+
+/* ── 1. Suprimir el outline nativo del navegador en clics de ratón ─── */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ── 2. Anillo global de foco por teclado (base para todos) ─────────
+   outline-offset crea espacio entre el elemento y el anillo.
+   border-radius suaviza los bordes para respetar la forma del elemento. */
+*:focus-visible {
+    outline: 3px solid var(--action-color);
+    outline-offset: 3px;
+    border-radius: 4px;
+    transition: outline-offset 0.12s ease;
+}
+
+/* ── 3. Botones sobre fondos sólidos (teal, naranja, rojo) ──────────
+   El anillo teal sería invisible sobre el fondo teal de --primario,
+   o el naranja de --accion. Se invierte: halo blanco + anillo oscuro. */
+.btn--primario:focus-visible,
+.btn--accion:focus-visible,
+.btn--peligro:focus-visible {
+    outline: 3px solid white;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px var(--text-main);
+}
+
+/* ── 4. Botón secundario (fondo transparente, borde teal) ───────────
+   El anillo global ya funciona bien; solo reforzamos el offset. */
+.btn--secundario:focus-visible {
+    outline: 3px solid var(--text-main);
+    outline-offset: 3px;
+}
+
+/* ── 5. Campos de entrada: borde + glow en lugar de outline ─────────
+   El outline rompería el diseño con border-radius. Se usa box-shadow
+   como anillo de foco, que respeta la forma del campo.              */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: none;
+    border-color: var(--action-color) !important;
+    box-shadow: 0 0 0 3px rgba(13, 169, 159, 0.30) !important;
+}
+
+/* ── 6. Navegación principal y móvil ────────────────────────────────
+   Links del header y botones del bottom-nav.                        */
+.header__nav-link:focus-visible {
+    outline: 3px solid var(--action-color);
+    outline-offset: 5px;
+    border-radius: 6px;
+}
+
+.bottom-nav__item:focus-visible {
+    outline: 3px solid var(--action-color);
+    outline-offset: 4px;
+    border-radius: 10px;
+}
+
+/* ── 7. Botones de cierre de modal (X) ──────────────────────────────
+   Son circulares; el anillo también debe serlo (border-radius: 50%). */
+.modal-close:focus-visible,
+.reg-modal__close:focus-visible,
+.perfil-modal__close:focus-visible {
+    outline: 3px solid var(--action-color);
+    outline-offset: 3px;
+    border-radius: 50%;
+}
+
+/* ── 8. Tarjetas y elementos interactivos (tabindex) ────────────────
+   .salud-item, cards con tabindex="0", lista del widget, etc.       */
+.salud-item:focus-visible,
+[tabindex="0"]:focus-visible {
+    outline: 3px solid var(--action-color);
+    outline-offset: 4px;
+    border-radius: 10px;
+}
+
 /* Botones */
 .btn {
     display: inline-flex;
