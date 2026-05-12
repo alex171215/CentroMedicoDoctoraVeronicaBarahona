@@ -2987,19 +2987,64 @@ const app = {
             }, 100);
         },
 
-        // ── Proxy: Imprimir cita desde modal de invitado (golden-rules §58) ──
+        // ── Helper: Normalizar cita de invitado (mapeo de datos H1) ──
         /**
-         * Busca la cita en localStorage por ID y delega a utilidades.imprimirCita.
-         * Evita inyectar objetos completos en atributos onclick del template.
+         * Busca la cita en sanitas_citas por ID y normaliza el campo `paciente`
+         * que el store público no persiste (citas.js:1462 lo omite).
+         * Estrategia de resolución del nombre del paciente:
+         *   1. Si la cita ya tiene `paciente`, se usa tal cual.
+         *   2. Cross-ref con sanitas_mis_citas (store privado que SÍ guarda `paciente`).
+         *   3. Lookup en sanitas_usuarios por `cedula` para construir el nombre.
+         *   4. Fallback: "Paciente no especificado".
          * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
+         * @returns {Object|null} Cita normalizada o null si no se encontró
          */
-        imprimirCitaInvitado(idStr) {
+        _normalizarCitaInvitado(idStr) {
             const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
             let cita = citasPublicas.find(c => c.id_cita === idStr);
             if (!cita && !isNaN(parseInt(idStr, 10))) {
                 const idx = parseInt(idStr, 10);
                 if (idx >= 0 && idx < citasPublicas.length) cita = citasPublicas[idx];
             }
+            if (!cita) return null;
+
+            // ── Mapeo del nombre del paciente ──
+            if (!cita.paciente) {
+                // Estrategia 1: Cross-ref con sanitas_mis_citas (tiene el objeto completo)
+                const misCitas = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+                const citaCompleta = misCitas.find(mc =>
+                    mc.id_cita === cita.id_cita || mc.id === cita.id_cita
+                );
+                if (citaCompleta && citaCompleta.paciente) {
+                    cita.paciente = citaCompleta.paciente;
+                } else {
+                    // Estrategia 2: Lookup en sanitas_usuarios por cédula
+                    const usuarios = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
+                    const usuario = usuarios.find(u => u.identificacion === cita.cedula);
+                    if (usuario) {
+                        const n1 = (usuario.nombre_1 || usuario.nombre1 || '').trim();
+                        const n2 = (usuario.nombre_2 || usuario.nombre2 || '').trim();
+                        const a1 = (usuario.apellido_1 || usuario.apellido1 || '').trim();
+                        const a2 = (usuario.apellido_2 || usuario.apellido2 || '').trim();
+                        cita.paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Paciente no especificado';
+                    } else {
+                        // Estrategia 3: Fallback digno
+                        cita.paciente = 'Paciente no especificado';
+                    }
+                }
+            }
+
+            return cita;
+        },
+
+        // ── Proxy: Imprimir cita desde modal de invitado (golden-rules §58) ──
+        /**
+         * Busca la cita en localStorage por ID, normaliza el nombre del paciente,
+         * y delega a utilidades.imprimirCita.
+         * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
+         */
+        imprimirCitaInvitado(idStr) {
+            const cita = this._normalizarCitaInvitado(idStr);
             if (!cita) {
                 console.warn('[app.widgetInvitado] imprimirCitaInvitado: cita no encontrada con ID', idStr);
                 return;
@@ -3009,17 +3054,12 @@ const app = {
 
         // ── Proxy: Descargar PDF de cita desde modal de invitado (golden-rules §58) ──
         /**
-         * Busca la cita en localStorage por ID y delega a utilidades.descargarPDFCita.
-         * Evita inyectar objetos completos en atributos onclick del template.
+         * Busca la cita en localStorage por ID, normaliza el nombre del paciente,
+         * y delega a utilidades.descargarPDFCita.
          * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
          */
         descargarPDFCitaInvitado(idStr) {
-            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            let cita = citasPublicas.find(c => c.id_cita === idStr);
-            if (!cita && !isNaN(parseInt(idStr, 10))) {
-                const idx = parseInt(idStr, 10);
-                if (idx >= 0 && idx < citasPublicas.length) cita = citasPublicas[idx];
-            }
+            const cita = this._normalizarCitaInvitado(idStr);
             if (!cita) {
                 console.warn('[app.widgetInvitado] descargarPDFCitaInvitado: cita no encontrada con ID', idStr);
                 return;
