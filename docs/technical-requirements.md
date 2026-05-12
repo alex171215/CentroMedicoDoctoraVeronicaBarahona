@@ -116,6 +116,10 @@ El código Javascript debe estar estrictamente modularizado para evitar un archi
 * Todas las importaciones deben incluir la extensión `.js` (ej. `import { imprimirCita } from '../modulos/utilidades.js';`).
 * El archivo `/index.html` DEBE cargar el script principal como módulo: `<script type="module" src="js/main.js"></script>`. Se deben eliminar las llamadas a funciones globales desde el HTML (como los `onclick=""`), reemplazándolas por Event Listeners dentro de sus respectivos módulos, o exponiéndolas explícitamente en el objeto `window` si es estrictamente necesario para el Liquid Layout actual.
 
+### C. Contratos de Datos y Normalización (Data Mapping)
+* **Normalización Obligatoria:** Cuando se transfieran datos entre módulos aislados (ej. desde el `localStorage` de Invitados hacia las funciones globales de `app.utilidades`), el agente DEBE normalizar el objeto.
+* **Prevención de Fugas (Placeholder Leaks):** Antes de inyectar un objeto en un template de UI o en un generador de documentos (PDF/Impresión), se deben mapear explícitamente las propiedades clave (ej. asegurar que `cita.paciente` contenga el valor real uniendo `nombres` o `nombrePaciente`). Está prohibido pasar objetos crudos si sus claves no coinciden exactamente con la firma de la función receptora.
+
 ---
 
 ## 10. Estándares de Accesibilidad Estricta (WAI-ARIA y POUR)
@@ -334,3 +338,16 @@ Antes de entregar cualquier cambio que afecte HTML, CSS o JS interactivo, verifi
 - [ ] La impresión usa `<iframe>` oculto, nunca `window.open()`.
 - [ ] El skip link `<a href="#main-content" class="skip-link">` es el primer hijo de `<body>`.
 - [ ] El `<meta name="viewport">` **no** contiene `maximum-scale` ni `user-scalable=no`.
+
+## 11. Seguridad y Sanitización OWASP (Defensa en Profundidad)
+
+Para prevenir XSS e Inyecciones (OWASP Top 10) y prevenir errores del usuario (H5), todos los inputs deben ser sanitizados en tiempo real:
+
+* **A. Nombres y Apellidos:** Lista blanca de letras (A-Z, a-z), tildes (á, é, í, ó, ú) y la letra ñ/Ñ. Se permite un (1) espacio simple entre palabras. **Prohibido:** Números, símbolos, espacios al inicio/final o espacios múltiples consecutivos.
+* **B. Cédula y Teléfono Celular:** Exclusivamente numérico (0-9). **Prohibido:** Letras, espacios y símbolos.
+* **C. Pasaporte:** Alfanumérico. **Prohibido:** Espacios y símbolos especiales.
+* **D. Correo Electrónico y Contraseña:** Bloqueo absoluto de espacios en blanco en cualquier posición.
+* **E. Textos Libres (Motivo de consulta):** Escapado estricto de entidades HTML (reemplazar `<`, `>`, `&`, `"`, `'`) en tiempo real para evitar XSS.
+* **F. Antispam Global:** Ningún campo puede enviarse vacío o compuesto únicamente por espacios.
+* **G. Disparadores (Triggers):** 1. Evento `input`: Bloqueo físico en tiempo real (Regex reemplaza caracteres no deseados mientras el usuario teclea).
+    2. Evento `blur`: Aplica `.trim()` para limpiar espacios residuales al perder el foco.
