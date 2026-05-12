@@ -3,6 +3,21 @@ import { estado } from './estado.js';
 import { createCitas } from './modulos/citas.js';
 import { salud } from './modulos/salud.js';
 
+/** Mapa vista lógica → URL física (MPA). */
+const MPA_VISTA_URL = {
+    home: 'index.html',
+    login: 'login.html',
+    registro: 'registro.html',
+    'registro-1': 'registro.html',
+    especialistas: 'especialistas.html',
+    citas: 'citas.html',
+    'mi-salud': 'mi-salud.html',
+    farmacia: 'farmacia.html',
+    'editar-perfil': 'perfil.html',
+    perfil: 'perfil.html',
+    contacto: 'contacto.html',
+};
+
 (function inyectarUsuarioPrueba() {
     if (!localStorage.getItem('sanitas_usuarios')) {
         const usuarioDemo = [{
@@ -30,26 +45,46 @@ const app = {
 
     init: function () {
         this.iniciarMenuMovil();
-        this.iniciarCarrusel();
+
+        if (document.querySelector('.hero__carousel')) {
+            this.iniciarCarrusel();
+        }
+        if (document.getElementById('doctors-carousel')) {
+            this.iniciarCarruselEspecialistas();
+            this.renderizarEspecialidadesHome();
+        }
+
         this.iniciarSesionUsuario();
-        this.iniciarCarruselEspecialistas();
-        this.renderizarEspecialidadesHome();
-        app.login.inicializar();
-        app.widgetInvitado.inicializar();
+
+        if (document.getElementById('widget-invitado')) {
+            app.widgetInvitado.inicializar();
+        }
+        if (document.getElementById('login-form')) {
+            app.login.inicializar();
+        }
+        if (document.getElementById('view-registro')) {
+            app.registro.inicializar();
+        }
+        if (document.getElementById('specialists-directory-grid')) {
+            app.directorio.inicializar();
+        }
+        if (document.getElementById('view-farmacia')) {
+            app.farmacia.inicializar();
+        }
+        if (document.getElementById('view-mi-salud')) {
+            app.salud.inicializar();
+        }
+        if (document.getElementById('view-citas')) {
+            app.citas.iniciarFlujo();
+        }
+        if (document.getElementById('edit-nombre1')) {
+            app.perfil._rellenarFormularioEditarDesdeStorage();
+        }
+
         this._initModalAccessibility();
 
         // ── Bloque A: Inyectar límites de fecha (hoy → hoy + 2 meses) en todos los date inputs ──
         this._aplicarLimitesFechaGlobal();
-
-        // 2. Escucha del evento 'popstate'
-        window.addEventListener('popstate', (event) => {
-            if (event.state && event.state.vista) {
-                this.navegar(event.state.vista, false);
-            } else {
-                const hash = window.location.hash.replace('#', '');
-                this.navegar(hash || 'home', false);
-            }
-        });
 
         // ── Expiración de borrador al volver a la pestaña ──
         document.addEventListener('visibilitychange', () => {
@@ -58,15 +93,52 @@ const app = {
             }
         });
 
-        // 3. Carga Inicial (First Load)
-        const hashInicial = window.location.hash.replace('#', '');
-        if (hashInicial) {
-            this.navegar(hashInicial, false);
-        } else {
-            history.replaceState({ vista: 'home' }, '', '#home');
-        }
+        this._mpaRedirigirHashLegacy();
+        this._mpaEnfocarPaginaActual();
+        this.currentView = this._mpaVistaDesdePathname();
 
         console.log("Sistema del Centro Médico inicializado correctamente.");
+    },
+
+    /** Desde index.html con #login, #citas, etc. redirige al HTML físico correspondiente. */
+    _mpaRedirigirHashLegacy() {
+        const h = window.location.hash.replace(/^#/, '');
+        if (!h) return;
+        if (h === 'contacto') {
+            const file = (window.location.pathname.split('/').pop() || 'index.html').split('?')[0].toLowerCase();
+            if (file === 'index.html') {
+                window.location.replace(new URL('contacto.html', window.location.href).href);
+                return;
+            }
+            const el = document.getElementById('contacto');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+        const dest = MPA_VISTA_URL[h];
+        if (!dest) return;
+        const u = new URL(dest, window.location.href);
+        const cur = new URL(window.location.href);
+        if (cur.pathname !== u.pathname || (u.hash && cur.hash !== u.hash)) {
+            window.location.replace(u.href);
+        }
+    },
+
+    /** WCAG: foco al h1/h2 principal de la página actual (solo si existe en el DOM). */
+    _mpaEnfocarPaginaActual() {
+        const file = (window.location.pathname.split('/').pop() || 'index.html').split('?')[0].toLowerCase();
+        const map = {
+            'index.html': 'home',
+            'login.html': 'login',
+            'registro.html': 'registro',
+            'especialistas.html': 'especialistas',
+            'citas.html': 'citas',
+            'mi-salud.html': 'mi-salud',
+            'farmacia.html': 'farmacia',
+            'perfil.html': 'editar-perfil',
+            'contacto.html': 'contacto',
+        };
+        const pseudo = map[file] || 'home';
+        this._enfocarEncabezadoVista(pseudo);
     },
 
     // ── Bloque A: Utilidad de límites de fecha (H5 – Prevención de errores) ──
@@ -365,150 +437,52 @@ const app = {
         });
     },
 
+    /** Vista lógica aproximada según el archivo HTML actual (para vista_origen en login). */
+    _mpaVistaDesdePathname() {
+        const file = (window.location.pathname.split('/').pop() || 'index.html').split('?')[0].toLowerCase();
+        const map = {
+            'index.html': 'home',
+            'login.html': 'login',
+            'registro.html': 'registro',
+            'especialistas.html': 'especialistas',
+            'citas.html': 'citas',
+            'mi-salud.html': 'mi-salud',
+            'farmacia.html': 'farmacia',
+            'perfil.html': 'editar-perfil',
+            'contacto.html': 'contacto',
+        };
+        return map[file] || 'home';
+    },
+
     navegar: function (vistaId, pushState = true, force = false) {
         console.log(`Navegando a la vista: ${vistaId}`);
 
-        // ── NUEVO: Guardar origen cuando se va a login ──
         if (vistaId === 'login') {
-            const vistaActual = this.currentView || window.location.hash.replace('#', '') || 'home';
+            const vistaActual = this.currentView || this._mpaVistaDesdePathname() || 'home';
             sessionStorage.setItem('vista_origen', vistaActual);
-            // Si venía de citas, guardar paso actual y datos del formulario
             if (vistaActual === 'citas' && app.citas) {
                 app.citas._guardarEstadoParaLogin();
             }
         }
 
-        // --- Garbage Collector de Recuperación ---
         if (vistaId !== 'citas') {
             sessionStorage.removeItem('temp_datos_recuperacion');
             if (app.citas) app.citas.modoProxy = false;
         }
 
-        // 1. History API ...
-        if (!force && pushState) {
-            if (window.location.hash === '#' + vistaId) return;
-            history.pushState({ vista: vistaId }, '', '#' + vistaId);
-        } else if (pushState) {
-            history.pushState({ vista: vistaId }, '', '#' + vistaId);
+        const targetRel = MPA_VISTA_URL[vistaId];
+        if (!targetRel) {
+            console.warn('[navegar] Vista no mapeada:', vistaId);
+            return;
         }
 
-        // 1. Actualizar estado activo en menú de escritorio
-        const vistasPrincipales = ['home', 'especialistas', 'farmacia', 'contacto', 'citas'];
-        const aplicaLinea = vistasPrincipales.includes(vistaId);
-
-        const navLinks = document.querySelectorAll('.header__nav-link');
-        navLinks.forEach(link => {
-            link.classList.remove('header__nav-link--active');
-            link.removeAttribute('aria-current');
-
-            if (aplicaLinea) {
-                const onclickAttr = link.getAttribute('onclick');
-                if (onclickAttr) {
-                    // Para "citas", también activamos el enlace que dispara agendarCitaGeneral()
-                    if (vistaId === 'citas' && onclickAttr.includes('agendarCita')) {
-                        link.classList.add('header__nav-link--active');
-                        link.setAttribute('aria-current', 'page');
-                    } else if (onclickAttr.includes(`'${vistaId}'`)) {
-                        link.classList.add('header__nav-link--active');
-                        link.setAttribute('aria-current', 'page');
-                    }
-                }
-            }
-        });
-
-        // 2. Actualizar estado activo en menú inferior (Móvil)
-        const bottomNavItems = document.querySelectorAll('.bottom-nav__item');
-        bottomNavItems.forEach(item => {
-            item.classList.remove('bottom-nav__item--active');
-            item.removeAttribute('aria-current');
-
-            if (aplicaLinea) {
-                const onclickAttr = item.getAttribute('onclick');
-                if (onclickAttr && onclickAttr.includes(`'${vistaId}'`)) {
-                    item.classList.add('bottom-nav__item--active');
-                    item.setAttribute('aria-current', 'page');
-                }
-            }
-        });
-
-        // 3. Mostrar/Ocultar secciones (SPA Logic)
-        // Ocultar todas las view-sections
-        const vistas = document.querySelectorAll('.view-section');
-        vistas.forEach(v => v.style.display = 'none');
-
-        // IHC SEGURIDAD: Limpiar login al salir de la pantalla
-        if (this.login && typeof this.login.resetearFormulario === 'function') {
-            this.login.resetearFormulario();
+        const destUrl = new URL(targetRel, window.location.href);
+        const curUrl = new URL(window.location.href);
+        if (!force && curUrl.pathname === destUrl.pathname && (destUrl.hash === '' || curUrl.hash === destUrl.hash)) {
+            return;
         }
 
-        // ── Bloque C: Privacidad – Limpiar widget de invitados al navegar ──
-        this._limpiarWidgetInvitado();
-
-        // Mostrar u ocultar componentes principales
-        const hero = document.querySelector('.hero');
-        const locations = document.querySelector('.locations');
-        const doctors = document.querySelector('.doctors');
-
-        if (vistaId === 'home') {
-            if (hero) hero.style.display = 'block';
-            if (locations) locations.style.display = 'block';
-            if (doctors) doctors.style.display = 'block';
-            // Widget invitado: mostrar solo si no hay usuario logueado
-            const widgetInv = document.getElementById('widget-invitado');
-            if (widgetInv) {
-                widgetInv.style.display = (localStorage.getItem('usuarioLogueado') === 'true') ? 'none' : 'block';
-            }
-            // Resetear la posición del carrusel de especialidades al inicio
-            const doctorsGrid = document.getElementById('doctors-carousel');
-            if (doctorsGrid) doctorsGrid.scrollLeft = 0;
-            this._actualizarVisibilidadCarruselEspecialistas();
-        } else {
-            if (hero) hero.style.display = 'none';
-            if (locations) locations.style.display = 'none';
-            if (doctors) doctors.style.display = 'none';
-            // Widget invitado: ocultar en cualquier vista que no sea Home
-            const widgetInvOcultar = document.getElementById('widget-invitado');
-            if (widgetInvOcultar) widgetInvOcultar.style.display = 'none';
-
-            const vistaActiva = document.getElementById(`view-${vistaId}`);
-            if (vistaActiva) {
-                // Validación estricta para citas y nuevo Step Manager
-                if (vistaId === 'citas') {
-                    vistaActiva.style.display = 'block';
-                    if (app.citas) app.citas.iniciarFlujo();
-                } else if (vistaId === 'especialistas') {
-                    vistaActiva.style.display = 'block';
-                    if (app.directorio) app.directorio.inicializar();
-                } else if (vistaId === 'farmacia') {
-                    vistaActiva.style.display = 'block';
-                    if (app.farmacia) app.farmacia.inicializar();
-                } else if (vistaId === 'registro' || vistaId === 'registro-1') {
-                    // La sección HTML tiene id="view-registro"
-                    const vReg = document.getElementById('view-registro');
-                    if (vReg) vReg.style.display = 'block';
-                    if (app.registro) app.registro.inicializar();
-                } else if (vistaId === 'editar-perfil') {
-                    const vEdit = document.getElementById('view-editar-perfil');
-                    if (vEdit) vEdit.style.display = 'block';
-                } else if (vistaId === 'mi-salud') {
-                    const vSalud = document.getElementById('view-mi-salud');
-                    if (vSalud) vSalud.style.display = 'block';
-                    if (app.salud) app.salud.inicializar();
-                } else if (vistaId === 'contacto') {
-                    if (vistaActiva) vistaActiva.style.display = 'block';
-                } else {
-                    vistaActiva.style.display = 'block';
-                }
-            }
-        }
-        // Forzar el scroll hacia arriba al cambiar de vista
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // ── NUEVO: Actualizar vista actual ──
-        this.currentView = vistaId;
-
-        // ── WCAG 2.2: Gestión de foco SPA — enviar foco al encabezado de la nueva vista ──
-        this._enfocarEncabezadoVista(vistaId);
+        window.location.assign(destUrl.href);
     },
 
     _enfocarEncabezadoVista(vistaId) {
@@ -518,7 +492,7 @@ const app = {
             citas:          '#view-citas h2, #view-citas h3',
             especialistas:  '#view-especialistas h2',
             farmacia:       '#farmacia-heading',
-            contacto:       '#view-contacto h2',
+            contacto:       '#contacto-heading',
             login:          '#login-heading',
             registro:       '#registro-heading',
             'mi-salud':     '#mi-salud-heading',
@@ -1469,18 +1443,27 @@ const app = {
         },
 
         abrirModalMedicamento(comercial, generico, presentacion, precio, stock, requiereReceta, imagen) {
-            document.getElementById('modal-med-title').textContent = comercial;
-            document.getElementById('modal-med-generic').textContent = generico;
-            document.getElementById('modal-med-presentacion').textContent = presentacion || '—';
-            document.getElementById('modal-med-precio').textContent = `$${precio}`;
+            const root = document.getElementById('modal-medicamento');
+            if (!root) return;
+            const t = document.getElementById('modal-med-title');
+            const g = document.getElementById('modal-med-generic');
+            const pr = document.getElementById('modal-med-presentacion');
+            const pc = document.getElementById('modal-med-precio');
+            const st = document.getElementById('modal-med-stock');
+            const img = document.getElementById('modal-med-img');
+            if (!t || !g || !pr || !pc || !st || !img) return;
+            t.textContent = comercial;
+            g.textContent = generico;
+            pr.textContent = presentacion || '—';
+            pc.textContent = `$${precio}`;
             const stockMsg = stock === '0' ? 'Agotado' : `${stock} unidades`;
-            document.getElementById('modal-med-stock').textContent = stockMsg;
-            document.getElementById('modal-med-img').src = imagen;
+            st.textContent = stockMsg;
+            img.src = imagen;
             const recetaEl = document.getElementById('modal-med-receta');
             if (recetaEl) {
                 recetaEl.style.display = (requiereReceta === 'true') ? 'flex' : 'none';
             }
-            document.getElementById('modal-medicamento').style.display = 'flex';
+            root.style.display = 'flex';
             setTimeout(() => {
                 const closeBtn = document.querySelector('#modal-medicamento .modal-close');
                 if (closeBtn) closeBtn.focus();
@@ -1488,7 +1471,8 @@ const app = {
         },
 
         cerrarModalMedicamento() {
-            document.getElementById('modal-medicamento').style.display = 'none';
+            const m = document.getElementById('modal-medicamento');
+            if (m) m.style.display = 'none';
         },
 
         // Abrir modal de filtros en móvil
@@ -2434,8 +2418,8 @@ const app = {
             // La pantalla de éxito se muestra después de la verificación en validarCodigo().
             sessionStorage.removeItem('sanitas_borrador_registro');
 
-            // 5. Avanzar al paso de verificación de código (Paso 3)
-            this.mostrarPaso(3);
+            // 5. Redirigir al login (página física)
+            app.navegar('login');
         }
     },
 
@@ -2517,15 +2501,14 @@ const app = {
         },
 
         // ------------------------------------------------------------------
-        // 11.4 Ir a la vista de edición: carga datos y navega
+        // 11.4 Rellenar formulario editar perfil desde usuarioActivo (MPA)
         // ------------------------------------------------------------------
-        irAEditar() {
+        _rellenarFormularioEditarDesdeStorage() {
             const raw = localStorage.getItem('usuarioActivo');
-            if (!raw) { app.navegar('login'); return; }
+            if (!raw) return;
 
             const u = JSON.parse(raw);
 
-            // Rellenar inputs con los datos actuales (soporta ambas claves)
             const set = (id, val) => {
                 const el = document.getElementById(id);
                 if (el) el.value = val || '';
@@ -2538,11 +2521,9 @@ const app = {
             set('edit-celular', u.celular || '');
             set('edit-email', u.email || '');
 
-            // Ocultar mensaje de éxito anterior
             const msg = document.getElementById('edit-success-msg');
             if (msg) msg.style.display = 'none';
 
-            // Limpiar estilos de error previos
             ['edit-nombre1', 'edit-nombre2', 'edit-apellido1', 'edit-apellido2',
                 'edit-celular', 'edit-email'].forEach(id => {
                     const el = document.getElementById(id);
@@ -2550,6 +2531,14 @@ const app = {
                     if (el) el.style.borderColor = '';
                     if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
                 });
+        },
+
+        // ------------------------------------------------------------------
+        // 11.5 Ir a la vista de edición: carga datos y navega
+        // ------------------------------------------------------------------
+        irAEditar() {
+            const raw = localStorage.getItem('usuarioActivo');
+            if (!raw) { app.navegar('login'); return; }
 
             this.cerrarModal();
             app.navegar('editar-perfil');
