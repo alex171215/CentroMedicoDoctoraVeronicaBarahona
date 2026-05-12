@@ -1719,6 +1719,7 @@ const app = {
             modal.className = 'modal-overlay';
             modal.setAttribute('role', 'alertdialog');
             modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'modal-cancelacion-title');
 
             // ── FASE 1: Advertencia (H5 - Prevención de Errores) ──
             // Muestra el mensaje de riesgo y dos botones claros antes de actuar.
@@ -1726,7 +1727,7 @@ const app = {
             modal.innerHTML = `
                 <div class="modal-content modal-colision-content">
                     <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true"></i>
-                    <h2 class="modal-colision-title">Cancelar Cita</h2>
+                    <h2 id="modal-cancelacion-title" class="modal-colision-title">Cancelar Cita</h2>
                     <p class="modal-colision-text">
                         ¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.
                     </p>
@@ -2581,6 +2582,8 @@ const app = {
         },
         actualizarBarraProgreso() {
             const indicator = document.getElementById('citas-progress-indicator');
+            indicator.setAttribute('role', 'list');
+            indicator.setAttribute('aria-label', 'Progreso del agendamiento de cita');
             const estaLogueado = localStorage.getItem('usuarioLogueado');
             let hitos = [];
             if (estaLogueado) {
@@ -2615,11 +2618,13 @@ const app = {
                 if (isCompleted) classes += ' completed';
 
                 let icon = '';
-                if (isCompleted) icon = '<i class="fa-solid fa-check"></i>';
+                if (isCompleted) icon = '<i class="fa-solid fa-check" aria-hidden="true"></i><span class="sr-only">Completado</span>';
                 else icon = index + 1;
 
+                const ariaCurrent = isActive ? ' aria-current="step"' : '';
+
                 html += `
-                    <div class="${classes}">
+                    <div class="${classes}" role="listitem"${ariaCurrent}>
                         ${icon}
                         <span class="citas-progress-label">${hito.label}</span>
                     </div>
@@ -3346,13 +3351,14 @@ const app = {
             modal.className = 'modal-overlay';
             modal.setAttribute('role', 'alertdialog');
             modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'modal-buffer-title');
             modal.style.display = 'flex';
 
             // Funciones internas que generan los dos estados del modal
             const renderState1 = () => `
                 <div class="modal-content modal-colision-content" id="buffer-state-content">
                     <i class="fa-solid fa-clock fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
-                    <h2 class="modal-colision-title">Horario no disponible</h2>
+                    <h2 id="modal-buffer-title" class="modal-colision-title">Horario no disponible</h2>
                     <p class="modal-colision-text">
                         No puedes tomar este horario. Tienes una cita previa en <strong>${detalleCitaPrevia}.</strong>
                         <br>Dicha consulta dura <strong>${duracionMin} minutos</strong> y por políticas del centro médico debes dejar un margen de <strong>30 minutos</strong> para traslados.
@@ -3404,13 +3410,14 @@ const app = {
             modal.className = 'modal-overlay';
             modal.setAttribute('role', 'alertdialog');
             modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'modal-limite-title');
             modal.style.display = 'flex';
 
             // ESTADO 1: Aviso de Límite Alcanzado
             const renderState1 = () => `
                 <div class="modal-content modal-colision-content">
                     <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
-                    <h2 class="modal-colision-title">Límite diario alcanzado</h2>
+                    <h2 id="modal-limite-title" class="modal-colision-title">Límite diario alcanzado</h2>
                     <p class="modal-colision-text">
                         ⚠️ El paciente ya cuenta con una cita programada en <strong>${especialidad}</strong> para el <strong>${fecha}</strong>.
                         Por políticas del centro médico, solo se permite una reserva por especialidad al día.
@@ -5131,7 +5138,11 @@ const app = {
         _irAPaso(n) {
             for (let i = 1; i <= 3; i++) {
                 const el = document.getElementById(`reg-step-${i}`);
-                if (el) el.style.display = (i === n) ? 'flex' : 'none';
+                if (el) {
+                    el.style.display = (i === n) ? 'flex' : 'none';
+                    if (i === n) el.setAttribute('aria-current', 'step');
+                    else el.removeAttribute('aria-current');
+                }
             }
             this._pasoActual = n;
             if (n === 3) {
@@ -6181,7 +6192,7 @@ const app = {
                     const nombrePaciente = c.paciente.replace(/\s+/g, ' ').trim();
                     const nombreTitularNorm = nombreTitular.replace(/\s+/g, ' ').trim();
                     if (nombrePaciente.toLowerCase() !== nombreTitularNorm.toLowerCase()) {
-                        lineaPaciente = `<span class="salud-item__sub" style="font-style:italic;color:#0DA99F;"><i class="fa-solid fa-user" style="margin-right:4px;"></i>Paciente: ${nombrePaciente}</span>`;
+                        lineaPaciente = `<span class="salud-item__sub" style="font-style:italic;color:#0DA99F;"><i class="fa-solid fa-user" aria-hidden="true" style="margin-right:4px;"></i>Paciente: ${nombrePaciente}</span>`;
                     }
                 }
 
