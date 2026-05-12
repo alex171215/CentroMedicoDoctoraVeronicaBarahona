@@ -2835,6 +2835,21 @@ const app = {
                 </div>`;
             }
 
+            // Botones de portabilidad (Imprimir / Descargar PDF) — solo si NO cancelada
+            if (!esCancelada) {
+                html += `
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+                    <button class="btn btn--documento"
+                        onclick="app.utilidades.imprimirCita(${JSON.stringify(cita).replace(/</g, '\\u003c')})">
+                        <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
+                    </button>
+                    <button class="btn btn--documento"
+                        onclick="app.utilidades.descargarPDFCita(${JSON.stringify(cita).replace(/</g, '\\u003c')})">
+                        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
+                    </button>
+                </div>`;
+            }
+
             // Botón "Volver al listado" solo si viene de una lista de múltiples resultados
             if (mostrarVolver) {
                 html += `
