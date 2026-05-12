@@ -2840,11 +2840,11 @@ const app = {
                 html += `
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
                     <button class="btn btn--documento"
-                        onclick="app.utilidades.imprimirCita(${JSON.stringify(cita).replace(/</g, '\\u003c')})">
+                        onclick="app.widgetInvitado.imprimirCitaInvitado('${cita.id_cita || indexEnPublicas}')">
                         <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
                     </button>
                     <button class="btn btn--documento"
-                        onclick="app.utilidades.descargarPDFCita(${JSON.stringify(cita).replace(/</g, '\\u003c')})">
+                        onclick="app.widgetInvitado.descargarPDFCitaInvitado('${cita.id_cita || indexEnPublicas}')">
                         <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
                     </button>
                 </div>`;
@@ -2985,6 +2985,46 @@ const app = {
             setTimeout(() => {
                 app.citas.mostrarPaso(2);
             }, 100);
+        },
+
+        // ── Proxy: Imprimir cita desde modal de invitado (golden-rules §58) ──
+        /**
+         * Busca la cita en localStorage por ID y delega a utilidades.imprimirCita.
+         * Evita inyectar objetos completos en atributos onclick del template.
+         * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
+         */
+        imprimirCitaInvitado(idStr) {
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            let cita = citasPublicas.find(c => c.id_cita === idStr);
+            if (!cita && !isNaN(parseInt(idStr, 10))) {
+                const idx = parseInt(idStr, 10);
+                if (idx >= 0 && idx < citasPublicas.length) cita = citasPublicas[idx];
+            }
+            if (!cita) {
+                console.warn('[app.widgetInvitado] imprimirCitaInvitado: cita no encontrada con ID', idStr);
+                return;
+            }
+            app.utilidades.imprimirCita(cita);
+        },
+
+        // ── Proxy: Descargar PDF de cita desde modal de invitado (golden-rules §58) ──
+        /**
+         * Busca la cita en localStorage por ID y delega a utilidades.descargarPDFCita.
+         * Evita inyectar objetos completos en atributos onclick del template.
+         * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
+         */
+        descargarPDFCitaInvitado(idStr) {
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            let cita = citasPublicas.find(c => c.id_cita === idStr);
+            if (!cita && !isNaN(parseInt(idStr, 10))) {
+                const idx = parseInt(idStr, 10);
+                if (idx >= 0 && idx < citasPublicas.length) cita = citasPublicas[idx];
+            }
+            if (!cita) {
+                console.warn('[app.widgetInvitado] descargarPDFCitaInvitado: cita no encontrada con ID', idStr);
+                return;
+            }
+            app.utilidades.descargarPDFCita(cita);
         }
     }
 };

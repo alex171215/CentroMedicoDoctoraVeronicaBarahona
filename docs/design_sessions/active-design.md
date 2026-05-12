@@ -1,19 +1,24 @@
-# Sesión de Diseño Activa: Acciones de Documento (Patrón de Plantilla Limpia para Recetas)
+# Sesión de Diseño Activa: Corrección de Sintaxis de Eventos y Mojibake (UTF-8)
 
 ## 1. Objetivo
-Erradicar las impresiones rotas y PDFs ilegibles de las recetas (H4, H8) aplicando el "Patrón de Plantilla Aislada", construyendo el documento desde los datos del objeto y no desde la vista del DOM.
+Reparar la rotura del DOM causada por colisión de comillas en los botones de impresión del widget de invitados y ejecutar una limpieza global de errores de codificación (caracteres rotos).
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Lógica de Utilidad (app.js -> app.utilidades)
-* **`_generarRecetaHTML(receta)`:** Crea un template string limpio. Debe incluir: Membrete (Logo Sanitas, Médico, Especialidad), Info del Paciente (Nombre, Fecha, Diagnóstico) y una tabla HTML estandarizada con los medicamentos (Nombre, Dosis, Cantidad, Vía).
-* **`imprimirReceta(receta)`:** Abre `window.open('', '_blank')`, inyecta el `_generarRecetaHTML` y ejecuta `window.print()`.
-* **`descargarPDFReceta(receta)`:** Usa la instancia de `jsPDF` (idéntico a `descargarPDFCita`). 
-  * **Regla Crítica de Coordenadas:** Al imprimir la lista de medicamentos del array `receta.medicamentos`, debes inicializar una variable `ejeY` e incrementarla dentro de un bucle `forEach` (ej. `ejeY += 10`) para que cada medicamento se dibuje en una línea nueva sin superponerse.
+### A. Refactorización de Botones de Documento (Widget Invitados)
+* **Localización:** Función que renderiza el detalle de la cita para usuarios sin cuenta (probablemente `_renderDetalle` en el módulo de consultas/invitados).
+* **El Problema:** El atributo `onclick` está recibiendo un objeto entero, rompiendo las comillas.
+* **La Solución:** 1. Modifica la inyección del HTML para que solo pase el ID: `onclick="app.utilidades.imprimirCitaInvitado('${cita.id_cita}')"` y `descargarPDFCitaInvitado('${cita.id_cita}')`.
+  2. Crea estas dos funciones proxy (`imprimirCitaInvitado` y `descargarPDFCitaInvitado`) en `app.utilidades` o en el módulo del widget.
+  3. Estas funciones deben leer el arreglo completo desde `localStorage.getItem('sanitas_citas')`, buscar la cita que coincida con el ID proporcionado, y pasarle ese objeto limpio a `app.utilidades.imprimirCita(cita)` y `descargarPDFCita(cita)`.
 
-### B. Funciones Proxy en Salud (app.js -> app.salud)
-* Crea `imprimirRecetaActiva(id)` y `descargarRecetaActiva(id)` en `app.salud`.
-* Estas funciones deben buscar el objeto en `this._recetas` mediante el ID y pasarlo a las funciones de `app.utilidades`.
-
-### C. Cableado en UI (app.js)
-* En `verDetalleReceta`, actualiza los botones `.btn--documento` para que llamen a `app.salud.imprimirRecetaActiva('${idReceta}')` y `app.salud.descargarRecetaActiva('${idReceta}')`.
+### B. Limpieza Global de Codificación (Mojibake)
+* **Acción:** Realizar un *Search and Replace* en todos los archivos `.js` y `.html` para corregir los caracteres UTF-8 corruptos.
+* **Mapeo de Corrección:**
+  - `Ã¡` -> `á`
+  - `Ã©` -> `é`
+  - `Ã­` -> `í` (í con tilde)
+  - `Ã³` -> `ó`
+  - `Ãº` -> `ú`
+  - `Ã±` -> `ñ`
+* **Verificación:** Asegúrate de que las palabras como "Médico", "Diagnóstico", "Día", etc., queden correctamente legibles.

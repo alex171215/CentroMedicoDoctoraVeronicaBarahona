@@ -54,3 +54,7 @@ Para cerrar correctamente el ciclo cognitivo del usuario (H1), el sistema aplica
 * **Feedback Contextual y Adaptativo:** Los mensajes de éxito deben reflejar la intención específica del usuario. Si la acción fue una modificación, el mensaje debe usar términos como "Reagendada" o "Actualizada". Se prohíbe el uso de mensajes genéricos que oculten la naturaleza de la transacción realizada.
 
 * **Botones de Documento (`.btn--documento`):** Deben tener borde y texto en color Turquesa (`#0DA99F`) con fondo transparente o blanco. Se usan exclusivamente para acciones de portabilidad ("Descargar PDF" e "Imprimir"). Deben incluir siempre un icono representativo (`fa-file-pdf` o `fa-print`) para rápida identificación visual (H4 - Consistencia y Estándares).
+
+### Manejo de Eventos en Templates (Prevención de XSS y Colisiones)
+* **Paso de Parámetros Seguros:** Queda ESTRICTAMENTE PROHIBIDO inyectar objetos completos convertidos a cadena (ej. `JSON.stringify`) dentro de atributos de eventos HTML en línea (como `onclick`). 
+* **Regla de Delegación:** En los templates literales, los manejadores de eventos solo deben recibir identificadores primitivos (strings simples, IDs o números). La función receptora será responsable de buscar el objeto completo en el estado (`this._citas`, `localStorage`, etc.) utilizando dicho ID.
