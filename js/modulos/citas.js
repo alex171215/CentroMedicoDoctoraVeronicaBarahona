@@ -1610,11 +1610,13 @@ export function createCitas() {
                 if (isCompleted) classes += ' completed';
 
                 let icon = '';
-                if (isCompleted) icon = '<i class="fa-solid fa-check"></i>';
-                else icon = index + 1;
+                if (isCompleted) icon = '<i class="fa-solid fa-check" aria-hidden="true"></i><span class="sr-only">Completado</span>';
+                else icon = `<span aria-hidden="true">${index + 1}</span>`;
+
+                const ariaCurrent = isActive ? ' aria-current="step"' : '';
 
                 html += `
-                    <div class="${classes}">
+                    <div class="${classes}"${ariaCurrent}>
                         ${icon}
                         <span class="citas-progress-label">${hito.label}</span>
                     </div>
