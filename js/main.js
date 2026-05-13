@@ -3,6 +3,17 @@ import { estado, STORAGE_CITA_EN_PROGRESO, STORAGE_CITA_POST_LOGIN, STORAGE_AUTO
 import { createCitas } from './modulos/citas.js';
 import { salud } from './modulos/salud.js';
 import { farmacia } from './modulos/farmacia.js';
+import {
+    conCargaGlobal,
+    fetchEspecialistasSupabase,
+    mergeCarteraEnSanitasFamDb,
+    loginPacientePorCedulaYPassword,
+    mapPacienteAUsuarioActivo,
+    insertPacienteSupabase,
+    pacienteDesdeRegistroLocal,
+    updatePacientePorCedula,
+    updateCitaSupabasePorIdCita
+} from './modulos/supabaseServicio.js';
 
 function escapeHtmlWidget(s) {
     return String(s ?? '')
@@ -27,24 +38,7 @@ const MPA_VISTA_URL = {
     contacto: 'contacto.html',
 };
 
-(function inyectarUsuarioPrueba() {
-    if (!localStorage.getItem('sanitas_usuarios')) {
-        const usuarioDemo = [{
-            identificacion: "1722959465",
-            password: "admin",
-            nombre_1: "Paúl",
-            nombre_2: "Alexander",
-            apellido_1: "Rosero",
-            apellido_2: "Carrión",
-            fecha_nacimiento: "2005-05-15",
-            sexo: "Masculino",
-            celular: "0991234567",
-            email: "demo@sanitas.com"
-        }];
-        localStorage.setItem('sanitas_usuarios', JSON.stringify(usuarioDemo));
-        console.log("[Sanitas Prot] Usuario de prueba inyectado: 1715811293 / admin");
-    }
-})();
+/* Usuarios demo: crear en Supabase (tabla pacientes) para pruebas multi-dispositivo. */
 
 
 const app = {
@@ -53,6 +47,15 @@ const app = {
     tiempoCarrusel: 7000, // 7 segundos exigidos por reglas de usabilidad (IHC)
 
     init: async function () {
+        try {
+            await conCargaGlobal(async () => {
+                const lista = await fetchEspecialistasSupabase();
+                if (lista.length) mergeCarteraEnSanitasFamDb(lista);
+            }, 'Cargando especialistas…');
+        } catch (err) {
+            console.warn('[Supabase] Especialistas no disponibles; se usa caché local (data.js).', err);
+        }
+
         this.iniciarMenuMovil();
 
         if (document.querySelector('.hero__carousel')) {
@@ -81,7 +84,7 @@ const app = {
             app.farmacia.inicializar();
         }
         if (document.getElementById('view-mi-salud')) {
-            app.salud.inicializar();
+            await app.salud.inicializar();
         }
         if (document.getElementById('view-citas')) {
             await app.citas.iniciarFlujo();
@@ -269,8 +272,16 @@ const app = {
 
 
     // ── Utilidad: Sincronizar cancelación entre stores (sanitas_mis_citas ↔ sanitas_citas) ──
-    _sincronizarCancelacion(cita) {
-        // Sincronizar hacia sanitas_citas (store público)
+    async _sincronizarCancelacion(cita) {
+        const id = cita.id_cita || cita.id;
+        if (id) {
+            try {
+                await updateCitaSupabasePorIdCita(String(id), { estado: 'Cancelada' });
+            } catch (e) {
+                console.error('[Supabase] No se pudo cancelar la cita en la nube:', e);
+            }
+        }
+
         const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
         const matchPublico = citasPublicas.find(cp => {
             if (cita.id_cita && cp.id_cita === cita.id_cita) return true;
@@ -1157,7 +1168,9 @@ const app = {
             // ── NUEVO: Asociar botón de login ──
             const submitBtn = document.getElementById('login-submit-btn');
             if (submitBtn) {
-                submitBtn.addEventListener('click', (e) => this.enviar(e));
+                submitBtn.addEventListener('click', (e) => {
+                    void this.enviar(e);
+                });
             }
 
             // ── Prevenir recarga del formulario oculto ──
@@ -1218,8 +1231,8 @@ const app = {
             if (input) { input.style.borderColor = ''; }
         },
 
-        enviar(e) {
-            e.preventDefault();
+        async enviar(e) {
+            e?.preventDefault?.();
 
             const identificacion = (document.getElementById('login-cedula')?.value || '').trim();
             const password = (document.getElementById('login-password')?.value || '').trim();
@@ -1228,17 +1241,13 @@ const app = {
             this._limpiarError('login-cedula');
             this._limpiarError('login-password');
 
-            // 1. Validación de Longitud (Cédula o Pasaporte) – se mantiene igual
-
-            // ── VALIDACIÓN DE CÉDULA / PASAPORTE ──
             if (identificacion.length === 10 || identificacion.length === 13) {
                 if (!utilidades.validarCedulaEcuatoriana(identificacion)) {
                     this._mostrarError('login-cedula', 'La cédula ingresada no es válida.');
                     valido = false;
                 }
             } else if (identificacion.length >= 6 && identificacion.length <= 13) {
-                // Longitudes 6–9 u 11–12 sin dígito verificador válido → se aceptan como pasaporte
-                // no se aplica validación módulo 10
+                // pasaporte u otras longitudes
             } else if (identificacion.length > 0) {
                 this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
                 valido = false;
@@ -1247,7 +1256,6 @@ const app = {
                 valido = false;
             }
 
-            // 3. Validación de Contraseña
             if (password.length === 0) {
                 this._mostrarError('login-password', 'La contraseña es requerida.');
                 valido = false;
@@ -1255,50 +1263,51 @@ const app = {
 
             if (!valido) return;
 
-            // 4. Verificación contra Base de Datos Simulada
-            const usuariosDb = JSON.parse(localStorage.getItem('sanitas_usuarios')) || [];
-            const usuarioEncontrado = usuariosDb.find(u => u.identificacion === identificacion && u.password === password);
+            let fila = null;
+            try {
+                fila = await conCargaGlobal(
+                    () => loginPacientePorCedulaYPassword(identificacion, password),
+                    'Iniciando sesión…'
+                );
+            } catch (err) {
+                console.error('[Supabase] Login:', err);
+                this._mostrarError('login-password', 'No se pudo conectar. Intenta de nuevo.');
+                return;
+            }
 
-            // Bypass temporal de prototipo: Permitir login con un usuario por defecto si no hay base de datos
-            if (usuarioEncontrado || (identificacion === "1715811293" && password === "admin")) {
-                // ── DISPARAR GESTOR DE CONTRASEÑAS SOLO SI LOGIN EXITOSO ──
-                const hiddenUsername = document.getElementById('hidden-username');
-                const hiddenPassword = document.getElementById('hidden-password');
-                if (hiddenUsername && hiddenPassword) {
-                    hiddenUsername.value = identificacion;
-                    hiddenPassword.value = password;
-                    // Simular clic en el botón interno: dispara el evento 'submit' del form,
-                    // el cual tiene su e.preventDefault() registrado → NO hay POST real al servidor.
-                    // NUNCA usar hiddenForm.submit() directamente: eso bypasea los event listeners.
-                    const hiddenForm = document.getElementById('hidden-login-form');
-                    const submitBtn = hiddenForm?.querySelector('button[type="submit"]');
-                    if (submitBtn) submitBtn.click();
-                }
-                // ──────────────────────────────────────────────────────────
-
-                // ── NUEVO: Limpiar formulario antes de salir ──
-                this.resetearFormulario();
-                localStorage.setItem('usuarioLogueado', 'true');
-                localStorage.setItem('usuarioActivo', JSON.stringify(usuarioEncontrado || { nombres: "Usuario de Prueba", identificacion: identificacion }));
-
-                app.iniciarSesionUsuario(); // Actualiza el botón del header
-
-                // DECISIÓN ÚNICA: ¿viene de un flujo de agendamiento?
-                // ── Redirección basada en vista de origen ──
-                const vistaOrigen = sessionStorage.getItem('vista_origen');
-                sessionStorage.removeItem('vista_origen');   // Limpiar para no contaminar
-
-                if (!vistaOrigen || vistaOrigen === 'registro') {
-                    app.navegar('home');
-                } else if (vistaOrigen === 'citas') {
-                    // TR-14 / MPA: el módulo de citas retoma paso y datos vía sanitas_cita_en_progreso
-                    sessionStorage.setItem(STORAGE_CITA_POST_LOGIN, '1');
-                    app.navegar('citas');
-                } else {
-                    app.navegar(vistaOrigen);   // 'especialistas', 'farmacia', 'home', etc.
-                }
-            } else {
+            if (!fila) {
                 this._mostrarError('login-password', 'Usuario o contraseña incorrectos.');
+                return;
+            }
+
+            const usuarioEncontrado = mapPacienteAUsuarioActivo(fila);
+
+            const hiddenUsername = document.getElementById('hidden-username');
+            const hiddenPassword = document.getElementById('hidden-password');
+            if (hiddenUsername && hiddenPassword) {
+                hiddenUsername.value = identificacion;
+                hiddenPassword.value = password;
+                const hiddenForm = document.getElementById('hidden-login-form');
+                const submitHidden = hiddenForm?.querySelector('button[type="submit"]');
+                if (submitHidden) submitHidden.click();
+            }
+
+            this.resetearFormulario();
+            localStorage.setItem('usuarioLogueado', 'true');
+            localStorage.setItem('usuarioActivo', JSON.stringify(usuarioEncontrado));
+
+            app.iniciarSesionUsuario();
+
+            const vistaOrigen = sessionStorage.getItem('vista_origen');
+            sessionStorage.removeItem('vista_origen');
+
+            if (!vistaOrigen || vistaOrigen === 'registro') {
+                app.navegar('home');
+            } else if (vistaOrigen === 'citas') {
+                sessionStorage.setItem(STORAGE_CITA_POST_LOGIN, '1');
+                app.navegar('citas');
+            } else {
+                app.navegar(vistaOrigen);
             }
         }
     },
@@ -1842,7 +1851,7 @@ const app = {
         // ------------------------------------------------------------------
         // 10.7 Validación del Código (Paso 3)
         // ------------------------------------------------------------------
-        validarCodigo() {
+        async validarCodigo() {
             this._limpiarError('reg-codigo');
             const codigo = (document.getElementById('reg-codigo')?.value || '').trim();
 
@@ -1859,7 +1868,6 @@ const app = {
                 return;
             }
 
-            // Guardar en DB simulada
             const nuevoUsuario = {
                 tipoDoc: this._tipoDoc,
                 identificacion: (document.getElementById('reg-identificacion')?.value || '').trim(),
@@ -1876,17 +1884,26 @@ const app = {
                 nombres: `${(document.getElementById('reg-nombre1')?.value || '').trim()} ${(document.getElementById('reg-apellido1')?.value || '').trim()}`
             };
 
-            const usuarios = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
-            usuarios.push(nuevoUsuario);
-            localStorage.setItem('sanitas_usuarios', JSON.stringify(usuarios));
+            let filaInsertada;
+            try {
+                filaInsertada = await conCargaGlobal(
+                    () => insertPacienteSupabase(pacienteDesdeRegistroLocal(nuevoUsuario)),
+                    'Creando tu cuenta…'
+                );
+            } catch (err) {
+                console.error('[Supabase] Registro:', err);
+                this._mostrarError('reg-codigo',
+                    'No se pudo guardar el registro en el servidor. Si la cédula ya existe, inicia sesión.');
+                return;
+            }
+
+            const usuarioActivo = mapPacienteAUsuarioActivo(filaInsertada || pacienteDesdeRegistroLocal(nuevoUsuario));
             localStorage.setItem('usuarioLogueado', 'true');
-            localStorage.setItem('usuarioActivo', JSON.stringify(nuevoUsuario));
+            localStorage.setItem('usuarioActivo', JSON.stringify(usuarioActivo));
 
             clearInterval(this._countdownInterval);
             app.iniciarSesionUsuario();
-            // Limpiar borrador
             sessionStorage.removeItem('sanitas_borrador_registro');
-            // Limpiar campos visualmente para evitar residuos de datos
             const campos = [
                 'reg-tipo-doc', 'reg-identificacion',
                 'reg-nombre1', 'reg-nombre2',
@@ -1904,10 +1921,6 @@ const app = {
             this._tipoDoc = '';
             this._sexo = '';
 
-            // ── H1 - Punto Final de Registro: Pantalla de Éxito post-Verificación ──
-            // El usuario ya está registrado y logueado (iniciarSesionUsuario ya fue llamado).
-            // En lugar de navegar abruptamente al Home, mostramos la confirmación visual.
-            // El botón de la pantalla lleva al Home como acción explícita del usuario.
             const contenedorRegistro = document.getElementById('view-registro');
             if (contenedorRegistro) {
                 contenedorRegistro.innerHTML = `
@@ -1921,16 +1934,10 @@ const app = {
                     </div>
                 `;
             } else {
-                // Fallback: si el contenedor no está disponible, navegar directamente
                 app.navegar('home');
             }
-
         },
 
-        // ------------------------------------------------------------------
-        // 10.8 Modales — Tipo de Documento
-        // ------------------------------------------------------------------
-        abrirModalDoc() {
             const m = document.getElementById('modal-tipo-doc');
             if (m) m.style.display = 'flex';
         },
@@ -2326,41 +2333,49 @@ const app = {
 
             // ── PASO 2 — Procesamiento (800ms simulan latencia de red) ──
             setTimeout(() => {
+                void (async () => {
+                    const ced = u.identificacion || u.cedula;
+                    const patch = {
+                        nombre1: u.nombre1 ?? u.nombre_1 ?? '',
+                        nombre2: u.nombre2 ?? u.nombre_2 ?? '',
+                        apellido1: u.apellido1 ?? u.apellido_1 ?? '',
+                        apellido2: u.apellido2 ?? u.apellido_2 ?? '',
+                        celular: u.celular,
+                        email: u.email,
+                        fecha_nacimiento: u.fecha_nacimiento || null,
+                        nombres: [u.nombre1 || u.nombre_1, u.apellido1 || u.apellido_1].filter(Boolean).join(' ').trim() || u.nombres
+                    };
+                    try {
+                        if (ced) await updatePacientePorCedula(ced, patch);
+                    } catch (err) {
+                        console.error('[Supabase] Actualizar perfil:', err);
+                    }
 
-                // Persistir en localStorage (lógica atómica dentro del timeout)
-                localStorage.setItem('usuarioActivo', JSON.stringify(u));
+                    localStorage.setItem('usuarioActivo', JSON.stringify(u));
 
-                const lista = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
-                const idx = lista.findIndex(x => x.identificacion === u.identificacion);
-                if (idx !== -1) {
-                    lista[idx] = { ...lista[idx], ...u };
-                    localStorage.setItem('sanitas_usuarios', JSON.stringify(lista));
-                }
+                    const lista = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
+                    const idx = lista.findIndex(x => x.identificacion === u.identificacion);
+                    if (idx !== -1) {
+                        lista[idx] = { ...lista[idx], ...u };
+                        localStorage.setItem('sanitas_usuarios', JSON.stringify(lista));
+                    }
 
-                // Refrescar header y barra inferior con el nuevo nombre
-                app.iniciarSesionUsuario();
+                    app.iniciarSesionUsuario();
 
-                // ── PASO 3 — Resolución: restaurar botón + mostrar mensaje (misma tarea) ──
-                // El botón se reactiva aquí para que el usuario pueda guardar de nuevo
-                // ANTES de que el mensaje desaparezca — sin condición de carrera visual.
-                if (btnGuardar) {
-                    btnGuardar.disabled = false;
-                    btnGuardar.innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Guardar Cambios';
-                }
+                    if (btnGuardar) {
+                        btnGuardar.disabled = false;
+                        btnGuardar.innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Guardar Cambios';
+                    }
 
-                const msg = document.getElementById('edit-success-msg');
-                if (msg) {
-                    msg.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> <span>✅ Cambios guardados correctamente</span>';
-                    msg.style.display = 'flex';
-
-                    // ── PASO 4 — Limpieza: ocultar SOLO el mensaje (3000ms anidados) ──
-                    // El botón ya está activo; este timer solo elimina el aviso visual.
-                    // EL USUARIO PERMANECE EN LA VISTA — es él quien decide cuándo salir.
-                    setTimeout(() => {
-                        msg.style.display = 'none';
-                    }, 3000);
-                }
-
+                    const msg = document.getElementById('edit-success-msg');
+                    if (msg) {
+                        msg.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> <span>✅ Cambios guardados correctamente</span>';
+                        msg.style.display = 'flex';
+                        setTimeout(() => {
+                            msg.style.display = 'none';
+                        }, 3000);
+                    }
+                })();
             }, 800);
         }
     },
@@ -2747,7 +2762,7 @@ const app = {
 
                 // Sincronizar con sanitas_mis_citas si existe el registro allí
                 const cita = citasPublicas[indexEnPublicas];
-                app._sincronizarCancelacion(cita);
+                void app._sincronizarCancelacion(cita);
 
                 // H1: Refrescar la vista — re-renderizar el detalle
                 const body = document.getElementById('modal-consulta-body');

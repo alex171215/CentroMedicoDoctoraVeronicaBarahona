@@ -82,7 +82,7 @@
                         <li role="presentation">
                             <button id="salud-nav-citas" class="salud-sidenav__btn salud-sidenav__btn--active"
                                 role="tab" aria-selected="true" aria-controls="salud-sec-citas"
-                                onclick="app.salud.mostrarSeccion('citas')">
+                                onclick="void app.salud.mostrarSeccion('citas')">
                                 <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
                                 Mis citas
                             </button>
@@ -90,7 +90,7 @@
                         <li role="presentation">
                             <button id="salud-nav-recetas" class="salud-sidenav__btn" role="tab"
                                 aria-selected="false" aria-controls="salud-sec-recetas"
-                                onclick="app.salud.mostrarSeccion('recetas')">
+                                onclick="void app.salud.mostrarSeccion('recetas')">
                                 <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
                                 Recetas
                             </button>
@@ -114,10 +114,10 @@
                                 <div class="salud-tabs" role="tablist" aria-label="Filtrar citas">
                                     <button id="tab-proximas" class="salud-tab salud-tab--active" role="tab"
                                         aria-selected="true" aria-controls="salud-citas-lista"
-                                        onclick="app.salud.filtrarCitas('proximas')">Próximas</button>
+                                        onclick="void app.salud.filtrarCitas('proximas')">Próximas</button>
                                     <button id="tab-anteriores" class="salud-tab" role="tab" aria-selected="false"
                                         aria-controls="salud-citas-lista"
-                                        onclick="app.salud.filtrarCitas('anteriores')">Anteriores</button>
+                                        onclick="void app.salud.filtrarCitas('anteriores')">Anteriores</button>
                                 </div>
                             </div><!-- /#salud-citas-header -->
 
@@ -127,7 +127,7 @@
 
                             <!-- Detalle (Maestro-Detalle) -->
                             <div id="salud-cita-detalle" class="salud-detalle" style="display:none;" aria-live="polite">
-                                <button class="salud-detalle__back" onclick="app.salud.volverALista('citas')"
+                                <button class="salud-detalle__back" onclick="void app.salud.volverALista('citas')"
                                     aria-label="Volver a la lista de citas">
                                     <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
                                 </button>
@@ -154,7 +154,7 @@
                             <!-- Detalle -->
                             <div id="salud-receta-detalle" class="salud-detalle" style="display:none;"
                                 aria-live="polite">
-                                <button class="salud-detalle__back" onclick="app.salud.volverALista('recetas')"
+                                <button class="salud-detalle__back" onclick="void app.salud.volverALista('recetas')"
                                     aria-label="Volver a la lista de recetas">
                                     <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
                                 </button>

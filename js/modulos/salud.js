@@ -1,6 +1,7 @@
 import { utilidades } from './utilidades.js';
 import { estado } from '../estado.js';
 import { clasificarDisponibilidadReceta } from './inventarioFarmacia.js';
+import { conCargaGlobal, fetchCitasMiSaludPorCedula, fetchCitaPorIdCliente } from './supabaseServicio.js';
 
 function escapeHtml(s) {
     return String(s ?? '')
@@ -137,69 +138,40 @@ export const salud = {
             }
         },
         // ------------------------------------------------------------------
-        // 12.1 Inicializar: cargar datos y mostrar estado inicial
+        // 12.1 Inicializar: recetas locales; citas desde Supabase (sesión)
         // ------------------------------------------------------------------
-        inicializar() {
+        async inicializar() {
             if (!document.getElementById('view-mi-salud')) return;
 
-            const rawCitas = localStorage.getItem('sanitas_mis_citas');
             const rawRecetas = localStorage.getItem('sanitas_mis_recetas');
-            estado.citas = rawCitas ? JSON.parse(rawCitas) : this._citasDemo;
             estado.recetas = rawRecetas ? JSON.parse(rawRecetas) : this._recetasDemo;
-
-            // ── FILTRO POR USUARIO AUTENTICADO ──
-            const usuarioLogueado = localStorage.getItem('usuarioLogueado') === 'true';
-            if (usuarioLogueado) {
-                try {
-                    const user = JSON.parse(localStorage.getItem('usuarioActivo'));
-                    if (user && user.identificacion) {
-                        const idTitular = user.identificacion;
-                        estado.citas = estado.citas.filter(cita => {
-                            return cita.cedula === idTitular || cita.cedula_titular === idTitular;
-                        });
-                    }
-                } catch (e) { }
-            }
+            estado.citas = [];
 
             this._filtroActual = 'proximas';
             this._seccionActual = 'citas';
-            this.mostrarSeccion('citas');
+            await this.mostrarSeccion('citas');
 
-            // ── Deep linking desde colisión de horarios ──
             const deepLinkStr = sessionStorage.getItem('abrir_detalle_pendiente');
             if (deepLinkStr) {
                 sessionStorage.removeItem('abrir_detalle_pendiente');
                 try {
                     const deepData = JSON.parse(deepLinkStr);
                     const id = deepData.id_cita;
-                    const cita = estado.citas.find(c => (c.id_cita === id || c.id === id || c._id === id));
-                    if (cita) {
-                        this.verDetalleCita(cita.id || cita._id || id);
-                    }
+                    await this.verDetalleCita(id);
                 } catch (e) { }
             }
 
-            // TR-24: tras listar citas, abrir detalle si el agendamiento dejó el id en sessionStorage.
             const abrirDetalleId = sessionStorage.getItem('sanitas_abrir_detalle_id');
             if (abrirDetalleId) {
                 sessionStorage.removeItem('sanitas_abrir_detalle_id');
-                const idNorm = String(abrirDetalleId).trim();
-                const citaAbrir = estado.citas.find(c =>
-                    String(c.id_cita ?? '') === idNorm
-                    || String(c.id ?? '') === idNorm
-                    || String(c._id ?? '') === idNorm
-                );
-                if (citaAbrir) {
-                    const idDom = citaAbrir.id ?? citaAbrir._id ?? citaAbrir.id_cita;
-                    this.verDetalleCita(idDom);
-                }
+                await this.verDetalleCita(String(abrirDetalleId).trim());
             }
         },
 
         // ------------------------------------------------------------------
         // 12.2 Cambiar entre secciones del sidenav
         // ------------------------------------------------------------------
-        mostrarSeccion(seccion) {
+        async mostrarSeccion(seccion) {
             this._seccionActual = seccion;
 
             const secCitas = document.getElementById('salud-sec-citas');
@@ -218,7 +190,7 @@ export const salud = {
             btnRecetas.classList.toggle('salud-sidenav__btn--active', seccion === 'recetas');
             btnRecetas.setAttribute('aria-selected', seccion === 'recetas');
 
-            if (seccion === 'citas') this.filtrarCitas(this._filtroActual);
+            if (seccion === 'citas') await this.filtrarCitas(this._filtroActual);
             if (seccion === 'recetas') this.renderizarRecetas();
 
             // ── WAI-ARIA APG: Registro único de teclado para el sidenav ──
@@ -247,7 +219,7 @@ export const salud = {
         // ------------------------------------------------------------------
         // 12.3 Tabs de citas (Próximas / Anteriores) — WAI-ARIA APG
         // ------------------------------------------------------------------
-        filtrarCitas(filtro) {
+        async filtrarCitas(filtro) {
             this._filtroActual = filtro;
             const tabProximas   = document.getElementById('tab-proximas');
             const tabAnteriores = document.getElementById('tab-anteriores');
@@ -264,7 +236,7 @@ export const salud = {
             if (detalle) detalle.style.display = 'none';
             if (lista) lista.style.display = 'block';
 
-            this.renderizarCitas(filtro);
+            await this.renderizarCitas(filtro);
 
             // ── WAI-ARIA APG: Teclado en tabs Próximas / Anteriores ──
             if (!this._citasTabKeyboardInited) {
@@ -280,13 +252,13 @@ export const salud = {
                             next = idx - 1 >= 0 ? idx - 1 : tabs.length - 1;
                         } else if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            app.salud.filtrarCitas(filtros[idx]);
+                            void app.salud.filtrarCitas(filtros[idx]);
                             return;
                         }
                         if (next !== null) {
                             e.preventDefault();
                             tabs[next].focus();
-                            app.salud.filtrarCitas(filtros[next]);
+                            void app.salud.filtrarCitas(filtros[next]);
                         }
                     });
                 });
@@ -296,7 +268,35 @@ export const salud = {
         // ------------------------------------------------------------------
         // 12.4 Renderizar lista de citas
         // ------------------------------------------------------------------
-        renderizarCitas(filtro) {
+        async renderizarCitas(filtro) {
+            const contenedor = document.getElementById('salud-citas-lista');
+            if (!contenedor) return;
+
+            const usuarioLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            if (!usuarioLogueado) {
+                contenedor.innerHTML = '<p class="salud-empty">Inicia sesión para ver tus citas médicas.</p>';
+                return;
+            }
+
+            try {
+                const user = JSON.parse(localStorage.getItem('usuarioActivo'));
+                const cedula = user?.cedula || user?.identificacion;
+                if (!cedula) {
+                    contenedor.innerHTML = '<p class="salud-empty">No hay sesión de paciente.</p>';
+                    return;
+                }
+                await conCargaGlobal(
+                    async () => {
+                        estado.citas = await fetchCitasMiSaludPorCedula(cedula);
+                    },
+                    'Cargando citas…'
+                );
+            } catch (e) {
+                console.error('[Mi Salud] citas Supabase:', e);
+                contenedor.innerHTML = '<p class="salud-empty">No se pudieron cargar las citas. Intenta de nuevo.</p>';
+                return;
+            }
+
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
 
@@ -310,14 +310,11 @@ export const salud = {
                 if (fechaCita) {
                     esProxima = fechaCita >= ahora;
                 } else {
-                    // fallback si no se puede interpretar fecha+hora
                     esProxima = (c.estado === 'Próxima');
                 }
                 return filtro === 'proximas' ? esProxima : !esProxima;
             });
 
-            const contenedor = document.getElementById('salud-citas-lista');
-            if (!contenedor) return;
             if (!filtradas.length) {
                 contenedor.innerHTML = '<p class="salud-empty">No hay citas en esta sección.</p>';
                 return;
@@ -340,8 +337,8 @@ export const salud = {
 
                 return `
                 <div class="salud-item${esCancelada ? ' salud-item--cancelada' : ''}" role="listitem" tabindex="0"
-                    onclick="app.salud.verDetalleCita('${idCita}')"
-                    onkeydown="if(event.key==='Enter')app.salud.verDetalleCita('${idCita}')">
+                    onclick="void app.salud.verDetalleCita('${idCita}')"
+                    onkeydown="if(event.key==='Enter')void app.salud.verDetalleCita('${idCita}')">
                     <div class="salud-item__info">
                         <strong class="salud-item__nombre">${nombreMedicoTarjeta}</strong>
                         <span class="salud-item__sub">${espTarjeta}</span>
@@ -356,10 +353,33 @@ export const salud = {
         // ------------------------------------------------------------------
         // 12.5 Ver detalle de una cita (Maestro → Detalle)
         // ------------------------------------------------------------------
-        verDetalleCita(id) {
-            const idNum = isNaN(id) ? id : Number(id);
-            const cita = estado.citas.find(c => c.id === id || c.id === idNum || c._id === id);
+        async verDetalleCita(id) {
+            const idStr = String(id ?? '').trim();
+            const idNum = isNaN(idStr) ? idStr : Number(idStr);
+            let cita = null;
+
+            if (localStorage.getItem('usuarioLogueado') === 'true') {
+                try {
+                    await conCargaGlobal(async () => {
+                        const fresh = await fetchCitaPorIdCliente(idStr);
+                        if (fresh) {
+                            cita = fresh;
+                            const ix = estado.citas.findIndex(c =>
+                                String(c.id_cita ?? '') === idStr || String(c.id ?? '') === idStr || String(c._id ?? '') === idStr);
+                            if (ix >= 0) estado.citas[ix] = fresh;
+                            else estado.citas.push(fresh);
+                        }
+                    }, 'Cargando cita…');
+                } catch (e) {
+                    console.error('[Mi Salud] detalle cita:', e);
+                }
+            }
+
+            if (!cita) {
+                cita = estado.citas.find(c => c.id === idStr || c.id === idNum || c._id === idStr);
+            }
             if (!cita) return;
+
             const fechaFmt = /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha)
                 ? cita.fecha.split('-').reverse().join('/')
                 : cita.fecha;
@@ -373,7 +393,6 @@ export const salud = {
             const detBody = document.getElementById('salud-cita-detalle-body');
             if (!detBody) return;
 
-            // Botones CRUD solo si la cita NO está cancelada
             const accionesHtml = !esCancelada ? `
                 <div class="cita-acciones" role="group" aria-label="Acciones de cita">
                     <button type="button" class="cita-acciones__btn cita-acciones__btn--modificar"
@@ -600,7 +619,7 @@ export const salud = {
         // ------------------------------------------------------------------
         // 12.8 Volver a la lista
         // ------------------------------------------------------------------
-        volverALista(tipo) {
+        async volverALista(tipo) {
             if (tipo === 'citas') {
                 const d1 = document.getElementById('salud-cita-detalle');
                 const h1 = document.getElementById('salud-citas-header');
@@ -608,8 +627,7 @@ export const salud = {
                 if (d1) d1.style.display = 'none';
                 if (h1) h1.style.display = 'block';
                 if (l1) l1.style.display = 'block';
-                // H1: Re-renderizar la lista para reflejar cambios
-                this.renderizarCitas(this._filtroActual);
+                await this.renderizarCitas(this._filtroActual);
             } else {
                 const d2 = document.getElementById('salud-receta-detalle');
                 const h2 = document.getElementById('salud-recetas-header');
@@ -625,23 +643,17 @@ export const salud = {
         // ------------------------------------------------------------------
         cancelarCita(idCita) {
             console.log("Iniciando proceso de cancelación para:", idCita);
-            window.app.citas.mostrarConfirmacionCancelacion(idCita, (idCancelado) => {
-                // Buscar en _citas (memoria)
-                const cita = estado.citas.find(c => (c.id || c._id) === idCita);
+            window.app.citas.mostrarConfirmacionCancelacion(idCita, async (idCancelado) => {
+                const cita = estado.citas.find(c => (c.id || c._id) === idCita || c.id_cita === idCita);
                 if (!cita) return;
 
-                // Soft-delete: marcar como cancelada sin borrar
                 cita.estado = 'Cancelada';
 
-                // Persistir el cambio en sanitas_mis_citas
-                localStorage.setItem('sanitas_mis_citas', JSON.stringify(estado.citas));
-
-                // Sincronizar con sanitas_citas (store público)
-                window.app._sincronizarCancelacion(cita);
-
-                // H1: Refrescar la vista y la lista inmediatamente
-                this.verDetalleCita(idCita);
-                this.renderizarCitas(this._filtroActual || 'proximas');
+                try {
+                    await window.app._sincronizarCancelacion(cita);
+                } catch (e) {
+                    console.error(e);
+                }
             });
         },
 

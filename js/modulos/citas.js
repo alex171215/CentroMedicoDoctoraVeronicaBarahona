@@ -1,5 +1,12 @@
 import { utilidades } from './utilidades.js';
 import { estado, STORAGE_CITA_EN_PROGRESO, STORAGE_CITA_POST_LOGIN, STORAGE_AUTO_CONSULTA_INVITADO, leerUsuarioActivoDesdeStorage } from '../estado.js';
+import {
+    conCargaGlobal,
+    fetchTodasLasCitasAgenda,
+    insertCitaSupabase,
+    updateCitaSupabasePorIdCita,
+    upsertPacienteInvitadoSiNoExiste
+} from './supabaseServicio.js';
 
 function escapeHtmlCita(s) {
     return String(s ?? '')
@@ -782,7 +789,7 @@ export function createCitas() {
             }
         },
 
-        avanzarPaso() {
+        async avanzarPaso() {
             if (this.pasoActual === 2) {
                 const estaLogueado = localStorage.getItem('usuarioLogueado');
 
@@ -807,7 +814,7 @@ export function createCitas() {
                             const cedInput = document.getElementById('citas-cedula');
                             if (nomInput) nomInput.value = citaOriginal.paciente || '';
                             if (cedInput) cedInput.value = citaOriginal.cedula || '';
-                            this._verificarColisionYContinuar(false);
+                            await this._verificarColisionYContinuar(false);
                             return;
                         }
                     }
@@ -882,7 +889,7 @@ export function createCitas() {
                     }
                     // [BR-1 Debug] Auditoría Paso 3 (Invitado / Proxy)
                     console.log('[BR-1 Debug] Trigger Paso 3', { cedula: cedulaParaLimite, fechaISO, especialidad, idExcluir });
-                    if (this._verificarLimiteDiario(cedulaParaLimite, fechaISO, especialidad, idExcluir)) {
+                    if (await this._verificarLimiteDiario(cedulaParaLimite, fechaISO, especialidad, idExcluir)) {
                         // Pasar fechaISO al modal, nunca texto legible
                         this._mostrarModalLimiteDiario(especialidad, fechaISO);
                         return;
@@ -890,52 +897,47 @@ export function createCitas() {
                 }
                 // --- FIN VALIDACIÓN ---
 
-                this._verificarColisionYContinuar(logueadoReal);
+                await this._verificarColisionYContinuar(logueadoReal);
             }
         },
         // Verifica si el paciente ya tiene una cita en la misma especialidad el mismo día.
         // Retorna true si YA EXISTE una cita que incumple el límite (debe bloquearse).
-        _verificarLimiteDiario(cedulaPaciente, fecha, especialidad, idCitaExcluida = null) {
+        async _verificarLimiteDiario(cedulaPaciente, fecha, especialidad, idCitaExcluida = null) {
             if (!cedulaPaciente || !fecha || !especialidad) return false;
-            // Obtener citas del store público (sanitas_citas) para cubrir invitados y logueados.
-            const citas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            // BR-1: Normalizar ESTRICTAMENTE el argumento a YYYY-MM-DD.
-            // Si viene un ISO completo (YYYY-MM-DDTHH:mm:ss), recortar a los primeros 10 chars.
-            // Si viene en cualquier otro formato legible, la validación falla de forma segura (no bloquea).
+            let citas;
+            try {
+                citas = await fetchTodasLasCitasAgenda();
+            } catch (_) {
+                citas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            }
             const ISO_REGEX = /^\d{4}-\d{2}-\d{2}/;
-            if (!ISO_REGEX.test(fecha)) return false; // Fecha no está en formato ISO → no bloquear
-            const fechaNorm = fecha.substring(0, 10); // Siempre YYYY-MM-DD
+            if (!ISO_REGEX.test(fecha)) return false;
+            const fechaNorm = fecha.substring(0, 10);
             const encontrada = citas.find(c => {
-                // technical-requirements.md: el campo de cédula en sanitas_citas es 'cedula_paciente'
                 const cCedula = String(c.cedula_paciente || c.cedula || '').trim();
                 if (cCedula !== String(cedulaPaciente).trim()) return false;
                 if (c.especialidad !== especialidad) return false;
                 if (c.estado === 'Cancelada') return false;
-                // BR-1: Normalizar el campo del store de la misma manera (manzanas con manzanas).
-                // c.fecha puede ser ISO completo o YYYY-MM-DD; recortar a 10 chars.
                 const cFecha = (c.fecha || '').trim().substring(0, 10);
-                if (!ISO_REGEX.test(cFecha)) return false; // Dato corrupto en store → ignorar
+                if (!ISO_REGEX.test(cFecha)) return false;
                 if (cFecha !== fechaNorm) return false;
-                // Excluir la misma cita si se está modificando
                 if (idCitaExcluida && (c.id_cita === idCitaExcluida || c.id === idCitaExcluida)) return false;
                 return true;
             });
             return !!encontrada;
         },
 
-        _verificarColisionYContinuar(logueado) {
+        async _verificarColisionYContinuar(logueado) {
             let cedulaPaciente = "";
             if (logueado && !this.modoProxy) {
-                // Si está logueado y agenda para sí mismo: usar su propia cédula
                 try {
                     const userActivoStr = localStorage.getItem('usuarioActivo');
                     if (userActivoStr) {
                         const user = JSON.parse(userActivoStr);
-                        cedulaPaciente = user.identificacion || "";
+                        cedulaPaciente = user.identificacion || user.cedula || "";
                     }
                 } catch (e) { }
             } else {
-                // En modo proxy (logueado pero para familiar) o invitado: usar la cédula ingresada en el formulario
                 const inputCedula = document.getElementById('citas-cedula');
                 if (inputCedula) cedulaPaciente = inputCedula.value.trim();
             }
@@ -949,23 +951,29 @@ export function createCitas() {
             }
             const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso');
 
-            // Obtener duración de la cita que se está agendando
             const doc = this._doctorActual;
             const duracionNueva = doc ? (doc.duracion_minutos || 30) : 30;
 
-            // --- Verificación de colisión exacta ---
             const modCtxStr = sessionStorage.getItem('cita_modificacion');
             let modCtx = null;
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
 
-            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            // En modo proxy, garantizamos que se toma la cédula del formulario aunque logueado sea true
+            let citasPublicas;
+            try {
+                citasPublicas = await fetchTodasLasCitasAgenda();
+            } catch (_) {
+                citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            }
+
             if (logueado && this.modoProxy) {
                 const inputCedula = document.getElementById('citas-cedula');
                 if (inputCedula) cedulaPaciente = inputCedula.value.trim();
             }
+
+            const cedEnCita = (c) => String(c.cedula_paciente || c.cedula || '').trim();
+
             const citaColision = citasPublicas.find(c =>
-                c.cedula === cedulaPaciente &&
+                cedEnCita(c) === String(cedulaPaciente).trim() &&
                 c.fecha === fechaISO &&
                 c.hora === hora &&
                 c.estado !== 'Cancelada'
@@ -983,13 +991,12 @@ export function createCitas() {
                 return;
             }
 
-            // --- Verificación de buffer (30 min bidireccional) ---
             const [hNueva, mNueva] = hora.split(':').map(Number);
             const inicioMinNueva = hNueva * 60 + mNueva;
             const finMinNueva = inicioMinNueva + duracionNueva;
 
             const citasMismoDia = citasPublicas.filter(c =>
-                c.cedula === cedulaPaciente &&
+                cedEnCita(c) === String(cedulaPaciente).trim() &&
                 c.fecha === fechaISO &&
                 c.estado !== 'Cancelada'
             );
@@ -1010,9 +1017,7 @@ export function createCitas() {
                 const inicioMinExistente = hExt * 60 + mExt;
                 const finMinExistente = inicioMinExistente + duracionExistente;
 
-                // Condición de solapamiento con buffer de 30 min a cada lado
                 if ((finMinNueva + 30 > inicioMinExistente) && (finMinExistente + 30 > inicioMinNueva)) {
-                    // Calcular la hora sugerida: fin de la cita existente + 30 min
                     const minSugerido = finMinExistente + 30;
                     const hSug = Math.floor(minSugerido / 60);
                     const mSug = minSugerido % 60;
@@ -1025,7 +1030,6 @@ export function createCitas() {
             }
             console.log('[Colisión] Cédula a verificar:', cedulaPaciente, ' | Modo proxy:', this.modoProxy);
 
-            // Si todo ok, continuar
             this.prepararResumenFinal(logueado);
             this.mostrarPaso(4);
         },
@@ -1198,14 +1202,12 @@ export function createCitas() {
 
                 // Simula latencia de red (800ms) antes de persistir el cambio
                 setTimeout(() => {
-                    // Ejecutar la lógica real de cancelación en localStorage
-                    if (typeof callback === 'function') callback(idCita);
+                    void (async () => {
+                        if (typeof callback === 'function') await callback(idCita);
 
-                    // ── FASE 3: Resolución / Punto Final (H4 - Consistencia) ──
-                    // El modal NO se cierra automáticamente: transiciona al estado de éxito.
-                    const contenido = modal.querySelector('.modal-content');
-                    if (contenido) {
-                        contenido.innerHTML = `
+                        const contenido = modal.querySelector('.modal-content');
+                        if (contenido) {
+                            contenido.innerHTML = `
                             <i class="fa-solid fa-circle-check icono-exito-modal" aria-hidden="true"></i>
                             <h2 class="modal-colision-title">Cita Cancelada</h2>
                             <p class="modal-colision-text">
@@ -1216,16 +1218,14 @@ export function createCitas() {
                             </button>
                         `;
 
-                        // ── FASE 4: Cierre y Refresco (Feedback Controlado) ──
-                        // El usuario controla cuándo sale. Al cerrar, se actualiza la lista.
-                        document.getElementById('btn-cerrar-resolucion')?.addEventListener('click', () => {
-                            modal.remove();
-                            // Refrescar la lista de citas del dashboard si el módulo está activo
-                            if (typeof window.app.salud?.renderizarCitas === 'function') {
-                                window.app.salud.renderizarCitas(window.app.salud._filtroActual || 'proximas');
-                            }
-                        });
-                    }
+                            document.getElementById('btn-cerrar-resolucion')?.addEventListener('click', () => {
+                                modal.remove();
+                                if (typeof window.app.salud?.renderizarCitas === 'function') {
+                                    void window.app.salud.renderizarCitas(window.app.salud._filtroActual || 'proximas');
+                                }
+                            });
+                        }
+                    })();
                 }, 800);
             });
         },
@@ -1824,15 +1824,14 @@ export function createCitas() {
             const confirmBtn = document.getElementById('btn-confirmar-cita-definitivo');
             if (confirmBtn) {
                 confirmBtn.onclick = () => {
-                    this.confirmarCita();
+                    void this.confirmarCita();
                 };
             }
         },
 
-        // Guarda definitivamente la cita en localStorage y muestra éxito
-        confirmarCita() {
+        // Guarda la cita en Supabase (y caché local para widget / ocupadas) y muestra éxito
+        async confirmarCita() {
             let cita = this._citaTemporal;
-            // Respaldo: si se perdió la variable en memoria, recuperar de sessionStorage
             if (!cita) {
                 try {
                     const respaldo = sessionStorage.getItem('_citaTemporal_respaldo');
@@ -1844,39 +1843,39 @@ export function createCitas() {
                 return;
             }
 
-            // --- VALIDACIÓN DE LÍMITE DIARIO (Titular agendando para sí mismo) ---
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            const cedEnCita = (c, z) => String(c.cedula_paciente || c.cedula || '').trim() === String(z || '').trim();
+
             if (estaLogueado && !this.modoProxy) {
-                // Es el titular confirmando su propia cita
                 let cedulaTitular = '';
                 try {
                     const user = JSON.parse(localStorage.getItem('usuarioActivo'));
-                    cedulaTitular = user?.identificacion || '';
+                    cedulaTitular = user?.identificacion || user?.cedula || '';
                 } catch (e) { }
                 const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
                 const especialidad = cita.especialidad;
                 let idExcluir = null;
-                const modCtxStr = sessionStorage.getItem('cita_modificacion');
-                if (modCtxStr) {
-                    try { const modCtx = JSON.parse(modCtxStr); idExcluir = modCtx.id_cita; } catch (e) { }
+                const modCtxStr0 = sessionStorage.getItem('cita_modificacion');
+                if (modCtxStr0) {
+                    try { const modCtx0 = JSON.parse(modCtxStr0); idExcluir = modCtx0.id_cita; } catch (e) { }
                 }
-                // [BR-1 Debug] Auditoría Paso 4 — Titular
                 console.log('[BR-1 Debug] Trigger Paso 4 (Titular)', { cedula: cedulaTitular, fechaISO, especialidad, idExcluir });
-                if (cedulaTitular && this._verificarLimiteDiario(cedulaTitular, fechaISO, especialidad, idExcluir)) {
+                if (cedulaTitular && await this._verificarLimiteDiario(cedulaTitular, fechaISO, especialidad, idExcluir)) {
                     this._mostrarModalLimiteDiario(especialidad, fechaISO);
                     return;
                 }
 
-                // ── BR-2/BR-3 Titular en Paso 4 (Trigger de Identidad) ──
-                // El titular confirmó la cita para sí mismo. Es el primer punto donde
-                // su cédula es conocida con certeza → validamos colisión y buffer ahora.
                 if (cedulaTitular) {
-                    const horaStr = this.horaSeleccionada&&this.horaSeleccionada.includes(',') ? this.horaSeleccionada.split(', ')[1] : '';
-                    const citasPublicasT = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                    const horaStr = this.horaSeleccionada && this.horaSeleccionada.includes(',') ? this.horaSeleccionada.split(', ')[1] : '';
+                    let citasPublicasT;
+                    try {
+                        citasPublicasT = await fetchTodasLasCitasAgenda();
+                    } catch (_) {
+                        citasPublicasT = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                    }
 
-                    // BR-2: Colisión exacta (misma hora del paciente)
                     const colisionT = citasPublicasT.find(c =>
-                        c.cedula === cedulaTitular &&
+                        cedEnCita(c, cedulaTitular) &&
                         c.fecha === fechaISO &&
                         c.hora === horaStr &&
                         c.estado !== 'Cancelada' &&
@@ -1887,14 +1886,13 @@ export function createCitas() {
                         return;
                     }
 
-                    // BR-3: Buffer de 30 min bidireccional
                     const doc = this._doctorActual;
                     const duracionNueva = doc ? (doc.duracion_minutos || 30) : 30;
                     const [hN, mN] = horaStr.split(':').map(Number);
                     const inicioNueva = hN * 60 + mN;
                     const finNueva = inicioNueva + duracionNueva;
                     const citasMismoDiaT = citasPublicasT.filter(c =>
-                        c.cedula === cedulaTitular &&
+                        cedEnCita(c, cedulaTitular) &&
                         c.fecha === fechaISO &&
                         c.estado !== 'Cancelada' &&
                         !(idExcluir && (c.id_cita === idExcluir || c.id === idExcluir))
@@ -1920,13 +1918,10 @@ export function createCitas() {
                         }
                     }
                 }
-            } // fin if (estaLogueado && !this.modoProxy)
+            }
 
-            // --- VALIDACIÓN DE LÍMITE DIARIO (Invitado o Proxy: red de seguridad en Paso 4) ---
-            // Cubre el caso en que el Paso 3 fue omitido (ej. flujo de modificación directa).
             if (!estaLogueado || this.modoProxy) {
                 const inputCed = document.getElementById('citas-cedula');
-                // technical-requirements.md: cita usa 'cedula_paciente' como campo de identidad
                 const cedulaPaciente = (inputCed ? inputCed.value.trim() : '') || cita.cedula_paciente || cita.cedula || '';
                 if (cedulaPaciente) {
                     const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
@@ -1936,130 +1931,166 @@ export function createCitas() {
                     if (modCtxStr2) {
                         try { const modCtx2 = JSON.parse(modCtxStr2); idExcluir = modCtx2.id_cita; } catch (e) { }
                     }
-                    // [BR-1 Debug] Auditoría Paso 4 — Invitado / Proxy
                     console.log('[BR-1 Debug] Trigger Paso 4 (Invitado/Proxy)', { cedula: cedulaPaciente, fechaISO, especialidad, idExcluir });
-                    if (this._verificarLimiteDiario(cedulaPaciente, fechaISO, especialidad, idExcluir)) {
+                    if (await this._verificarLimiteDiario(cedulaPaciente, fechaISO, especialidad, idExcluir)) {
                         this._mostrarModalLimiteDiario(especialidad, fechaISO);
                         return;
                     }
                 }
             }
-            // --- FIN VALIDACIÓN ---
 
             const modCtxStr = sessionStorage.getItem('cita_modificacion');
             let modCtx = null;
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
-            // Capturar flag ANTES de que los removeItem borren cita_modificacion del sessionStorage
             const esModificacion = !!modCtx;
 
-            const fechaHoraStr = this.horaSeleccionada; // Asegurar que tenemos la hora
+            const fechaHoraStr = this.horaSeleccionada;
             const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
 
-            if (modCtx) {
-                // MODO MODIFICACIÓN
-                let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-                let indexP = -1;
-                if (modCtx.id_cita) {
-                    indexP = citasPublicas.findIndex(cp => cp.id_cita === modCtx.id_cita);
-                } else if (modCtx.origen === 'widget' && typeof modCtx.indexPublicas === 'number') {
-                    indexP = modCtx.indexPublicas;
-                } else {
-                    indexP = citasPublicas.findIndex(cp => cp.cedula === modCtx.cedula && cp.medico === modCtx.medico);
-                }
-                if (indexP !== -1) {
-                    const citaAntigua = citasPublicas[indexP];
-                    citasPublicas[indexP] = {
-                        ...citaAntigua,
-                        fecha: fechaISO,
-                        hora: cita.hora,
-                        medico: cita.medico,
-                        especialidad: cita.especialidad,
-                        cedula_titular: cita.cedula_titular,
-                        paciente: cita.paciente || citaAntigua.paciente
-                    };
-                    localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
-                }
-
-                if (modCtx.id_cita || modCtx.idCita) {
-                    const realId = modCtx.id_cita || modCtx.idCita;
-                    let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
-                    const indexH = historial.findIndex(h => (h.id || h._id) === realId || h.id_cita === realId);
-                    if (indexH !== -1) {
-                        const historialAntiguo = historial[indexH];
-                        historial[indexH] = {
-                            ...historialAntiguo,
-                            fecha: cita.fecha,
-                            hora: cita.hora,
-                            medico: cita.medico,
-                            especialidad: cita.especialidad,
-                            estado: 'Próxima',
-                            cedula_titular: cita.cedula_titular
-                        };
-                        localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
+            try {
+                await conCargaGlobal(async () => {
+                    if (!estaLogueado) {
+                        await upsertPacienteInvitadoSiNoExiste(String(cita.cedula || '').trim(), cita.paciente);
                     }
-                    // Sincronizar en memoria
-                    if (estado.citas && estado.citas.length) {
-                        const indexSalud = estado.citas.findIndex(sc => (sc.id || sc._id) === realId || sc.id_cita === realId);
-                        if (indexSalud !== -1) {
-                            estado.citas[indexSalud] = {
-                                ...estado.citas[indexSalud],
-                                fecha: cita.fecha,
+
+                    if (modCtx) {
+                        let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                        let indexP = -1;
+                        if (modCtx.id_cita) {
+                            indexP = citasPublicas.findIndex(cp => cp.id_cita === modCtx.id_cita);
+                        } else if (modCtx.origen === 'widget' && typeof modCtx.indexPublicas === 'number') {
+                            indexP = modCtx.indexPublicas;
+                        } else {
+                            indexP = citasPublicas.findIndex(cp => cp.cedula === modCtx.cedula && cp.medico === modCtx.medico);
+                        }
+                        if (indexP !== -1) {
+                            const citaAntigua = citasPublicas[indexP];
+                            citasPublicas[indexP] = {
+                                ...citaAntigua,
+                                fecha: fechaISO,
                                 hora: cita.hora,
                                 medico: cita.medico,
                                 especialidad: cita.especialidad,
-                                estado: 'Próxima'
+                                cedula_titular: cita.cedula_titular,
+                                paciente: cita.paciente || citaAntigua.paciente
                             };
+                            localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
                         }
+
+                        if (modCtx.id_cita || modCtx.idCita) {
+                            const realId = modCtx.id_cita || modCtx.idCita;
+                            await updateCitaSupabasePorIdCita(realId, {
+                                fecha: fechaISO,
+                                hora: cita.hora,
+                                medico: cita.medico,
+                                especialidad: cita.especialidad,
+                                cedula_titular: cita.cedula_titular,
+                                paciente: cita.paciente,
+                                estado: 'Próxima'
+                            });
+
+                            let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+                            const indexH = historial.findIndex(h => (h.id || h._id) === realId || h.id_cita === realId);
+                            if (indexH !== -1) {
+                                const historialAntiguo = historial[indexH];
+                                historial[indexH] = {
+                                    ...historialAntiguo,
+                                    fecha: cita.fecha,
+                                    hora: cita.hora,
+                                    medico: cita.medico,
+                                    especialidad: cita.especialidad,
+                                    estado: 'Próxima',
+                                    cedula_titular: cita.cedula_titular
+                                };
+                                localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
+                            }
+                            if (estado.citas && estado.citas.length) {
+                                const indexSalud = estado.citas.findIndex(sc => (sc.id || sc._id) === realId || sc.id_cita === realId);
+                                if (indexSalud !== -1) {
+                                    estado.citas[indexSalud] = {
+                                        ...estado.citas[indexSalud],
+                                        fecha: cita.fecha,
+                                        hora: cita.hora,
+                                        medico: cita.medico,
+                                        especialidad: cita.especialidad,
+                                        estado: 'Próxima'
+                                    };
+                                }
+                            }
+                        }
+                        sessionStorage.removeItem('cita_modificacion');
+                        this._reconstruirOcupadas();
+                    } else {
+                        const doc = this._doctorActual;
+                        const filaCita = {
+                            id_cita: cita.id_cita,
+                            codigo: cita.codigo,
+                            medico: cita.medico,
+                            especialidad: cita.especialidad,
+                            fecha: fechaISO,
+                            hora: cita.hora,
+                            tipo: cita.tipo || 'Consulta Externa',
+                            motivo: cita.motivo || null,
+                            centro: cita.lugar || cita.centro || 'Centro Médico Familiar Dra. Verónica Barahona',
+                            direccion: cita.lugar_direccion || cita.direccion || 'Tumbaco - Quito',
+                            lugar: cita.lugar,
+                            lugar_direccion: cita.lugar_direccion,
+                            seguro: cita.seguro || 'Particular',
+                            estado: cita.estado || 'Próxima',
+                            paciente: cita.paciente,
+                            nombres: cita.nombres,
+                            cedula: cita.cedula,
+                            cedula_paciente: cita.cedula || cita.cedula_paciente,
+                            cedula_titular: cita.cedula_titular,
+                            id_especialista: doc?.id ?? null
+                        };
+                        await insertCitaSupabase(filaCita);
+
+                        let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+                        historial.push(cita);
+                        localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
+
+                        let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                        citasPublicas.push({
+                            id_cita: cita.id_cita,
+                            codigo: cita.codigo,
+                            cedula: cita.cedula,
+                            cedula_paciente: cita.cedula || cita.cedula_paciente,
+                            medico: cita.medico,
+                            especialidad: cita.especialidad,
+                            fecha: fechaISO,
+                            hora: cita.hora,
+                            paciente: cita.paciente,
+                            estado: cita.estado || 'Próxima'
+                        });
+                        localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+
+                        const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
+                        ocupadas.push({
+                            medico: cita.medico,
+                            especialidad: cita.especialidad,
+                            fecha: cita.fecha,
+                            hora: cita.hora,
+                            fechaHora: this.horaSeleccionada
+                        });
+                        localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
                     }
-                }
-                sessionStorage.removeItem('cita_modificacion');
-                // Reconstruir ocupadas
-                this._reconstruirOcupadas();
-            } else {
-                // MODO CREACIÓN NORMAL
-                let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
-                historial.push(cita);
-                localStorage.setItem('sanitas_mis_citas', JSON.stringify(historial));
-
-                let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-                citasPublicas.push({
-                    id_cita: cita.id_cita,
-                    codigo: cita.codigo,
-                    cedula: cita.cedula,
-                    medico: cita.medico,
-                    especialidad: cita.especialidad,
-                    fecha: fechaISO,
-                    hora: cita.hora,
-                    paciente: cita.paciente
-                });
-                localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
-
-                const ocupadas = JSON.parse(localStorage.getItem('sanitas_citas_ocupadas') || '[]');
-                ocupadas.push({
-                    medico: cita.medico,
-                    especialidad: cita.especialidad,
-                    fecha: cita.fecha,
-                    hora: cita.hora,
-                    fechaHora: this.horaSeleccionada
-                });
-                localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
+                }, 'Guardando cita…');
+            } catch (err) {
+                console.error('[Supabase] Error al guardar cita:', err);
+                alert('No se pudo guardar la cita en el servidor. Revisa la consola o intenta de nuevo.');
+                return;
             }
 
-            // Limpiar datos temporales y mostrar éxito
             this._citaTemporal = null;
             this.modoProxy = false;
             sessionStorage.removeItem('cita_modificacion');
 
-            // Llenar los elementos del paso 5
             document.getElementById('resumen-doctor-name').textContent = cita.medico;
             document.getElementById('resumen-doctor-specialty').textContent = cita.especialidad;
             document.getElementById('resumen-fecha').textContent = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
             document.getElementById('resumen-paciente').textContent = cita.paciente;
 
-            // ── Feedback Contextual y Adaptativo ──
-            // Si la cita provino de un flujo de modificación, el título debe reflejar
-            // la acción real: "Reagendada" en lugar del genérico "Agendada".
-            // esModificacion se evaluó ANTES de que sessionStorage fuera limpiado.
             const tituloExito = esModificacion
                 ? '¡Cita reagendada con éxito!'
                 : '¡Cita agendada con éxito!';
