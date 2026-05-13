@@ -367,3 +367,66 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## 14. Integridad de Vistas y Enrutamiento (H3)
 * **Persistencia de Plantillas:** Queda prohibido eliminar o modificar los bloques de plantillas HTML (Template Strings) de las vistas principales (Login, Registro, Home, Citas) sin una orden explícita de rediseño.
 * **Verificación de Navegación:** Cualquier cambio en la lógica global de `app.js` o `main.js` debe validar que la función `app.navegar()` siga teniendo acceso a todos los contenedores de vista.
+
+## TR-14: Persistencia de Estado en Flujo de Citas (MPA)
+1. **Regla de Oro:** Todo el progreso del agendamiento (paso actual, especialidad seleccionada, médico, fecha y hora) DEBE persistir en `sessionStorage` bajo la clave `sanitas_cita_en_progreso`.
+2. **Lógica de Re-entrada:** Al cargar `citas.html`, el módulo `citas.js` debe verificar si existe un proceso previo. Si existe, debe saltar automáticamente al paso guardado.
+3. **Sincronización de Identidad:** - Si el usuario está en el Paso 2 (Formulario de Invitado) e inicia sesión, el sistema DEBE detectar el cambio de estado de `usuarioActual`.
+   - Al estar logueado, el Paso 2 debe omitirse automáticamente y llevar al usuario directamente al Paso 4 (Revisión), inyectando los datos del perfil del usuario en la cita.
+4. **Protección de Renderizado:** Nunca debe mostrarse un paso si los datos necesarios (especialidades o médicos) no han terminado de cargarse. Usar `async/await` para asegurar que la data de los JSON esté lista antes de ejecutar `_irAPaso()`.
+5. **Prohibición de Redirecciones Vacías:** Si `app.navegar('citas')` se invoca tras un login, debe heredar los parámetros de paso previo para evitar volver al Paso 1 por defecto.
+
+## TR-15: Lógica de Navegación Retroactiva (Botón Volver)
+1. **Validación de Salto:** El botón "Volver" no debe restar -1 al paso actual de forma ciega. Debe consultar el `historialPasos` (array en memoria/sesión).
+2. **Caso Especial 1 Médico:** Si una especialidad tiene solo 1 médico, el "Paso de Selección de Médico" DEBE marcarse como omitido. Al volver desde el calendario, el sistema debe saltar directamente a "Selección de Especialidad".
+
+## TR-16: Sinceridad en el Indicador de Progreso (WCAG 2.2)
+1. **Pasos Dinámicos:** El número total de pasos en la barra de progreso DEBE ser dinámico. 
+   - Si la especialidad tiene >1 médico: Mostrar 5 pasos (Especialidad, Médico, Calendario, Datos, Revisión).
+   - Si tiene 1 médico: Mostrar 4 pasos (Especialidad, Calendario, Datos, Revisión).
+2. **Claridad Semántica:** El texto para lectores de pantalla (`.sr-only`) debe anunciar el número real de pasos para no confundir al usuario no vidente.
+
+## TR-17: Estabilidad e Integridad de la Barra de Progreso (Heurística #1 y #4)
+1. **Sinceridad Absoluta (Sin mutaciones):** La barra de progreso NUNCA debe cambiar su longitud o sus etiquetas en medio del flujo. Los hitos deben calcularse en el Paso 0 y mantenerse idénticos hasta el final.
+2. **Paso Final Obligatorio:** El paso de "Confirmación" (o "Éxito") DEBE estar visible en la barra de progreso desde el momento en que el usuario inicia el flujo.
+3. **Cálculo de Contexto Persistente:** Para determinar si se muestra el paso "Médico" (cuando hay >1 doctor), el sistema debe leer el ID de la especialidad desde `_citaTemporal.especialidad` en CUALQUIER paso (incluyendo Revisión y Confirmación) para no perder el contexto.
+
+## TR-18: Navegación Estricta por Historial (Botón Volver)
+1. **Prohibido el salto ciego:** La función de retroceso (`irAtras` o `volverAlPasoAnterior`) no debe restar índices fijos ni adivinar. DEBE hacer un `pop()` del array `historialPasos` que guarda exactamente el ID del paso DOM anterior por el que pasó el usuario.
+2. Si `historialPasos` indica que el usuario vino del Paso 1 (Médicos), el botón "Volver" en el Calendario DEBE decir "Volver a Médicos" y llevarlo a ese DOM.
+
+## TR-19: Persistencia del Estado de Éxito (Paso 5)
+1. **Inmunidad del Ticket:** Una vez que la cita ha sido confirmada y se genera el ticket (resumenTicketConfirmado), este estado DEBE ser inmune a la recarga de página o al cambio de sesión (login) mientras el usuario permanezca en `citas.html`.
+2. **Prioridad de Recuperación:** En la función `_recuperarEstadoCita`, la presencia de un `resumenTicketConfirmado` en el snapshot de persistencia debe tener la máxima prioridad. Si existe, el sistema DEBE saltar directamente al Paso 5 y renderizar el ticket, ignorando cualquier otro paso guardado.
+3. **Limpieza Diferida:** La eliminación de la clave `sanitas_cita_en_progreso` SOLO debe ocurrir cuando el usuario presiona explícitamente el botón "Finalizar" o cuando navega físicamente a otra página que no sea `login.html`.
+
+## TR-20: Salidas Claras en Pantallas de Éxito (Heurística #3)
+1. **Múltiples Vías de Navegación:** Las pantallas de confirmación final (como el Paso 5 de citas) NUNCA deben tener un solo botón de "Finalizar". 
+2. **Botones Obligatorios:** Deben proveer al menos dos salidas contextuales:
+   - Acción Principal (ej. "Ver Mis Citas").
+   - Acción Secundaria/Neutral (ej. "Volver al Inicio").
+
+## TR-21: Eficiencia en Formularios (Autocomplete)
+1. **Campos de Identificación:** Aunque no exista un token WCAG específico para Documentos de Identidad Nacional (Cédula), estos inputs DEBEN usar `autocomplete="on"` para aprovechar el autocompletado nativo del navegador, reduciendo la carga cognitiva y física del usuario (Heurística #7).
+
+## TR-22: Redirección Inteligente Post-Agendamiento (Invitado vs Registrado)
+1. **Diferenciación de Salida:** El botón "Ver Mi Cita" en el Paso 5 debe detectar el estado del usuario:
+   - **Usuario Registrado:** Redirigir físicamente a `mi-salud.html`.
+   - **Usuario Invitado:** Redirigir físicamente a `index.html`.
+2. **Automatización para Invitados (Deep Linking):** - Al navegar al Home como invitado desde un éxito, el sistema DEBE persistir el `id_cita` y la `cedula` en el `sessionStorage`.
+   - Al cargar `index.html`, el módulo `main.js` (Widget de Invitado) debe detectar estos datos, hacer scroll automático hasta el widget, autocompletar los campos y disparar la búsqueda de la cita automáticamente para mostrar el detalle al usuario sin que este deba escribir.
+3. **Limpieza de Persistencia:** Una vez que el widget del invitado ha realizado la consulta automática, los datos temporales de "autocompletado post-cita" deben eliminarse de la sesión.
+
+## TR-23: Integridad de Datos en Tarjetas y Detalles de Cita
+1. **Prohibido el uso de Placeholders fijos:** Al renderizar tarjetas de citas o detalles (tanto en `salud.js` como en `main.js` para el widget), NUNCA se deben usar textos quemados como "Dr. Nombre". 
+2. **Mapeo Estricto:** - El médico debe extraerse de `cita.medico` (incluyendo su prefijo Dr./Dra.).
+   - El paciente DEBE mostrarse en la tarjeta de la cita (`Paciente: [Nombre]`) y extraerse de `cita.paciente` o `cita.nombres`.
+3. **Formato de Tarjeta Original:** La tarjeta debe mantener la estructura: [Médico] | [Especialidad] | [Paciente] | [Fecha - Hora]. Ningún dato debe ser omitido.
+
+## TR-24: Navegación Profunda en Mi Salud (Auto-Detalle)
+1. **Paso de Parámetros:** Al presionar "Ver Mi Cita" siendo usuario registrado, el sistema DEBE guardar el ID de la cita recién creada en `sessionStorage` bajo la clave `sanitas_abrir_detalle_id`.
+2. **Disparo de Interfaz:** Al cargar `mi-salud.html`, el módulo `salud.js` debe verificar dicha clave. Si existe, debe ejecutar automáticamente la función `verDetalleCita(id)` tras renderizar la lista, asegurando que el usuario vea el detalle sin clics adicionales.
+
+## TR-25: Control de Visibilidad Preventivo (Widget Invitado)
+1. **Estado Inicial:** El contenedor del widget de invitados en `index.html` debe tener la propiedad `style="display: none;"` de forma nativa en el HTML o mediante una clase de utilidad.
+2. **Aparición Condicional:** El script de `main.js` solo debe remover el rastro de ocultamiento si y solo si `usuarioActual` es nulo. Esto evita el "efecto flash" o parpadeo del elemento desapareciendo al iniciar sesión.

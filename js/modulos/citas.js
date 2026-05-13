@@ -1,5 +1,13 @@
 import { utilidades } from './utilidades.js';
-import { estado } from '../estado.js';
+import { estado, STORAGE_CITA_EN_PROGRESO, STORAGE_CITA_POST_LOGIN, STORAGE_AUTO_CONSULTA_INVITADO, leerUsuarioActivoDesdeStorage } from '../estado.js';
+
+function escapeHtmlCita(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
 /**
  * Módulo de agendamiento: calendario, colisiones, flujo por pasos.
@@ -11,6 +19,11 @@ export function createCitas() {
         pasoActual: 0,
         historialPasos: [],
         validadoresIniciados: false,
+        _enRecuperacion: false,
+        /** TR-18: evita push en historialPasos al navegar hacia atrás (no es avance). */
+        _suppressHistorialPush: false,
+        /** Ticket de confirmación (paso 5) persistido en sessionStorage hasta salir con las acciones de cierre (TR-20) */
+        resumenTicketConfirmado: null,
 
 
         // Diccionario de Iconos representativos para tus especialidades (FontAwesome 6)
@@ -29,19 +42,48 @@ export function createCitas() {
             "GINECOLOGÍA": "fa-person-pregnant"
         },
 
-        iniciarFlujo() {
+        async iniciarFlujo() {
             if (!document.getElementById('view-citas')) return;
 
-            // ── NUEVO: Restauración post‑login desde citas ──
-            const restoreStr = sessionStorage.getItem('citas_login_restore');
-            if (restoreStr) {
-                sessionStorage.removeItem('citas_login_restore');
-                this._restaurarEstadoPostLogin(restoreStr);
-                return;
+            await this._esperarDatosEspecialistas();
+            this._montarSalidasPaso5();
+
+            const postLogin = sessionStorage.getItem(STORAGE_CITA_POST_LOGIN);
+            const legacyRestore = sessionStorage.getItem('citas_login_restore');
+            let blob = null;
+            const rawBlob = sessionStorage.getItem(STORAGE_CITA_EN_PROGRESO);
+            if (rawBlob) {
+                try { blob = JSON.parse(rawBlob); } catch (e) { blob = null; }
             }
 
-            // Limpiar errores visuales y estado anterior
-            document.querySelectorAll('#view-citas .error-msg').forEach(msg => msg.style.display = 'none');
+            const blobTieneProgreso = !!(blob && (
+                (blob.citaConfirmada && blob.resumenTicket && typeof blob.paso === 'number' && blob.paso === 5)
+                || (typeof blob.paso === 'number' && blob.paso >= 1)
+                || !!blob.citaTemporal
+                || !!(blob.horaSeleccionada || blob.fechaISOSeleccionada)
+            ));
+
+            let legacyTieneTicketPaso5 = false;
+            if (legacyRestore) {
+                try {
+                    const lr = JSON.parse(legacyRestore);
+                    legacyTieneTicketPaso5 = !!(lr?.resumenTicket && typeof lr.resumenTicket === 'object'
+                        && (lr.citaConfirmada || lr.paso === 5));
+                } catch (_) { legacyTieneTicketPaso5 = false; }
+            }
+
+            const esPostLogin = postLogin === '1';
+            const postLoginPuedeRecuperar = esPostLogin && (!!blob || legacyTieneTicketPaso5);
+
+            if (legacyRestore || postLoginPuedeRecuperar || (!postLogin && !legacyRestore && blobTieneProgreso)) {
+                if (esPostLogin) sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
+                const ok = await this._recuperarEstadoCita(blob, legacyRestore, { fromPostLogin: esPostLogin });
+                if (ok) return;
+            } else if (esPostLogin) {
+                sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
+            }
+
+            document.querySelectorAll('#view-citas .error-msg').forEach(msg => { msg.style.display = 'none'; });
             document.querySelectorAll('#view-citas .form-control').forEach(input => {
                 input.classList.remove('input-error', 'input-success');
                 input.value = '';
@@ -52,37 +94,32 @@ export function createCitas() {
                 this.validadoresIniciados = true;
             }
 
-            // MATA-BUGS: Resetear el paso actual a 0 ANTES de mostrar cualquier pantalla
-            this.modoProxy = false;   // ← INSERTAR LÍNEA
+            this.modoProxy = false;
             this.pasoActual = 0;
             this.historialPasos = [];
+            this.resumenTicketConfirmado = null;
 
-            // IHC FIX: SIEMPRE renderizar Paso 0 (Especialidades) al iniciar, 
-            // así el DOM no está vacío si el usuario hace clic en "Volver".
             this.renderizarPasoEspecialidades();
 
-            // Verificar si el usuario acaba de iniciar sesión desde el paso 3 de citas
             const citaDesdeLogin = sessionStorage.getItem('cita_desde_login');
-            sessionStorage.removeItem('cita_desde_login'); // Se consume una sola vez
+            sessionStorage.removeItem('cita_desde_login');
 
             const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
             let preCita = null;
-            try { preCita = JSON.parse(preCitaStr); } catch (e) { }
+            try { preCita = JSON.parse(preCitaStr); } catch (e) { /* noop */ }
             const preEspecialidad = sessionStorage.getItem('especialidad_seleccionada');
 
             if (citaDesdeLogin === 'true' && preCita && preCita.medico) {
-                // Restaurar horaSeleccionada desde sessionStorage si aún no está en memoria
                 if (!this.horaSeleccionada) {
                     const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada');
                     if (horaGuardada) this.horaSeleccionada = horaGuardada;
                 }
 
                 if (this.horaSeleccionada) {
-                    // (paso 4 - Revisión)
-                    this.pasoActual = 2; // necesario para que prepararResumenFinal no proteste
+                    this.pasoActual = 2;
                     this.prepararResumenFinal(true);
                     this.mostrarPaso(4);
-                    return; // Salimos de iniciarFlujo sin ejecutar el resto
+                    return;
                 }
             }
 
@@ -93,20 +130,17 @@ export function createCitas() {
                 if (db && esp) {
                     const medicos = db.cartera_especialistas.filter(e => e.especialidad === esp && e.doctor);
 
-                    // IHC FIX: Condicionar el historial según la cantidad de médicos disponibles
                     if (medicos.length > 1) {
                         this.renderizarPasoDoctores(esp, medicos);
-                        this.historialPasos.push(0); // Guardamos que venimos del 0
-                        this.pasoActual = 1;         // Nos situamos virtualmente en el 1
+                        this.historialPasos.push(0);
+                        this.pasoActual = 1;
                     } else {
-                        // Si hay 1 solo médico (o ninguno válido), NO inyectamos el Paso 1.
-                        // Dejamos el pasoActual en 0 para que "Volver" regrese directo a las especialidades.
                         this.pasoActual = 0;
                     }
                 }
 
                 this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url);
-                this.mostrarPaso(2); // Salta al calendario (2) guardando el historial correcto
+                this.mostrarPaso(2);
                 this.generarCalendario(true);
             } else if (preEspecialidad) {
                 this.evaluarEspecialidad(preEspecialidad);
@@ -288,7 +322,7 @@ export function createCitas() {
         },
 
         mostrarPaso(nuevoPaso) {
-            if (this.pasoActual !== nuevoPaso) {
+            if (this.pasoActual !== nuevoPaso && !this._suppressHistorialPush) {
                 if (this.historialPasos[this.historialPasos.length - 1] !== this.pasoActual) {
                     this.historialPasos.push(this.pasoActual);
                 }
@@ -392,9 +426,15 @@ export function createCitas() {
             if (nuevoPaso === 4) {
                 if (this._citaTemporal) {
                     this._mostrarResumen(this._citaTemporal);
+                    this._sincronizarEtiquetaVolverPaso4();
                 } else {
                     // Si no hay datos, volver al paso 2 por seguridad
-                    this.mostrarPaso(2);
+                    this._suppressHistorialPush = true;
+                    try {
+                        this.mostrarPaso(2);
+                    } finally {
+                        this._suppressHistorialPush = false;
+                    }
                     return;
                 }
             }
@@ -406,23 +446,32 @@ export function createCitas() {
                 this.modoProxy = false;
             }
 
-            // ── Regla G: Consistencia de Etiqueta del botón Volver en Paso 2 ──
-            // El texto del botón debe coincidir con el destino real del retroceso.
-            // Si hay 1 médico → destino es Especialidades (Paso 0).
-            // Si hay >1 médico → destino es Médicos (Paso 1).
+            // TR-18: etiqueta del Volver en calendario según el último paso DOM del historial (avance real).
             if (nuevoPaso === 2) {
                 const backBtnPaso2 = document.querySelector('#citas-step-2 .btn-back-minimalist');
                 if (backBtnPaso2) {
-                    const numMedicos = this._contarMedicosEspecialidad();
-                    if (numMedicos === 1) {
-                        backBtnPaso2.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Volver a Especialidades';
-                    } else {
-                        backBtnPaso2.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Volver a Médicos';
-                    }
+                    const prevDom = this.historialPasos.length
+                        ? this.historialPasos[this.historialPasos.length - 1]
+                        : null;
+                    let label = 'Volver';
+                    if (prevDom === 1) label = 'Volver a Médicos';
+                    else if (prevDom === 0) label = 'Volver a Especialidades';
+                    backBtnPaso2.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
                 }
             }
 
             // --- FIN DE LA INSERCIÓN ---
+            // TR-18 / UI paso 5: sin botones "Volver" del flujo; salidas TR-20 se montan en _montarSalidasPaso5.
+            if (nuevoPaso === 5) {
+                document.querySelectorAll('#view-citas .btn-back-minimalist').forEach(btn => {
+                    btn.style.display = 'none';
+                });
+            } else {
+                document.querySelectorAll('#view-citas .btn-back-minimalist').forEach(btn => {
+                    btn.style.display = '';
+                });
+            }
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             // ─── Paso 4: inyectar aviso si es modificación ───
@@ -446,11 +495,13 @@ export function createCitas() {
                     }
                 }
             }
+
+            if (!this._enRecuperacion) {
+                this._persistirProgresoCita();
+            }
         },
 
         // ── Helper: cuenta los médicos de la especialidad activa en la DB ──
-        // Retorna el número de doctores válidos para sessionStorage:'especialidad_seleccionada'.
-        // Usado por irAtras() y mostrarPaso() para aplicar la Regla G.
         _contarMedicosEspecialidad() {
             const esp = sessionStorage.getItem('especialidad_seleccionada');
             if (!esp) return 0;
@@ -461,46 +512,273 @@ export function createCitas() {
             } catch (e) { return 0; }
         },
 
-        irAtras() {
-            // ── Regla de Oro de Retorno (Navegación Secuencial Determinista) ──
-            // Fuente única de verdad para TODO retroceso en el módulo de citas.
-            //
-            // Flujo Titular Logueado: 4 → 2 → 1 → 0  (Paso 3 se omite porque no lo visitó)
-            // Flujo Invitado / Proxy: 4 → 3 → 2 → 1 → 0  (orden inverso estricto)
-
-            const esTitularLogueado = localStorage.getItem('usuarioLogueado') === 'true' && !this.modoProxy;
-
-            // Caso especial: Titular en Paso 4 salta directamente al Paso 2 (Calendario)
-            if (this.pasoActual === 4 && esTitularLogueado) {
-                this.mostrarPaso(2);
-                return;
+        /** Resuelve la especialidad activa aunque sessionStorage se haya limpiado (p. ej. tras resumen). */
+        _resolverEspecialidadDesdeContextoCita() {
+            let esp = sessionStorage.getItem('especialidad_seleccionada');
+            if (!esp && this._citaTemporal?.especialidad) esp = this._citaTemporal.especialidad;
+            if (!esp && this.resumenTicketConfirmado?.especialidad) {
+                esp = this.resumenTicketConfirmado.especialidad;
             }
+            if (!esp) {
+                try {
+                    const pre = sessionStorage.getItem('reservaCita_preseleccion');
+                    if (pre) {
+                        const o = JSON.parse(pre);
+                        if (o?.especialidad) esp = o.especialidad;
+                    }
+                } catch (_) { /* noop */ }
+            }
+            if (!esp) {
+                try {
+                    const r = sessionStorage.getItem('_citaTemporal_respaldo');
+                    if (r) {
+                        const o = JSON.parse(r);
+                        if (o?.especialidad) esp = o.especialidad;
+                    }
+                } catch (_) { /* noop */ }
+            }
+            return esp || null;
+        },
 
-            // ── Regla G: Asimetría de Retorno (Back-jump Condicional) ──
-            // Si el usuario está en el Calendario (Paso 2) y la especialidad tiene
-            // exactamente 1 médico, nunca pasó por el Paso 1 (lista de médicos).
-            // Ir a Paso 1 mostraría una pantalla vacía → se salta directamente al Paso 0.
-            if (this.pasoActual === 2 && this._contarMedicosEspecialidad() === 1) {
-                const imgEl = document.getElementById('citas-doctor-img');
-                if (imgEl) imgEl.src = '';
+        /**
+         * TR-17: cuenta médicos de la especialidad de la cita aunque sessionStorage se haya limpiado
+         * (pasos 4–5): usa _citaTemporal, ticket, respaldo o preselección antes de asumir 1 médico.
+         */
+        _contarMedicosParaProgreso() {
+            const esp = this._resolverEspecialidadDesdeContextoCita();
+            if (!esp) return 0;
+            try {
+                const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
+                if (!db?.cartera_especialistas) return 0;
+                return db.cartera_especialistas.filter(e => e.especialidad === esp && e.doctor).length;
+            } catch (_) { return 0; }
+        },
+
+        /** Titular logueado sin proxy ni modificación: el paso 3 (datos) se omite en el flujo. */
+        _omitirDatosEnFlujo() {
+            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            const modifica = !!sessionStorage.getItem('cita_modificacion');
+            return estaLogueado && !this.modoProxy && !modifica;
+        },
+
+        /**
+         * TR-16: ordinal del hito de agendamiento (0..N-1) a partir del paso DOM.
+         * Devuelve -1 si la combinación no aplica.
+         */
+        _mapDomPasoABookingOrdinal(domPaso, multiMedico, omitirDatos) {
+            if (domPaso === 0) return 0;
+            if (domPaso === 1) return multiMedico ? 1 : -1;
+            if (domPaso === 2) return multiMedico ? 2 : 1;
+            if (domPaso === 3) {
+                if (omitirDatos) return -1;
+                return multiMedico ? 3 : 2;
+            }
+            if (domPaso === 4) {
+                if (omitirDatos) return multiMedico ? 3 : 2;
+                return multiMedico ? 4 : 3;
+            }
+            return -1;
+        },
+
+        /** Construye fases de la barra: TR-16 + TR-17 (Confirmación siempre presente; hitos fijos en el flujo). */
+        _obtenerFasesBarraProgreso() {
+            const nMed = this._contarMedicosParaProgreso();
+            const multiMedico = nMed > 1;
+            const omitirDatos = this._omitirDatosEnFlujo();
+            const phases = [];
+            phases.push({ label: 'Especialidad', domSteps: [0] });
+            if (multiMedico) phases.push({ label: 'Médico', domSteps: [1] });
+            phases.push({ label: 'Calendario', domSteps: [2] });
+            if (!omitirDatos) phases.push({ label: 'Datos', domSteps: [3] });
+            phases.push({ label: 'Revisión', domSteps: [4] });
+            const bookingCount = phases.length;
+            phases.push({ label: 'Confirmación', domSteps: [5] });
+            return { phases, bookingCount, multiMedico, omitirDatos };
+        },
+
+        _sincronizarEtiquetaVolverPaso4() {
+            const backBtn = document.getElementById('btn-back-review');
+            if (!backBtn) return;
+            const prevDom = this.historialPasos.length
+                ? this.historialPasos[this.historialPasos.length - 1]
+                : null;
+            let label = 'Volver a Agendar Cita';
+            if (prevDom === 3) label = 'Volver a Datos del Paciente';
+            else if (prevDom === 2) label = 'Volver al Calendario';
+            else if (prevDom === 1) label = 'Volver a Médicos';
+            else if (prevDom === 0) label = 'Volver a Especialidades';
+            backBtn.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
+        },
+
+        /** TR-22: persiste cédula/código/fecha para el widget y navega al home (tras limpiar flujo de citas). */
+        _guardarAutoConsultaInvitadoYIrHome() {
+            const t = this.resumenTicketConfirmado;
+            const cedula = String(t?.cedulaPaciente || '').replace(/\D/g, '').trim();
+            const fecha = String(t?.fechaIsoConsulta || '').trim();
+            const id_cita = t?.id_cita || '';
+            const codigo = t?.codigo || '';
+            try {
+                if (cedula && fecha) {
+                    sessionStorage.setItem(STORAGE_AUTO_CONSULTA_INVITADO, JSON.stringify({
+                        cedula,
+                        fecha,
+                        id_cita,
+                        codigo
+                    }));
+                }
+            } catch (_) { /* noop */ }
+            this.limpiarSessionFlujoCitas(false);
+            window.location.href = 'index.html';
+        },
+
+        /** TR-20 / TR-22: salidas del paso 5; primario depende de sesión (Mi Salud vs deep link invitado). */
+        _montarSalidasPaso5() {
+            const wrap = document.querySelector('#citas-step-5 .comprobante-botones');
+            if (!wrap || wrap.dataset.salidasPaso5Bound === '1') return;
+            wrap.dataset.salidasPaso5Bound = '1';
+
+            const esRegistrado = localStorage.getItem('usuarioLogueado') === 'true';
+            const labelPrimario = esRegistrado ? 'Ir a Mis Citas' : 'Ver mi cita';
+            const ariaPrimario = esRegistrado
+                ? 'Ir a Mi Salud para ver tus citas agendadas'
+                : 'Ver el detalle de tu cita en la consulta para invitados';
+
+            const limpiarYNavegar = (href) => {
+                this.limpiarSessionFlujoCitas(false);
+                window.location.href = href;
+            };
+
+            wrap.innerHTML = `
+                <div class="citas-exito-salidas" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:12px;">
+                    <button type="button" class="btn btn--primario" data-citas-salida="primario">
+                        <i class="fa-solid fa-notes-medical" aria-hidden="true"></i> ${labelPrimario}
+                    </button>
+                    <button type="button" class="btn btn--secundario" data-citas-salida="inicio" aria-label="Volver a la página de inicio">
+                        <i class="fa-solid fa-house" aria-hidden="true"></i> Volver al Inicio
+                    </button>
+                </div>
+                <div class="citas-exito-comprobante-sec" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">
+                    <button type="button" class="btn btn--secundario" data-citas-pdf aria-label="Descargar comprobante de la cita en PDF">
+                        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
+                    </button>
+                    <button type="button" class="btn btn--secundario" data-citas-print aria-label="Imprimir comprobante de la cita">
+                        <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
+                    </button>
+                </div>
+            `;
+
+            const btnPrim = wrap.querySelector('[data-citas-salida="primario"]');
+            if (btnPrim) btnPrim.setAttribute('aria-label', ariaPrimario);
+
+            btnPrim?.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (esRegistrado) {
+                    // TR-24: persistir id antes de limpiar sesión del flujo (resumenTicketConfirmado se anula ahí).
+                    const t = this.resumenTicketConfirmado;
+                    const idCita = t && (t.id_cita || t.id);
+                    if (idCita) {
+                        try {
+                            sessionStorage.setItem('sanitas_abrir_detalle_id', String(idCita));
+                        } catch (_) { /* noop */ }
+                    }
+                    limpiarYNavegar('mi-salud.html');
+                } else {
+                    // TR-22 / destino invitado: persistir cédula/fecha/id del ticket antes de navegar al home.
+                    this._guardarAutoConsultaInvitadoYIrHome();
+                }
+            });
+            wrap.querySelector('[data-citas-salida="inicio"]')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                limpiarYNavegar('index.html');
+            });
+            wrap.querySelector('[data-citas-pdf]')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.descargarComprobantePDF();
+            });
+            wrap.querySelector('[data-citas-print]')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.imprimirComprobante();
+            });
+        },
+
+        /**
+         * Limpia session del flujo de citas. Si soloConfirmada=true, solo actúa si hay cita confirmada en blob.
+         */
+        limpiarSessionFlujoCitas(soloConfirmada = false) {
+            try {
+                if (soloConfirmada) {
+                    const raw = sessionStorage.getItem(STORAGE_CITA_EN_PROGRESO);
+                    const b = raw ? JSON.parse(raw) : null;
+                    if (!b || !b.citaConfirmada) return;
+                }
+            } catch (_) { return; }
+
+            sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+            sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
+            sessionStorage.removeItem('reservaCita_preseleccion');
+            sessionStorage.removeItem('especialidad_seleccionada');
+            sessionStorage.removeItem('cita_hora_seleccionada');
+            sessionStorage.removeItem('cita_fecha_iso');
+            sessionStorage.removeItem('_citaTemporal_respaldo');
+            sessionStorage.removeItem('citas_login_restore');
+            this.resumenTicketConfirmado = null;
+            // TR-22: no eliminar STORAGE_AUTO_CONSULTA_INVITADO aquí; el widget en index la consume al llegar desde el éxito invitado.
+            // TR-24: no eliminar sanitas_abrir_detalle_id aquí; mi-salud la consume al llegar desde el éxito registrado.
+        },
+
+        finalizarFlujoCita(opts = {}) {
+            const navegar = opts.navegar !== false;
+            this.limpiarSessionFlujoCitas(false);
+            if (navegar) window.app.navegar('home');
+        },
+
+        /** TR-15: asegura contenido DOM antes de mostrar paso 0 o 1. */
+        _prepararRetornoA(dest) {
+            if (dest === 0) {
+                this.renderizarPasoEspecialidades();
                 this.mostrarPaso(0);
                 return;
             }
-
-            // Caso general: retroceder N-1
-            const pasoDeterminista = this.pasoActual - 1;
-
-            if (pasoDeterminista >= 0) {
-                // MATA-BUGS VISUAL: Al salir del Calendario (Paso 2), limpiar imagen
-                // para evitar flash con la foto del médico equivocado la próxima vez.
-                if (this.pasoActual === 2) {
-                    const imgEl = document.getElementById('citas-doctor-img');
-                    if (imgEl) imgEl.src = '';
+            if (dest === 1) {
+                const esp = this._resolverEspecialidadDesdeContextoCita();
+                let db;
+                try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
+                const medicos = (db.cartera_especialistas || []).filter(e => e.especialidad === esp && e.doctor);
+                if (!esp || !medicos.length) {
+                    this.renderizarPasoEspecialidades();
+                    this.mostrarPaso(0);
+                    return;
                 }
-                this.mostrarPaso(pasoDeterminista);
-            } else {
-                // Fallback de seguridad: si ya estamos en el paso 0, salir de citas
+                this.renderizarPasoDoctores(esp, medicos);
+                this.mostrarPaso(1);
+                return;
+            }
+            this.mostrarPaso(dest);
+        },
+
+        irAtras() {
+            if (this.pasoActual === 5) return;
+
+            const dest = this.historialPasos.pop();
+            if (dest === undefined || dest === null) {
                 window.app.navegar('home');
+                return;
+            }
+
+            if (this.pasoActual === 2) {
+                const imgEl = document.getElementById('citas-doctor-img');
+                if (imgEl) imgEl.src = '';
+            }
+
+            this._suppressHistorialPush = true;
+            try {
+                if (dest === 0 || dest === 1) {
+                    this._prepararRetornoA(dest);
+                } else {
+                    this.mostrarPaso(dest);
+                }
+            } finally {
+                this._suppressHistorialPush = false;
             }
         },
 
@@ -771,7 +1049,7 @@ export function createCitas() {
             });
 
             // Construir mensaje enriquecido
-            const nombreMedico = cita.medico || 'Médico';
+            const nombreMedico = cita.medico || 'No especificado';
             const especialidad = cita.especialidad || 'la especialidad';
 
             modal.innerHTML = `
@@ -976,63 +1254,334 @@ export function createCitas() {
                 const cel = document.getElementById('citas-celular')?.value.trim() || '';
                 data.formData = { nombres: nom, cedula: ced, celular: cel };
             }
+            if (paso === 5 && this.resumenTicketConfirmado && typeof this.resumenTicketConfirmado === 'object') {
+                data.citaConfirmada = true;
+                data.resumenTicket = { ...this.resumenTicketConfirmado };
+            }
             sessionStorage.setItem('citas_login_restore', JSON.stringify(data));
+            this._persistirProgresoCita();
         },
 
-        _restaurarEstadoPostLogin(restoreStr) {
-            let restoreData;
-            try { restoreData = JSON.parse(restoreStr); } catch (e) { return; }
-            const { paso, formData } = restoreData;
-
-            // Limpiar cualquier error visual
-            document.querySelectorAll('#view-citas .error-msg').forEach(msg => msg.style.display = 'none');
-
-            // Actualizar resumen del médico si es necesario
-            const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
-            const especialidad = sessionStorage.getItem('especialidad_seleccionada');
-            if (preCitaStr && especialidad) {
+        async _esperarDatosEspecialistas(maxMs = 2500) {
+            const t0 = Date.now();
+            while (Date.now() - t0 < maxMs) {
                 try {
-                    const preCita = JSON.parse(preCitaStr);
-                    if (preCita.medico) {
-                        this.prepararResumenMedico(preCita.medico, especialidad, preCita.imagen_url);
+                    const raw = localStorage.getItem('sanitasFam_db');
+                    if (raw) {
+                        const db = JSON.parse(raw);
+                        if (db && Array.isArray(db.cartera_especialistas) && db.cartera_especialistas.length > 0) {
+                            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                            return;
+                        }
                     }
-                } catch (e) { }
+                } catch (_) { /* reintentar */ }
+                await new Promise(r => setTimeout(r, 25));
+            }
+        },
+
+        _persistirProgresoCita() {
+            if (this._enRecuperacion) return;
+            try {
+                let preSel = sessionStorage.getItem('reservaCita_preseleccion');
+                let esp = sessionStorage.getItem('especialidad_seleccionada');
+
+                if (!preSel && this._citaTemporal && this._citaTemporal.medico) {
+                    preSel = JSON.stringify({
+                        medico: this._citaTemporal.medico,
+                        especialidad: this._citaTemporal.especialidad || esp || '',
+                        imagen_url: ''
+                    });
+                }
+                if (!esp && this._citaTemporal && this._citaTemporal.especialidad) {
+                    esp = this._citaTemporal.especialidad;
+                }
+                if (!esp && this.resumenTicketConfirmado?.especialidad) {
+                    esp = this.resumenTicketConfirmado.especialidad;
+                }
+
+                let citaBackup = this._citaTemporal;
+                if (!citaBackup) {
+                    try {
+                        const r = sessionStorage.getItem('_citaTemporal_respaldo');
+                        if (r) citaBackup = JSON.parse(r);
+                    } catch (_) { citaBackup = null; }
+                }
+
+                const payload = {
+                    paso: this.pasoActual,
+                    modoProxy: !!this.modoProxy,
+                    horaSeleccionada: this.horaSeleccionada,
+                    fechaISOSeleccionada: this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso'),
+                    reservaCita_preseleccion: preSel,
+                    especialidad_seleccionada: esp,
+                    citaTemporal: citaBackup,
+                    historialPasos: Array.isArray(this.historialPasos) ? [...this.historialPasos] : [],
+                    ts: Date.now()
+                };
+                if (this.pasoActual === 5 && this.resumenTicketConfirmado) {
+                    payload.citaConfirmada = true;
+                    payload.resumenTicket = { ...this.resumenTicketConfirmado };
+                    payload.citaTemporal = null;
+                }
+                sessionStorage.setItem(STORAGE_CITA_EN_PROGRESO, JSON.stringify(payload));
+            } catch (_) { /* noop */ }
+        },
+
+        /**
+         * Tras login desde citas: si la cita es del titular (misma cédula en ticket o sin proxy), mostrar nombre de sesión.
+         */
+        _fusionarPacienteTicketPostLogin(fromPostLogin) {
+            if (!fromPostLogin || !this.resumenTicketConfirmado || this.modoProxy) return;
+            const user = leerUsuarioActivoDesdeStorage();
+            if (!user || !user.identificacion) return;
+            const t = this.resumenTicketConfirmado;
+            const nomCompleto = [user.nombres, user.apellidos].filter(Boolean).join(' ').trim()
+                || (user.nombres || '').trim();
+            if (!nomCompleto) return;
+            const cedulaTicket = String(t.cedulaPaciente || '').trim();
+            const cedulaUser = String(user.identificacion).trim();
+            if (cedulaTicket && cedulaTicket !== cedulaUser) return;
+            t.paciente = nomCompleto;
+        },
+
+        async _recuperarEstadoCita(blob, legacyStr, opts = {}) {
+            const fromPostLogin = !!opts.fromPostLogin;
+            this._enRecuperacion = true;
+            try {
+                const blobOk = blob && typeof blob === 'object';
+
+                let leg = null;
+                if (legacyStr) {
+                    sessionStorage.removeItem('citas_login_restore');
+                    try { leg = JSON.parse(legacyStr); } catch (_) { leg = null; }
+                }
+
+                if (!blobOk && !legacyStr) {
+                    return false;
+                }
+
+                let merged = blobOk ? { ...blob } : {};
+
+                const ticketEnBlob = merged.resumenTicket && typeof merged.resumenTicket === 'object'
+                    ? merged.resumenTicket
+                    : null;
+                const ticketEnLeg = leg?.resumenTicket && typeof leg.resumenTicket === 'object'
+                    ? leg.resumenTicket
+                    : null;
+                const ticketPreferido = ticketEnBlob || ticketEnLeg;
+
+                const prioridadPaso5 = !!(ticketPreferido && (
+                    merged.citaConfirmada
+                    || leg?.citaConfirmada
+                    || merged.paso === 5
+                    || leg?.paso === 5
+                ));
+
+                if (prioridadPaso5) {
+                    merged = {
+                        ...merged,
+                        paso: 5,
+                        citaConfirmada: true,
+                        resumenTicket: { ...ticketPreferido }
+                    };
+                } else if (leg && typeof leg.paso === 'number') {
+                    merged.paso = leg.paso;
+                }
+
+                if (leg && leg.formData) {
+                    sessionStorage.setItem('temp_datos_recuperacion', JSON.stringify(leg.formData));
+                }
+
+                if (merged.reservaCita_preseleccion) {
+                    const r = typeof merged.reservaCita_preseleccion === 'string'
+                        ? merged.reservaCita_preseleccion
+                        : JSON.stringify(merged.reservaCita_preseleccion);
+                    sessionStorage.setItem('reservaCita_preseleccion', r);
+                }
+                if (merged.especialidad_seleccionada) {
+                    sessionStorage.setItem('especialidad_seleccionada', merged.especialidad_seleccionada);
+                } else if (merged.resumenTicket?.especialidad) {
+                    sessionStorage.setItem('especialidad_seleccionada', merged.resumenTicket.especialidad);
+                }
+                if (merged.horaSeleccionada) {
+                    sessionStorage.setItem('cita_hora_seleccionada', merged.horaSeleccionada);
+                    this.horaSeleccionada = merged.horaSeleccionada;
+                }
+                const fiso = merged.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso');
+                if (fiso) {
+                    sessionStorage.setItem('cita_fecha_iso', fiso);
+                    this.fechaISOSeleccionada = fiso;
+                }
+
+                this.modoProxy = !!merged.modoProxy;
+                if (Array.isArray(merged.historialPasos)) {
+                    this.historialPasos = [...merged.historialPasos];
+                } else {
+                    this.historialPasos = [];
+                }
+
+                if (merged.citaTemporal && typeof merged.citaTemporal === 'object') {
+                    this._citaTemporal = merged.citaTemporal;
+                    sessionStorage.setItem('_citaTemporal_respaldo', JSON.stringify(merged.citaTemporal));
+                }
+
+                if (merged.resumenTicket && typeof merged.resumenTicket === 'object') {
+                    this.resumenTicketConfirmado = { ...merged.resumenTicket };
+                } else {
+                    this.resumenTicketConfirmado = null;
+                }
+
+                this._fusionarPacienteTicketPostLogin(fromPostLogin);
+
+                document.querySelectorAll('#view-citas .error-msg').forEach(msg => { msg.style.display = 'none'; });
+
+                if (!this.validadoresIniciados) {
+                    this.configurarValidadores();
+                    this.validadoresIniciados = true;
+                }
+
+                const pasoObjetivo = prioridadPaso5 ? 5 : (typeof merged.paso === 'number' ? merged.paso : 0);
+
+                await this._irAPaso(pasoObjetivo);
+                return true;
+            } catch (_) {
+                return false;
+            } finally {
+                this._enRecuperacion = false;
+                this._persistirProgresoCita();
+            }
+        },
+
+        _aplicarResumenTicketAlDom(ticket) {
+            if (!ticket || typeof ticket !== 'object') return;
+            const n = document.getElementById('resumen-doctor-name');
+            const e = document.getElementById('resumen-doctor-specialty');
+            const f = document.getElementById('resumen-fecha');
+            const p = document.getElementById('resumen-paciente');
+            if (n) n.textContent = ticket.medico || '';
+            if (e) e.textContent = ticket.especialidad || '';
+            if (f) f.textContent = ticket.fechaHora || '';
+            if (p) p.textContent = ticket.paciente || '';
+            const h2 = document.querySelector('#citas-step-5 h2');
+            if (h2 && ticket.tituloPaso5) h2.textContent = ticket.tituloPaso5;
+        },
+
+        async _irAPaso(paso) {
+            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+
+            if (paso === 0) {
+                this.renderizarPasoEspecialidades();
+                this.mostrarPaso(0);
+                return;
             }
 
-            // Restaurar paso y limpiar historial
-            this.pasoActual = paso;
-            this.historialPasos = [];
+            if (paso === 1) {
+                const esp = sessionStorage.getItem('especialidad_seleccionada');
+                let db;
+                try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
+                const medicos = (db.cartera_especialistas || []).filter(e => e.especialidad === esp && e.doctor);
+                if (!esp || !medicos.length) {
+                    this.renderizarPasoEspecialidades();
+                    this.mostrarPaso(0);
+                    return;
+                }
+                if (medicos.length === 1) {
+                    const med = medicos[0];
+                    sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
+                        medico: med.doctor.nombre_completo,
+                        especialidad: esp,
+                        imagen_url: med.imagen_url
+                    }));
+                    this.prepararResumenMedico(med.doctor.nombre_completo, esp, med.imagen_url);
+                    this.mostrarPaso(2);
+                    this.generarCalendario(true);
+                    return;
+                }
+                this.renderizarPasoDoctores(esp, medicos);
+                this.mostrarPaso(1);
+                return;
+            }
+
+            if (paso === 5) {
+                const t = this.resumenTicketConfirmado;
+                if (!t || typeof t !== 'object') {
+                    this.renderizarPasoEspecialidades();
+                    this.mostrarPaso(0);
+                    return;
+                }
+                this._aplicarResumenTicketAlDom(t);
+                this.mostrarPaso(5);
+                return;
+            }
 
             if (paso === 2) {
-                this.generarCalendario();
-                // Re‑seleccionar la hora previamente elegida
-                const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada');
+                const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
+                let preCita = null;
+                try { preCita = preCitaStr ? JSON.parse(preCitaStr) : null; } catch (_) { preCita = null; }
+                const esp = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
+                if (!preCita?.medico || !esp) {
+                    this.renderizarPasoEspecialidades();
+                    this.mostrarPaso(0);
+                    return;
+                }
+                this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url);
+                this.mostrarPaso(2);
+                this.generarCalendario(true);
+                const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada;
+                const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
                 if (horaGuardada) {
                     this.horaSeleccionada = horaGuardada;
-                    const fechaISO = sessionStorage.getItem('cita_fecha_iso');
+                    if (fechaISO) this.fechaISOSeleccionada = fechaISO;
                     this._seleccionarSlotVisual(horaGuardada, fechaISO);
                 }
-                this.mostrarPaso(2);  // ← necesario porque generamos calendario sin cambiar paso
-            } else if (paso === 3) {
-                // ── Usuario ya está logueado: saltar directamente a Resumen (Paso 4) ──
-                if (!this.horaSeleccionada) {
-                    const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada');
-                    if (horaGuardada) this.horaSeleccionada = horaGuardada;
-                    const fechaISO = sessionStorage.getItem('cita_fecha_iso');
-                    if (fechaISO) this.fechaISOSeleccionada = fechaISO;
-                }
-                this.modoProxy = false;
+                return;
+            }
 
-                if (this.horaSeleccionada) {
-                    this.prepararResumenFinal(true);  // esto llama internamente a mostrarPaso(4)
-                } else {
-                    this.generarCalendario();
-                    this.mostrarPaso(2);
+            if (paso === 3) {
+                const modifica = !!sessionStorage.getItem('cita_modificacion');
+                if (estaLogueado && !this.modoProxy && !modifica) {
+                    if (!this.horaSeleccionada) {
+                        const hg = sessionStorage.getItem('cita_hora_seleccionada');
+                        if (hg) this.horaSeleccionada = hg;
+                    }
+                    if (!this.fechaISOSeleccionada) {
+                        const fi = sessionStorage.getItem('cita_fecha_iso');
+                        if (fi) this.fechaISOSeleccionada = fi;
+                    }
+                    if (this.horaSeleccionada) {
+                        this.prepararResumenFinal(true);
+                        return;
+                    }
                 }
-                // ⚠️ No se vuelve a llamar a mostrarPaso(paso) después de esta rama
-            } else {
-                // Para pasos 0, 1 o cualquier otro, simplemente se muestra el paso correspondiente
-                this.mostrarPaso(paso);
+                this.mostrarPaso(3);
+                return;
+            }
+
+            if (paso === 4) {
+                if (this._citaTemporal) {
+                    this._mostrarResumen(this._citaTemporal);
+                    this.mostrarPaso(4);
+                    return;
+                }
+                const backup = sessionStorage.getItem('_citaTemporal_respaldo');
+                if (backup) {
+                    try {
+                        this._citaTemporal = JSON.parse(backup);
+                        this._mostrarResumen(this._citaTemporal);
+                        this.mostrarPaso(4);
+                        return;
+                    } catch (_) { /* continuar */ }
+                }
+                if ((this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada')) && estaLogueado) {
+                    if (!this.horaSeleccionada) this.horaSeleccionada = sessionStorage.getItem('cita_hora_seleccionada');
+                    if (!this.fechaISOSeleccionada) {
+                        const fi = sessionStorage.getItem('cita_fecha_iso');
+                        if (fi) this.fechaISOSeleccionada = fi;
+                    }
+                    this.prepararResumenFinal(true);
+                    return;
+                }
+                await this._irAPaso(2);
             }
         },
 
@@ -1134,7 +1683,11 @@ export function createCitas() {
                     if (preCita && preCita.medico) nombreMedico = preCita.medico;
                 } catch (e) { }
             }
-            if (!nombreMedico) nombreMedico = "Médico Especialista";
+            if (!nombreMedico && this._doctorActual?.doctor?.nombre_completo) {
+                nombreMedico = this._doctorActual.doctor.nombre_completo;
+            }
+            // TR-23: no usar nombre de médico placeholder; el ticket tomará el valor real o cadena vacía.
+            if (!nombreMedico) nombreMedico = '';
 
             const fechaHora = this.horaSeleccionada;
 
@@ -1233,6 +1786,8 @@ export function createCitas() {
             sessionStorage.removeItem('reservaCita_preseleccion');
             sessionStorage.removeItem('especialidad_seleccionada');
             // No limpiar 'cita_modificacion' aquí, se usará en la confirmación final
+
+            this._persistirProgresoCita();
         },
 
         // Muestra el resumen de la cita en el Paso 4
@@ -1250,11 +1805,11 @@ export function createCitas() {
             }
 
             summaryDiv.innerHTML = `
-                <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${cita.especialidad}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${cita.medico}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Fecha y Hora</span><span class="salud-det__val">${fechaHora}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${cita.paciente}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${cita.cedula || '—'}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Fecha y Hora</span><span class="salud-det__val">${escapeHtmlCita(fechaHora)}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || cita.nombres || 'No especificado')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
             `;
 
             // Configurar botón Volver
@@ -1419,7 +1974,8 @@ export function createCitas() {
                         hora: cita.hora,
                         medico: cita.medico,
                         especialidad: cita.especialidad,
-                        cedula_titular: cita.cedula_titular
+                        cedula_titular: cita.cedula_titular,
+                        paciente: cita.paciente || citaAntigua.paciente
                     };
                     localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
                 }
@@ -1473,7 +2029,8 @@ export function createCitas() {
                     medico: cita.medico,
                     especialidad: cita.especialidad,
                     fecha: fechaISO,
-                    hora: cita.hora
+                    hora: cita.hora,
+                    paciente: cita.paciente
                 });
                 localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
 
@@ -1503,15 +2060,28 @@ export function createCitas() {
             // Si la cita provino de un flujo de modificación, el título debe reflejar
             // la acción real: "Reagendada" en lugar del genérico "Agendada".
             // esModificacion se evaluó ANTES de que sessionStorage fuera limpiado.
+            const tituloExito = esModificacion
+                ? '¡Cita reagendada con éxito!'
+                : '¡Cita agendada con éxito!';
             const tituloPaso5 = document.querySelector('#citas-step-5 h2');
             if (tituloPaso5) {
-                tituloPaso5.textContent = esModificacion
-                    ? '¡Cita reagendada con éxito!'
-                    : '¡Cita agendada con éxito!';
+                tituloPaso5.textContent = tituloExito;
             }
 
+            this.resumenTicketConfirmado = {
+                medico: cita.medico,
+                especialidad: cita.especialidad,
+                fechaHora: (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : ''),
+                paciente: cita.paciente,
+                cedulaPaciente: (cita.cedula || '').trim(),
+                id_cita: cita.id_cita || cita.id || '',
+                codigo: cita.codigo || '',
+                fechaIsoConsulta: fechaISO,
+                tituloPaso5: tituloExito
+            };
+
             this.mostrarPaso(5);
-            sessionStorage.removeItem('_citaTemporal_respaldo');   // limpiar respaldo
+            sessionStorage.removeItem('_citaTemporal_respaldo');
         },
 
         // Reconstruir ocupadas a partir de sanitas_citas (evitar duplicados)
@@ -1583,42 +2153,42 @@ export function createCitas() {
         },
         actualizarBarraProgreso() {
             const indicator = document.getElementById('citas-progress-indicator');
-            const estaLogueado = localStorage.getItem('usuarioLogueado');
-            let hitos = [];
-            if (estaLogueado) {
-                hitos = [
-                    { id: 0, label: 'Selección', steps: [0, 1] },
-                    { id: 2, label: 'Cita', steps: [2] },
-                    { id: 4, label: 'Revisión', steps: [4] },
-                    { id: 5, label: 'Confirmación', steps: [5] }
-                ];
-            } else {
-                hitos = [
-                    { id: 0, label: 'Selección', steps: [0, 1] },
-                    { id: 2, label: 'Cita', steps: [2] },
-                    { id: 3, label: 'Datos', steps: [3] },
-                    { id: 4, label: 'Revisión', steps: [4] },
-                    { id: 5, label: 'Confirmación', steps: [5] }
-                ];
-            }
+            if (!indicator) return;
 
-            let html = '';
-            hitos.forEach((hito, index) => {
-                const isActive = hito.steps.includes(this.pasoActual);
+            const { phases, bookingCount, multiMedico, omitirDatos } = this._obtenerFasesBarraProgreso();
+            const ordActual = this.pasoActual === 5
+                ? bookingCount
+                : this._mapDomPasoABookingOrdinal(this.pasoActual, multiMedico, omitirDatos);
+            const totalSr = phases.length;
+            const pasoSr = this.pasoActual === 5 ? phases.length : Math.max(1, ordActual + 1);
+
+            let html = `<p class="sr-only" id="citas-progress-live">${this.pasoActual === 5 ? 'Cita confirmada. ' : ''}Agendamiento: paso ${pasoSr} de ${totalSr}.</p>`;
+
+            phases.forEach((hito, index) => {
+                const isConfirmacion = hito.domSteps.includes(5);
+                let isActive = false;
                 let isCompleted = false;
 
-                // Si el pasoActual es mayor que el paso más alto de este hito
-                if (this.pasoActual > Math.max(...hito.steps)) {
-                    isCompleted = true;
+                if (this.pasoActual === 5) {
+                    isCompleted = !isConfirmacion;
+                    isActive = isConfirmacion;
+                } else {
+                    if (ordActual < 0) {
+                        isActive = index === 0 && this.pasoActual === 0;
+                    } else {
+                        isActive = index === ordActual;
+                        isCompleted = index < ordActual;
+                    }
                 }
 
                 let classes = 'citas-progress-step';
                 if (isActive) classes += ' active';
                 if (isCompleted) classes += ' completed';
 
+                const displayNum = (this.pasoActual === 5 && isConfirmacion) ? (bookingCount + 1) : (index + 1);
                 let icon = '';
                 if (isCompleted) icon = '<i class="fa-solid fa-check" aria-hidden="true"></i><span class="sr-only">Completado</span>';
-                else icon = `<span aria-hidden="true">${index + 1}</span>`;
+                else icon = `<span aria-hidden="true">${displayNum}</span>`;
 
                 const ariaCurrent = isActive ? ' aria-current="step"' : '';
 
@@ -2071,6 +2641,7 @@ export function createCitas() {
                 btnConfirmar.style.pointerEvents = 'auto';
                 btnConfirmar.disabled = false;
             }
+            this._persistirProgresoCita();
         },
 
         _bloquearConfirmar() {
