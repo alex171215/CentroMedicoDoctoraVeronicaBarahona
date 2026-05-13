@@ -363,3 +363,7 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 * **Prevención de Errores (H5):** Los inputs tipo `date` deben tener los atributos `min` y `max` calculados dinámicamente vía JavaScript al cargar la página (para evitar fechas futuras como 2030).
 * **Validación de Capa 2:** Independientemente de los límites del HTML, el evento `submit` del formulario debe validar la fecha mediante JS puro para prevenir manipulaciones del DOM (DevTools).
 * **Control y Libertad (H3):** El usuario debe ser capaz de editar su fecha de nacimiento en el módulo de "Mi Perfil" en caso de cometer un error tipográfico dentro del rango válido.
+
+## 14. Integridad de Vistas y Enrutamiento (H3)
+* **Persistencia de Plantillas:** Queda prohibido eliminar o modificar los bloques de plantillas HTML (Template Strings) de las vistas principales (Login, Registro, Home, Citas) sin una orden explícita de rediseño.
+* **Verificación de Navegación:** Cualquier cambio en la lógica global de `app.js` o `main.js` debe validar que la función `app.navegar()` siga teniendo acceso a todos los contenedores de vista.
