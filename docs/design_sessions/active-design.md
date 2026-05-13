@@ -1,22 +1,17 @@
-# Sesión de Diseño Activa: Blindaje de Fechas y Edición de Perfil
+# Sesión de Diseño Activa: Restauración de Vista de Registro y Enrutamiento
 
 ## 1. Objetivo
-Implementar límites dinámicos de edad (18 a 120 años para creación de cuenta), proteger el envío del formulario mediante JS y permitir la edición de este dato en el perfil de usuario.
+Restaurar la visibilidad del formulario de registro de usuario que desapareció tras la última actualización, asegurando que la navegación sea funcional y que se mantengan los nuevos límites de fecha (18-120 años).
 
-## 2. Instrucciones Técnicas para el Agente (app.js / HTML)
+## 2. Instrucciones Técnicas para el Agente (main.js)
 
-### A. Límites Dinámicos en HTML (Registro y Edición)
-* **Localización:** Funciones de inicialización de formularios (Registro y Perfil).
-* **Lógica:** Calcula la fecha actual. 
-  - `maxDate` (Titular): Fecha exacta de hace 18 años (ej. `2008-MM-DD`).
-  - `minDate`: Fecha exacta de hace 120 años.
-* **Acción:** Aplica estos valores a los atributos `min` y `max` de los inputs de fecha de nacimiento. Dejar que el input abra por defecto en el `maxDate` para mejorar la UX.
+### A. Diagnóstico de la Vista de Registro
+* **Acción:** Localiza la función de navegación (ej. `app.navegar('registro')`) y el objeto o variable que contiene el HTML del formulario de registro.
+* **Problema Probable:** Antigravity pudo haber borrado el bloque `innerHTML` del contenedor de registro o haber dejado el contenedor oculto permanentemente.
 
-### B. Validación Anti-Hack en el Submit (JS)
-* **Localización:** Función de validación final antes de crear la cuenta o guardar el perfil (ej. `app.registro.crearCuenta`).
-* **Acción:** Convierte el valor del input a un objeto `Date` y compáralo con las fechas límite en JS. Si la fecha es mayor a hace 18 años o menor a hace 120 años, bloquea el envío y muestra un mensaje de error (ej. "Debes ser mayor de 18 años para crear una cuenta principal").
+### B. Restauración Quirúrgica
+* **Acción 1:** Si el template HTML desapareció, reconstrúyelo asegurándote de incluir todos los campos originales: Nombres, Apellidos, Tipo de Documento, Identificación, Email, Password y la **Fecha de Nacimiento**.
+* **Acción 2:** Asegúrate de que el input de fecha de nacimiento (`#reg-fecha-nac`) siga recibiendo los límites dinámicos (min: hace 120 años, max: hace 18 años) que implementamos con éxito.
 
-### C. Edición de Perfil (Control del Usuario - H3)
-* **Acción:** Añade el input de "Fecha de Nacimiento" al formulario HTML de edición de perfil (si no existe).
-* **Carga:** Asegúrate de que, al abrir el modal/vista de perfil, este campo se llene con el dato actual del `usuarioActivo`.
-* **Guardado:** Asegúrate de que al guardar el perfil, la nueva fecha se actualice en el `localStorage`.
+### C. Verificación de Eventos
+* Asegúrate de que al cargar la vista de registro, se vuelvan a vincular los Listeners de sanitización y validación en tiempo real para evitar que los campos queden "muertos".

@@ -150,16 +150,18 @@ const app = {
         const maxCitas = new Date(hoy.getFullYear(), hoy.getMonth() + 2, hoy.getDate());
         const en2Meses = maxCitas.toISOString().split('T')[0];
 
-        const minNac = new Date(hoy.getFullYear() - 90, hoy.getMonth(), hoy.getDate());
-        const hace90Anios = minNac.toISOString().split('T')[0];
+        // TR-13: Titulares de cuenta → mínimo 18 años, máximo 120 años
+        // new Date(año, mes, día) maneja años bisiestos de forma nativa.
+        const minNac = new Date(hoy.getFullYear() - 120, hoy.getMonth(), hoy.getDate());
+        const hace120Anios = minNac.toISOString().split('T')[0];
 
         const maxNac = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
         const hace18Anios = maxNac.toISOString().split('T')[0];
 
-        const max60 = new Date(hoy.getFullYear() - 60, hoy.getMonth(), hoy.getDate());
-        const hace60Anios = max60.toISOString().split('T')[0];
+        // Alias de compatibilidad para código anterior que usaba 'hace90Anios'
+        const hace90Anios = hace120Anios;
 
-        return { hoy: fechaHoy, en2Meses, hace90Anios, hace18Anios, hace60Anios };
+        return { hoy: fechaHoy, en2Meses, hace120Anios, hace90Anios, hace18Anios };
     },
 
     _aplicarLimitesFechaGlobal() {
@@ -168,10 +170,12 @@ const app = {
         // Aplicar a TODOS los inputs date del sistema
         const dateInputs = document.querySelectorAll('input[type="date"]');
         dateInputs.forEach(input => {
-            if (input.id === 'reg-fecha-nac') {
-                // Bloque B: Registro de Cuenta (hace 90 años a hace 18 años)
-                input.setAttribute('min', rangos.hace90Anios);
+            if (input.id === 'reg-fecha-nac' || input.id === 'edit-fecha-nac') {
+                // TR-13 – Titular de cuenta: 18 años mínimo, 120 años máximo
+                input.setAttribute('min', rangos.hace120Anios);
                 input.setAttribute('max', rangos.hace18Anios);
+                // UX: abrir el selector por defecto en el año que cumple exactamente 18
+                input.setAttribute('value', rangos.hace18Anios);
             } else {
                 // Bloque B: Agendamiento y Buscador (hoy a en 2 meses)
                 input.setAttribute('min', rangos.hoy);
@@ -1679,11 +1683,9 @@ const app = {
         // 10.1 Inicialización: bloqueos de input + on-blur + fecha max
         // ------------------------------------------------------------------
         inicializar() {
-            // Prevención de nacimientos futuros (IHC #5)
-            const fechaInput = document.getElementById('reg-fecha-nac');
-            if (fechaInput) fechaInput.max = new Date().toISOString().split('T')[0];
-            // ── NUEVO: Aplica restricción de 18 a 60 años ──
-            utilidades.aplicarRestriccionEdad('reg-fecha-nac');
+            // Los límites de fecha (min: 120 años, max: 18 años) son aplicados por
+            // app._aplicarLimitesFechaGlobal() que se ejecuta en app.inicializar().
+            // No es necesario establecer atributos de fecha aquí.
 
             // Deshabilitar identificación hasta que se elija tipo de documento
             const identInput = document.getElementById('reg-identificacion');
@@ -2069,14 +2071,17 @@ const app = {
                             'Es necesaria para verificar tu edad.');
                         return false;
                     }
-                    // Bloque C: Validación en el servidor simulado
+                    // Capa 2 anti-hack (TR-13): validación JS independiente del HTML.
+                    // Previene que alguien elimine el atributo min/max desde DevTools.
                     const rangos = app.obtenerRangosFecha();
                     if (val > rangos.hace18Anios) {
-                        this._mostrarError('reg-fecha', 'Debe ser mayor de 18 años para crear una cuenta.');
+                        this._mostrarError('reg-fecha',
+                            'Debes tener al menos 18 años para crear una cuenta principal.');
                         return false;
                     }
-                    if (val < rangos.hace60Anios) {   // ← cambia de 90 a 60
-                        this._mostrarError('reg-fecha', 'La edad máxima permitida es de 60 años.');
+                    if (val < rangos.hace120Anios) {
+                        this._mostrarError('reg-fecha',
+                            'La fecha de nacimiento no puede ser hace más de 120 años.');
                         return false;
                     }
                     this._marcarExito(id);
@@ -2520,12 +2525,17 @@ const app = {
             set('edit-apellido2', u.apellido2 || u.apellido_2 || '');
             set('edit-celular', u.celular || '');
             set('edit-email', u.email || '');
+            // H3 (Control y Libertad): cargar fecha de nacimiento para permitir corrección
+            set('edit-fecha-nac', u.fecha_nacimiento || '');
+
+            // Aplicar límites dinámicos al input de fecha del perfil (TR-13)
+            app._aplicarLimitesFechaGlobal();
 
             const msg = document.getElementById('edit-success-msg');
             if (msg) msg.style.display = 'none';
 
             ['edit-nombre1', 'edit-nombre2', 'edit-apellido1', 'edit-apellido2',
-                'edit-celular', 'edit-email'].forEach(id => {
+                'edit-celular', 'edit-email', 'edit-fecha-nac'].forEach(id => {
                     const el = document.getElementById(id);
                     const sp = document.getElementById(`${id}-error`);
                     if (el) el.style.borderColor = '';
@@ -2615,6 +2625,25 @@ const app = {
                 ok = false;
             } else { this._limpiarErrorEdit('edit-email'); }
 
+            // Fecha de nacimiento (TR-13 — capa 2 anti-hack, igual que en registro)
+            const fechaNac = document.getElementById('edit-fecha-nac')?.value || '';
+            if (!fechaNac) {
+                this._mostrarErrorEdit('edit-fecha-nac',
+                    'Por favor, selecciona tu fecha de nacimiento.');
+                ok = false;
+            } else {
+                const rangosEdit = app.obtenerRangosFecha();
+                if (fechaNac > rangosEdit.hace18Anios) {
+                    this._mostrarErrorEdit('edit-fecha-nac',
+                        'Debes tener al menos 18 años. Verifica la fecha ingresada.');
+                    ok = false;
+                } else if (fechaNac < rangosEdit.hace120Anios) {
+                    this._mostrarErrorEdit('edit-fecha-nac',
+                        'La fecha de nacimiento no puede ser hace más de 120 años.');
+                    ok = false;
+                } else { this._limpiarErrorEdit('edit-fecha-nac'); }
+            }
+
             return ok;
         },
 
@@ -2656,6 +2685,9 @@ const app = {
             }
             u.celular = val('edit-celular');
             u.email   = val('edit-email');
+            // H3: persistir fecha de nacimiento corregida (TR-13)
+            const nuevaFecha = val('edit-fecha-nac');
+            if (nuevaFecha) u.fecha_nacimiento = nuevaFecha;
 
             // ── PASO 2 — Procesamiento (800ms simulan latencia de red) ──
             setTimeout(() => {
