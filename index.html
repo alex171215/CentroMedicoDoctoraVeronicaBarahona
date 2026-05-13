@@ -117,12 +117,12 @@
                         style="background-image: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%), url('https://images.unsplash.com/photo-1587854692152-cbe660dbde88?q=80&w=1200&auto=format&fit=crop');"
                         role="img" aria-label="Farmacia moderna"></div>
                     <div class="hero__content">
-                        <p class="hero__subtitle">SERVICIO EXCLUSIVO</p>
+                        <p class="hero__subtitle">INFORMACIÓN AL PACIENTE</p>
                         <h1 class="hero__title">
-                            <span class="hero__title-bold">ENCUENTRA TUS MEDICAMENTOS AQUÍ</span>
+                            <span class="hero__title-bold">CONSULTA DISPONIBILIDAD EN NUESTRA FARMACIA</span>
                         </h1>
                         <a href="farmacia.html"
-                            class="btn btn--primario hero__btn">VER FARMACIA</a>
+                            class="btn btn--primario hero__btn">VER DIRECTORIO DE FARMACIA</a>
                     </div>
                 </div>
 
@@ -172,7 +172,7 @@
         <!-- ===================================================
              Widget: Consulta de Cita para Invitados
              =================================================== -->
-        <section id="widget-invitado" class="widget-invitado" aria-labelledby="widget-invitado-titulo">
+        <section id="widget-invitado" class="widget-invitado" style="display: none;" aria-labelledby="widget-invitado-titulo">
             <div class="widget-invitado__inner">
                 <div class="widget-invitado__icon" aria-hidden="true">
                     <i class="fa-regular fa-calendar-check"></i>
@@ -184,7 +184,7 @@
                         <label for="widget-cedula" class="widget-invitado__label">Cédula</label>
                         <input type="text" id="widget-cedula" class="widget-invitado__input"
                             placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" aria-required="true"
-                            aria-describedby="widget-cedula-error" autocomplete="off">
+                            aria-describedby="widget-cedula-error" autocomplete="on">
                         <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
                             style="display:none;"></span>
                     </div>

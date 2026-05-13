@@ -1,17 +1,19 @@
-# Sesión de Diseño Activa: Restauración de Vista de Registro y Enrutamiento
+# Sesión de Diseño Activa: Refactorización del Módulo de Farmacia (IHC)
 
-## 1. Objetivo
-Restaurar la visibilidad del formulario de registro de usuario que desapareció tras la última actualización, asegurando que la navegación sea funcional y que se mantengan los nuevos límites de fecha (18-120 años).
+## 1. Objetivo Crítico (Regla de Negocio e IHC)
+Eliminar por completo el modelo mental de "E-commerce" (carrito de compras, precios de venta en línea, botones de añadir al carrito) del módulo de Farmacia, ya que no corresponde al caso de uso de un Centro Médico. 
+El módulo debe transformarse en un **"Directorio de Disponibilidad de Medicamentos"** meramente informativo.
 
-## 2. Instrucciones Técnicas para el Agente (main.js)
+## 2. Refactorización de Interfaz (`farmacia.html` y `farmacia.js`)
+* **Eliminación:** Borrar cualquier rastro del carrito de compras, resúmenes de pago, insignias de cantidad en el menú y botones de "Añadir al carrito".
+* **Nueva UI (Directorio):** Las tarjetas de medicamentos solo deben mostrar: Nombre, Gramaje, Laboratorio, si requiere receta (Insignia) y el **Stock Disponible** (ej. "Disponible en centro: 15 unidades" en color verde, o "Agotado" en color rojo).
+* **Buscador/Filtros:** Mantener la barra de búsqueda y los filtros por categoría, ya que son útiles para consultar disponibilidad.
 
-### A. Diagnóstico de la Vista de Registro
-* **Acción:** Localiza la función de navegación (ej. `app.navegar('registro')`) y el objeto o variable que contiene el HTML del formulario de registro.
-* **Problema Probable:** Antigravity pudo haber borrado el bloque `innerHTML` del contenedor de registro o haber dejado el contenedor oculto permanentemente.
+## 3. Integración Transversal (`salud.js`)
+* **Cruce de Datos (Recetas):** Cuando un paciente visualiza el detalle de una "Receta Médica" en la sección de "Mi Salud", el sistema debe cruzar el nombre del medicamento recetado con el inventario de la farmacia.
+* **Retroalimentación Visual (Heurística 1):** Inyectar una etiqueta (badge) junto a cada medicamento en la receta indicando al paciente si lo puede retirar directamente en la farmacia del centro médico o si debe buscarlo por fuera.
 
-### B. Restauración Quirúrgica
-* **Acción 1:** Si el template HTML desapareció, reconstrúyelo asegurándote de incluir todos los campos originales: Nombres, Apellidos, Tipo de Documento, Identificación, Email, Password y la **Fecha de Nacimiento**.
-* **Acción 2:** Asegúrate de que el input de fecha de nacimiento (`#reg-fecha-nac`) siga recibiendo los límites dinámicos (min: hace 120 años, max: hace 18 años) que implementamos con éxito.
-
-### C. Verificación de Eventos
-* Asegúrate de que al cargar la vista de registro, se vuelvan a vincular los Listeners de sanitización y validación en tiempo real para evitar que los campos queden "muertos".
+## 4. Restricciones de Arquitectura
+* Mantener el estándar POUR de accesibilidad (Focus rings, aria-labels, Focus Traps en modales).
+* Prohibido usar alerts nativos.
+* Si se emplean variables de estado, mantener el uso de `data.js` o `localStorage` sin asincronismos complejos.

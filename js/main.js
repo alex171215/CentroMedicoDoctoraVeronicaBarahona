@@ -1,7 +1,16 @@
 import { utilidades } from './modulos/utilidades.js';
-import { estado } from './estado.js';
+import { estado, STORAGE_CITA_EN_PROGRESO, STORAGE_CITA_POST_LOGIN, STORAGE_AUTO_CONSULTA_INVITADO } from './estado.js';
 import { createCitas } from './modulos/citas.js';
 import { salud } from './modulos/salud.js';
+import { farmacia } from './modulos/farmacia.js';
+
+function escapeHtmlWidget(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
 /** Mapa vista lógica → URL física (MPA). */
 const MPA_VISTA_URL = {
@@ -43,7 +52,7 @@ const app = {
     intervaloCarrusel: null,
     tiempoCarrusel: 7000, // 7 segundos exigidos por reglas de usabilidad (IHC)
 
-    init: function () {
+    init: async function () {
         this.iniciarMenuMovil();
 
         if (document.querySelector('.hero__carousel')) {
@@ -75,7 +84,7 @@ const app = {
             app.salud.inicializar();
         }
         if (document.getElementById('view-citas')) {
-            app.citas.iniciarFlujo();
+            await app.citas.iniciarFlujo();
         }
         if (document.getElementById('edit-nombre1')) {
             app.perfil._rellenarFormularioEditarDesdeStorage();
@@ -399,10 +408,14 @@ const app = {
             }
         }
 
-        // WIDGET INVITADO: Ocultar si hay sesión, mostrar si es invitado
+        // TR-25: el widget nace oculto en index.html; solo mostrarlo si no hay sesión (evita parpadeo al estar logueado).
         const widgetInvitado = document.getElementById('widget-invitado');
         if (widgetInvitado) {
-            widgetInvitado.style.display = (usuarioLogueado === 'true') ? 'none' : 'block';
+            if (usuarioLogueado === 'true') {
+                widgetInvitado.style.display = 'none';
+            } else {
+                widgetInvitado.style.display = 'block';
+            }
         }
     },
 
@@ -469,9 +482,13 @@ const app = {
             }
         }
 
-        if (vistaId !== 'citas') {
+        // No limpiar snapshot de cita confirmada al ir a login: el usuario debe recuperar el paso 5 al volver (TR ticket inmunidad).
+        if (vistaId !== 'citas' && vistaId !== 'login') {
             sessionStorage.removeItem('temp_datos_recuperacion');
             if (app.citas) app.citas.modoProxy = false;
+            if (app.citas && typeof app.citas.limpiarSessionFlujoCitas === 'function') {
+                app.citas.limpiarSessionFlujoCitas(true);
+            }
         }
 
         const targetRel = MPA_VISTA_URL[vistaId];
@@ -846,6 +863,8 @@ const app = {
         // Vaciamos la memoria de citas anteriores (El mata-fantasmas)
         sessionStorage.removeItem('reservaCita_preseleccion');
         sessionStorage.removeItem('especialidad_seleccionada');
+        sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+        sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
         this.navegar('citas');
     },
 
@@ -854,6 +873,8 @@ const app = {
         // Limpiamos al médico anterior, pero guardamos la nueva especialidad
         sessionStorage.removeItem('reservaCita_preseleccion');
         sessionStorage.setItem('especialidad_seleccionada', especialidad);
+        sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+        sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
         this.navegar('citas');
     },
 
@@ -1016,6 +1037,8 @@ const app = {
                         medico: nombreMed,
                         especialidad: med.especialidad
                     }));
+                    sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+                    sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
                     app.navegar('citas');
                 });
 
@@ -1102,395 +1125,7 @@ const app = {
         }
     },
 
-    // ======================================================================
-    // 8. MÓDULO DE FARMACIA — Vitrina Digital
-    // ======================================================================
-    farmacia: {
-
-        _categoriaActiva: 'TODAS',
-        _productos: [],
-        _resultadosActuales: [], // Guarda la búsqueda actual
-        _paginaActual: 1,        // Control de paginación
-        _itemsPorPagina: 12,     // Mostrar de 12 en 12
-        _debounceTimer: null,
-
-        // IHC PARCHE: Diccionario para acortar los nombres largos en los botones (Chips)
-        _nombresCortosCat: {
-            "ANTIPIRETICOS – ANTIINFLAMATORIOS PEDIATRICOS": "Fiebre y Dolor (Pediatría)",
-            "ANTIPIRETICOS - ANTIINFLAMATORIOS ADULTOS": "Fiebre y Dolor (Adultos)",
-            "MUCOLITICOS - ANTIHISTAMINICOS - EXPECTORANTES PEDIATRICOS": "Respiratorio (Pediatría)",
-            "ANTIHISTAMINICOS - MUCOLITICOS - ANTIGRIPALES ADULTOS": "Respiratorio (Adultos)",
-            "ANTIBIOTICOS PEDIATRICOS": "Antibióticos (Pediatría)",
-            "ANTIBIOTICOS ADULTOS": "Antibióticos (Adultos)",
-            "ANTIPARASITARIOS PEDIATRICOS": "Antiparasitarios (Ped.)",
-            "ANTIPARASITARIOS ADULTOS": "Antiparasitarios (Adul.)",
-            "TRACTO DIGESTIVO": "Tracto Digestivo",
-            "DERMATOLOGIA": "Dermatología",
-            "OFTALMOLOGIA": "Oftalmología",
-            "GINECOLOGIA": "Ginecología",
-            "COLESTEROL y TRIGLICERIDOS": "Cardiología / Colesterol",
-            "ENDOCRINOLOGIA": "Endocrinología",
-            "VITAMINAS PEDIATRICOS": "Vitaminas (Pediatría)",
-            "VITAMINAS ADULTOS": "Vitaminas (Adultos)",
-            "OTROS": "Otros",
-            "NEBULIZACIONES": "Nebulizaciones",
-            "LECHES": "Fórmulas y Leches"
-        },
-
-        // ------------------------------------------------------------------
-        // 8.1 — Utilidades de Parseo (Regex)
-        // ------------------------------------------------------------------
-        _parsearProducto(rawString) {
-            let raw = (rawString || '').trim();
-
-            // IHC PARCHE: Limpieza manual de strings anómalos del JSON
-            if (raw.includes("ACTIVA ANTICASPA CHAMPU")) {
-                return { comercial: "ACTIVA ANTICASPA CHAMPU", generico: "Uso Tópico", presentacion: "Frasco" };
-            }
-            if (raw.includes("URIAGE DESODORANTE")) {
-                return { comercial: "URIAGE DESODORANTE", generico: "Uso Tópico", presentacion: "Roll-on/Spray" };
-            }
-            if (raw.includes("LAMODERM") && raw.includes("SPRAY ANTITRANSPIRANTE")) {
-                raw = raw.split("SPRAY ANTITRANSPIRANTE")[0].trim(); // Cortamos la basura
-            }
-
-            const matchGenerico = raw.match(/^([^(]+?)\s*\(([^)]+)\)\s*(.*?)$/);
-
-            if (matchGenerico) {
-                return {
-                    comercial: matchGenerico[1].trim(),
-                    generico: matchGenerico[2].trim(),
-                    presentacion: matchGenerico[3].trim()
-                };
-            }
-
-            // Si el nombre sigue siendo gigante (más de 35 letras), lo truncamos visualmente
-            if (raw.length > 35) {
-                return { comercial: raw.substring(0, 32) + '...', generico: '—', presentacion: '' };
-            }
-            return { comercial: raw, generico: '—', presentacion: '' };
-        },
-
-        // ------------------------------------------------------------------
-        // 8.2 — Generadores de datos de prototipo (STOCK EXACTO IHC #1)
-        // ------------------------------------------------------------------
-        _precioAleatorio() {
-            const val = 1.50 + Math.random() * (48.00 - 1.50);
-            return parseFloat(val.toFixed(2));
-        },
-
-        _stockAleatorio() {
-            return Math.floor(Math.random() * 51); // 0 – 50
-        },
-
-        _claseStock(cantidad) {
-            if (cantidad === 0) return { clase: 'stock-out', texto: 'Agotado' };
-            if (cantidad <= 5) return { clase: 'stock-low', texto: `Pocas uds (${cantidad} u)` };
-            return { clase: 'stock-high', texto: `En Stock (${cantidad} u)` };
-        },
-
-        // ------------------------------------------------------------------
-        // 8.3 — Imágenes dinámicas según tipo de presentación
-        // ------------------------------------------------------------------
-        _imagenProducto(nombre, presentacion) {
-            const haystack = (nombre + ' ' + presentacion).toUpperCase();
-            if (/JARABE|SUSPENSION|GOTERO|SOLUCION/.test(haystack))
-                return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&q=70';
-            if (/CREMA|GEL|UNGÜENTO|LOCION|POMADA/.test(haystack))
-                return 'https://images.unsplash.com/photo-1664376694240-14da625cc0c8?q=80';
-            if (/AMPOLLA|AMPOLLAS|INYECTABLE/.test(haystack))
-                return 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=300&q=70';
-            if (/GOTAS|COLIRIO|SPRAY NASAL/.test(haystack))
-                return 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300&q=70';
-            if (/TARRO|LECHE|FORMULA|SUPLEMENTO|CEREALES/.test(haystack))
-                return 'https://images.unsplash.com/photo-1579194440951-0c501e8ba3c5?q=80';
-            return 'https://images.unsplash.com/photo-1550572017-4fcdbb59cc32?w=300&q=70';
-        },
-
-        // ------------------------------------------------------------------
-        // 8.4 — Extracción de datos desde la DB
-        // ------------------------------------------------------------------
-        _cargarProductos() {
-            const dbStr = localStorage.getItem('sanitasFam_db');
-            if (!dbStr) return [];
-            const db = JSON.parse(dbStr);
-
-            let categorias = [];
-            try { categorias = db.inventario_botiquin.categorias_medicamentos[0].inventario_botiquin.categorias_medicamentos; }
-            catch (_) { return []; }
-
-            const lista = [];
-            categorias.forEach(cat => {
-                const nombreCat = (cat.categoria || 'OTROS').trim();
-                // Lista de categorías que requieren receta médica (prototipo)
-                const categoriasConReceta = [
-                    'ANTIBIOTICOS PEDIATRICOS',
-                    'ANTIBIOTICOS ADULTOS',
-                    'DERMATOLOGIA',
-                    'OFTALMOLOGIA',
-                    'GINECOLOGIA',
-                    'NEBULIZACIONES',
-                    'COLESTEROL y TRIGLICERIDOS',
-                    'ENDOCRINOLOGIA'
-                ];
-                const requiereReceta = categoriasConReceta.includes(nombreCat);
-                (cat.productos || []).forEach(rawProd => {
-                    const parsed = this._parsearProducto(rawProd);
-                    const stock = this._stockAleatorio();
-                    const precio = this._precioAleatorio();
-                    lista.push({
-                        categoria: nombreCat,
-                        comercial: parsed.comercial,
-                        generico: parsed.generico,
-                        presentacion: parsed.presentacion,
-                        precio: precio,
-                        stock: stock,
-                        imagen: this._imagenProducto(parsed.comercial, parsed.presentacion),
-                        requiereReceta: requiereReceta
-                    });
-                });
-            });
-            return lista;
-        },
-
-        // ------------------------------------------------------------------
-        // 8.5 — Renderizado de Menú Desplegable (Resolución Ley de Hick)
-        // ------------------------------------------------------------------
-        _renderizarChips(categorias) {
-            const container = document.getElementById('farmacia-chips');
-            if (!container) return;
-
-            const grupos = {
-                "PEDIATRÍA": ["ANTIPIRETICOS – ANTIINFLAMATORIOS PEDIATRICOS", "MUCOLITICOS - ANTIHISTAMINICOS - EXPECTORANTES PEDIATRICOS", "ANTIBIOTICOS PEDIATRICOS", "ANTIPARASITARIOS PEDIATRICOS", "VITAMINAS PEDIATRICOS", "LECHES"],
-                "ADULTOS": ["ANTIPIRETICOS - ANTIINFLAMATORIOS ADULTOS", "ANTIHISTAMINICOS - MUCOLITICOS - ANTIGRIPALES ADULTOS", "ANTIBIOTICOS ADULTOS", "ANTIPARASITARIOS ADULTOS", "VITAMINAS ADULTOS"],
-                "ESPECIALIDADES": ["TRACTO DIGESTIVO", "DERMATOLOGIA", "OFTALMOLOGIA", "GINECOLOGIA", "COLESTEROL y TRIGLICERIDOS", "ENDOCRINOLOGIA", "NEBULIZACIONES"],
-                "OTROS": ["OTROS"]
-            };
-
-            let html = `<a class="farmacia-sidebar__item farmacia-sidebar__item--active" data-cat="TODAS" onclick="app.farmacia._filtrarPorCategoria('TODAS')">Todas</a>`;
-            for (const [nombreGrupo, catsDelGrupo] of Object.entries(grupos)) {
-                const catsValidas = catsDelGrupo.filter(c => categorias.includes(c));
-                if (catsValidas.length === 0) continue;
-                html += `<h4 class="farmacia-sidebar__group-title">${nombreGrupo}</h4>`;
-                catsValidas.forEach(cat => {
-                    const nombreMostrar = this._nombresCortosCat[cat] || cat;
-                    html += `<a class="farmacia-sidebar__item" data-cat="${cat}" onclick="app.farmacia._filtrarPorCategoria('${cat}')">${nombreMostrar}</a>`;
-                });
-            }
-            container.innerHTML = html;
-        },
-
-        // ------------------------------------------------------------------
-        // 8.6 — Renderizado del Grid de Tarjetas (Limpias)
-        // ------------------------------------------------------------------
-        _renderizarGrid() {
-            const grid = document.getElementById('farmacia-grid');
-            const empty = document.getElementById('farmacia-empty');
-            const btnMas = document.getElementById('btn-cargar-mas');
-            if (!grid) return;
-
-            if (this._resultadosActuales.length === 0) {
-                grid.innerHTML = '';
-                if (empty) empty.style.display = 'block';
-                if (btnMas) btnMas.style.display = 'none';
-                return;
-            }
-
-            if (empty) empty.style.display = 'none';
-
-            // Paginación: Mostrar solo hasta el límite actual
-            const tope = this._paginaActual * this._itemsPorPagina;
-            const productosPagina = this._resultadosActuales.slice(0, tope);
-
-            grid.innerHTML = productosPagina.map((p, idx) => {
-                const agotado = p.stock === 0;
-                const stockSimple = agotado ? 'Agotado' : 'Disponible';
-                const stockClase = agotado ? 'stock-out' : 'stock-high'; // o podrías tener 'stock-disponible'
-                const cardClass = agotado ? 'medicine-card medicine-card--agotado' : 'medicine-card';
-
-                return `
-                    <article class="${cardClass}" title="${p.comercial}" onclick="${agotado ? '' : `app.farmacia.abrirModalMedicamento('${p.comercial}', '${p.generico}', '${p.presentacion || ''}', '${p.precio.toFixed(2)}', '${p.stock}', '${p.requiereReceta}', '${p.imagen}')`}" style="cursor:${agotado ? 'default' : 'pointer'};">
-                        <div class="medicine-card__img-wrap">
-                            <img class="medicine-card__img" src="${p.imagen}" alt="${p.comercial}" loading="lazy"
-                                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                            <span class="medicine-card__img-placeholder" style="display:none;"><i class="fa-solid fa-pills"></i></span>
-                           ${p.requiereReceta ? `<span class="medicine-card__cat-badge medicine-card__cat-badge--rx">Requiere receta</span>` : ''}
-                        </div>
-                        <div class="medicine-card__body">
-                            <p class="medicine-card__name">${p.comercial}</p>
-                            <p class="medicine-card__generic">${p.generico}</p>
-                            <div class="medicine-card__footer">
-                                <span class="medicine-card__stock ${stockClase}">${stockSimple}</span>
-                                <span class="medicine-card__price">$${p.precio.toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </article>`;
-            }).join('');
-
-            // Mostrar/Ocultar el botón "Cargar Más" si hay más productos que los mostrados
-            if (btnMas) {
-                btnMas.style.display = (tope < this._resultadosActuales.length) ? 'inline-flex' : 'none';
-            }
-        },
-
-        _cargarMas() {
-            this._paginaActual++;
-            this._renderizarGrid();
-        },
-
-        // ------------------------------------------------------------------
-        // 8.7 — Filtro por Categoría
-        // ------------------------------------------------------------------
-        _filtrarPorCategoria(cat) {
-            this._categoriaActiva = cat;
-            const query = (document.getElementById('farmacia-buscador')?.value || '').trim();
-            this._aplicarFiltros(query, cat);
-
-            // Actualizar clase activa en chips
-            document.querySelectorAll('.farmacia-sidebar__item').forEach(item => {
-                item.classList.toggle('farmacia-sidebar__item--active', item.dataset.cat === cat);
-            });
-        },
-
-        // ------------------------------------------------------------------
-        // 8.8 — Buscador Tolerante a Fallos (Normalización)
-        // ------------------------------------------------------------------
-        _aplicarFiltros(query, categoria) {
-            let resultado = [...this._productos];
-
-            if (categoria && categoria !== 'TODAS') {
-                resultado = resultado.filter(p => p.categoria === categoria);
-            }
-
-            if (query.length > 0) {
-                const normalizar = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                const terminos = normalizar(query).split(' ').filter(t => t.length > 0);
-
-                resultado = resultado.filter(p => {
-                    const textoCompleto = normalizar(`${p.comercial} ${p.generico} ${p.presentacion}`);
-                    return terminos.every(termino => textoCompleto.includes(termino));
-                });
-            }
-
-            this._resultadosActuales = resultado;
-            this._paginaActual = 1; // Resetear la página a 1 cada vez que se filtra
-            this._renderizarGrid();
-        },
-
-        // ------------------------------------------------------------------
-        // 8.9 — Buscador en tiempo real (debounce 250ms)
-        // ------------------------------------------------------------------
-        _iniciarBuscador() {
-            const input = document.getElementById('farmacia-buscador');
-            if (!input) return;
-
-            input.addEventListener('input', () => {
-                clearTimeout(this._debounceTimer);
-                this._debounceTimer = setTimeout(() => {
-                    const query = input.value.trim().toLowerCase();
-                    this._aplicarFiltros(query, this._categoriaActiva);
-                }, 250);
-            });
-        },
-
-        // ------------------------------------------------------------------
-        // 8.10 — Inicialización del módulo
-        // ------------------------------------------------------------------
-        inicializar() {
-            // Cargar productos (con precios/stocks aleatorios estables por sesión)
-            if (this._productos.length === 0) {
-                this._productos = this._cargarProductos();
-            }
-
-            // Categorías únicas
-            const categorias = [...new Set(this._productos.map(p => p.categoria))];
-
-            this._categoriaActiva = 'TODAS';
-            this._renderizarChips(categorias);
-
-            // Copiar contenido al modal de filtros móvil
-            const modalList = document.getElementById('farmacia-filtros-modal-list');
-            const sidebarList = document.getElementById('farmacia-chips');
-            if (modalList && sidebarList) {
-                modalList.innerHTML = sidebarList.innerHTML;
-                // Reasignar eventos onclick de los enlaces duplicados
-                modalList.querySelectorAll('.farmacia-sidebar__item').forEach(item => {
-                    const cat = item.getAttribute('data-cat');
-                    if (cat) {
-                        item.setAttribute('onclick', `app.farmacia._filtrarPorCategoria('${cat}')`);
-                    }
-                });
-            }
-
-            // Abrir modal al pulsar el botón de filtros
-            const btnFiltrosMobile = document.getElementById('btn-filtros-mobile');
-            if (btnFiltrosMobile) {
-                btnFiltrosMobile.addEventListener('click', () => this.abrirModalFiltros());
-            }
-
-            // Cerrar modal al hacer clic fuera del contenido
-            const modalFiltros = document.getElementById('modal-filtros-mobile');
-            if (modalFiltros) {
-                modalFiltros.addEventListener('click', (e) => {
-                    if (e.target === modalFiltros) this.cerrarModalFiltros();
-                });
-            }
-            this._aplicarFiltros('', 'TODAS');
-            this._iniciarBuscador();
-            // Cerrar modal de medicamento al hacer clic fuera
-            const modalMed = document.getElementById('modal-medicamento');
-            if (modalMed) {
-                modalMed.addEventListener('click', (e) => {
-                    if (e.target === modalMed) this.cerrarModalMedicamento();
-                });
-            }
-        },
-
-        abrirModalMedicamento(comercial, generico, presentacion, precio, stock, requiereReceta, imagen) {
-            const root = document.getElementById('modal-medicamento');
-            if (!root) return;
-            const t = document.getElementById('modal-med-title');
-            const g = document.getElementById('modal-med-generic');
-            const pr = document.getElementById('modal-med-presentacion');
-            const pc = document.getElementById('modal-med-precio');
-            const st = document.getElementById('modal-med-stock');
-            const img = document.getElementById('modal-med-img');
-            if (!t || !g || !pr || !pc || !st || !img) return;
-            t.textContent = comercial;
-            g.textContent = generico;
-            pr.textContent = presentacion || '—';
-            pc.textContent = `$${precio}`;
-            const stockMsg = stock === '0' ? 'Agotado' : `${stock} unidades`;
-            st.textContent = stockMsg;
-            img.src = imagen;
-            const recetaEl = document.getElementById('modal-med-receta');
-            if (recetaEl) {
-                recetaEl.style.display = (requiereReceta === 'true') ? 'flex' : 'none';
-            }
-            root.style.display = 'flex';
-            setTimeout(() => {
-                const closeBtn = document.querySelector('#modal-medicamento .modal-close');
-                if (closeBtn) closeBtn.focus();
-            }, 100);
-        },
-
-        cerrarModalMedicamento() {
-            const m = document.getElementById('modal-medicamento');
-            if (m) m.style.display = 'none';
-        },
-
-        // Abrir modal de filtros en móvil
-        abrirModalFiltros() {
-            const modal = document.getElementById('modal-filtros-mobile');
-            if (modal) modal.style.display = 'flex';
-        },
-
-        // Cerrar modal de filtros
-        cerrarModalFiltros() {
-            const modal = document.getElementById('modal-filtros-mobile');
-            if (modal) modal.style.display = 'none';
-        }
-    },
+    farmacia,
 
     // ======================================================================
     // 9. MÓDULO LOGIN (Validación Inteligente e IHC)
@@ -1656,8 +1291,8 @@ const app = {
                 if (!vistaOrigen || vistaOrigen === 'registro') {
                     app.navegar('home');
                 } else if (vistaOrigen === 'citas') {
-                    // Los datos de citas ya fueron guardados antes de navegar a login,
-                    // y serán restaurados por iniciarFlujo al detectar 'citas_login_restore'
+                    // TR-14 / MPA: el módulo de citas retoma paso y datos vía sanitas_cita_en_progreso
+                    sessionStorage.setItem(STORAGE_CITA_POST_LOGIN, '1');
                     app.navegar('citas');
                 } else {
                     app.navegar(vistaOrigen);   // 'especialistas', 'farmacia', 'home', etc.
@@ -2737,73 +2372,111 @@ const app = {
         _validadoresIniciados: false,
 
         inicializar() {
-            if (this._validadoresIniciados) return;
-            this._validadoresIniciados = true;
+            if (!this._validadoresIniciados) {
+                this._validadoresIniciados = true;
 
-            const inputCedula = document.getElementById('widget-cedula');
-            const inputFecha = document.getElementById('widget-fecha-cita');
-            const btnConsultar = document.getElementById('btn-consultar-cita');
+                const inputCedula = document.getElementById('widget-cedula');
+                const inputFecha = document.getElementById('widget-fecha-cita');
+                const btnConsultar = document.getElementById('btn-consultar-cita');
 
-            // Solo dígitos en cédula y limpiar error en tiempo real
-            if (inputCedula) {
-                inputCedula.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.replace(/\D/g, '');
-                    inputCedula.classList.remove('input-error');
-                    const errorSpan = document.getElementById('widget-cedula-error');
-                    if (errorSpan) errorSpan.style.display = 'none';
-                });
-
-                // Validación on blur (H5 Nielsen)
-                inputCedula.addEventListener('blur', () => {
-                    const val = inputCedula.value.trim();
-                    const errorSpan = document.getElementById('widget-cedula-error');
-                    if (val.length === 0) {
-                        inputCedula.classList.remove('input-error', 'input-success');
-                        if (errorSpan) errorSpan.style.display = 'none';
-                    } else if (val.length !== 10 || !/^\d{10}$/.test(val)) {
-                        inputCedula.classList.add('input-error');
-                        inputCedula.classList.remove('input-success');
-                        if (errorSpan) { errorSpan.textContent = 'La cédula debe tener 10 dígitos.'; errorSpan.style.display = 'block'; }
-                    } else if (app.citas && !app.citas.validarCedulaEcuatoriana(val)) {
-                        inputCedula.classList.add('input-error');
-                        inputCedula.classList.remove('input-success');
-                        if (errorSpan) { errorSpan.textContent = 'La cédula ingresada no es válida.'; errorSpan.style.display = 'block'; }
-                    } else {
+                // Solo dígitos en cédula y limpiar error en tiempo real
+                if (inputCedula) {
+                    inputCedula.addEventListener('input', (e) => {
+                        e.target.value = e.target.value.replace(/\D/g, '');
                         inputCedula.classList.remove('input-error');
-                        inputCedula.classList.add('input-success');
+                        const errorSpan = document.getElementById('widget-cedula-error');
                         if (errorSpan) errorSpan.style.display = 'none';
-                    }
-                });
-            }
+                    });
 
-            if (inputFecha) {
-                // Limpiar error en tiempo real
-                inputFecha.addEventListener('input', () => {
-                    inputFecha.classList.remove('input-error');
-                    const errorSpan = document.getElementById('widget-fecha-error');
-                    if (errorSpan) errorSpan.style.display = 'none';
-                });
+                    // Validación on blur (H5 Nielsen)
+                    inputCedula.addEventListener('blur', () => {
+                        const val = inputCedula.value.trim();
+                        const errorSpan = document.getElementById('widget-cedula-error');
+                        if (val.length === 0) {
+                            inputCedula.classList.remove('input-error', 'input-success');
+                            if (errorSpan) errorSpan.style.display = 'none';
+                        } else if (val.length !== 10 || !/^\d{10}$/.test(val)) {
+                            inputCedula.classList.add('input-error');
+                            inputCedula.classList.remove('input-success');
+                            if (errorSpan) { errorSpan.textContent = 'La cédula debe tener 10 dígitos.'; errorSpan.style.display = 'block'; }
+                        } else if (app.citas && !app.citas.validarCedulaEcuatoriana(val)) {
+                            inputCedula.classList.add('input-error');
+                            inputCedula.classList.remove('input-success');
+                            if (errorSpan) { errorSpan.textContent = 'La cédula ingresada no es válida.'; errorSpan.style.display = 'block'; }
+                        } else {
+                            inputCedula.classList.remove('input-error');
+                            inputCedula.classList.add('input-success');
+                            if (errorSpan) errorSpan.style.display = 'none';
+                        }
+                    });
+                }
 
-                inputFecha.addEventListener('blur', () => {
-                    const val = inputFecha.value.trim();
-                    const errorSpan = document.getElementById('widget-fecha-error');
-                    if (val.length === 0) {
-                        inputFecha.classList.remove('input-error', 'input-success');
-                        if (errorSpan) errorSpan.style.display = 'none';
-                    } else {
+                if (inputFecha) {
+                    // Limpiar error en tiempo real
+                    inputFecha.addEventListener('input', () => {
                         inputFecha.classList.remove('input-error');
-                        inputFecha.classList.add('input-success');
+                        const errorSpan = document.getElementById('widget-fecha-error');
                         if (errorSpan) errorSpan.style.display = 'none';
-                    }
-                });
+                    });
+
+                    inputFecha.addEventListener('blur', () => {
+                        const val = inputFecha.value.trim();
+                        const errorSpan = document.getElementById('widget-fecha-error');
+                        if (val.length === 0) {
+                            inputFecha.classList.remove('input-error', 'input-success');
+                            if (errorSpan) errorSpan.style.display = 'none';
+                        } else {
+                            inputFecha.classList.remove('input-error');
+                            inputFecha.classList.add('input-success');
+                            if (errorSpan) errorSpan.style.display = 'none';
+                        }
+                    });
+                }
+
+                // Botón Consultar
+                if (btnConsultar) {
+                    btnConsultar.addEventListener('click', () => {
+                        this.consultar();
+                    });
+                }
             }
 
-            // Botón Consultar
-            if (btnConsultar) {
-                btnConsultar.addEventListener('click', () => {
-                    this.consultar();
-                });
+            this._aplicarAutoConsultaPostAgendamiento();
+        },
+
+        /** TR-22: tras agendamiento invitado, autocompletar widget y consultar una sola vez. */
+        _aplicarAutoConsultaPostAgendamiento() {
+            const raw = sessionStorage.getItem(STORAGE_AUTO_CONSULTA_INVITADO);
+            if (!raw) return;
+            let data;
+            try {
+                data = JSON.parse(raw);
+            } catch (_) {
+                sessionStorage.removeItem(STORAGE_AUTO_CONSULTA_INVITADO);
+                return;
             }
+
+            const section = document.getElementById('widget-invitado');
+            section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            window.setTimeout(() => {
+                const inputCedula = document.getElementById('widget-cedula');
+                const inputFecha = document.getElementById('widget-fecha-cita');
+                if (!inputCedula || !inputFecha) {
+                    sessionStorage.removeItem(STORAGE_AUTO_CONSULTA_INVITADO);
+                    return;
+                }
+                const ced = String(data.cedula || '').replace(/\D/g, '');
+                const fecha = String(data.fecha || '').trim();
+                inputCedula.value = ced;
+                inputFecha.value = fecha;
+                inputCedula.classList.remove('input-error');
+                inputFecha.classList.remove('input-error');
+
+                this._pendingDetailId = data.id_cita || null;
+                this.consultar();
+                sessionStorage.removeItem(STORAGE_AUTO_CONSULTA_INVITADO);
+            }, 380);
         },
 
         consultar() {
@@ -2942,19 +2615,23 @@ const app = {
                 </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Fecha</span>
-                    <span class="modal-consulta__val">${fechaFmt || '—'}</span>
+                    <span class="modal-consulta__val">${escapeHtmlWidget(fechaFmt || '—')}</span>
                 </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-regular fa-clock" aria-hidden="true"></i> Hora</span>
-                    <span class="modal-consulta__val">${cita.hora || '—'}</span>
+                    <span class="modal-consulta__val">${escapeHtmlWidget(cita.hora || '—')}</span>
                 </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i> Especialidad</span>
-                    <span class="modal-consulta__val">${cita.especialidad || '—'}</span>
+                    <span class="modal-consulta__val">${escapeHtmlWidget(cita.especialidad || 'No especificado')}</span>
                 </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> Médico</span>
-                    <span class="modal-consulta__val">${cita.medico || '—'}</span>
+                    <span class="modal-consulta__val">${escapeHtmlWidget(cita.medico || 'No especificado')}</span>
+                </div>
+                <div class="modal-consulta__row">
+                    <span class="modal-consulta__label"><i class="fa-solid fa-user" aria-hidden="true"></i> Paciente</span>
+                    <span class="modal-consulta__val">${escapeHtmlWidget(cita.paciente || cita.nombres || 'No especificado')}</span>
                 </div>`;
 
             // Botones CRUD solo si la cita NO está cancelada y se encontró en el store
@@ -3003,9 +2680,10 @@ const app = {
         // Recicla la estructura DOM y clases CSS del módulo de Recetas (Mi Salud)
         _renderListaMaestro(citas) {
             return citas.map((c, index) => {
-                const horaLabel = c.hora || 'Sin hora';
-                const espLabel = c.especialidad || 'Consulta General';
-                const medicoLabel = c.medico || 'Médico Especialista';
+                const horaLabel = escapeHtmlWidget(c.hora || 'Sin hora');
+                const espLabel = escapeHtmlWidget(c.especialidad || 'No especificado');
+                const medicoLabel = escapeHtmlWidget(c.medico || 'No especificado');
+                const pacienteLine = `<p class="cita-card__paciente"><strong>Paciente:</strong> ${escapeHtmlWidget(c.paciente || c.nombres || 'No especificado')}</p>`;
 
                 return `
                 <div class="salud-item modal-consulta__item-lista" role="listitem" tabindex="0"
@@ -3014,6 +2692,7 @@ const app = {
                     <div class="salud-item__info">
                         <strong class="salud-item__nombre">${medicoLabel}</strong>
                         <span class="salud-item__sub">${espLabel}</span>
+                        ${pacienteLine}
                         <span class="salud-item__fecha">${horaLabel}</span>
                     </div>
                     <i class="fa-solid fa-chevron-right salud-item__arrow" aria-hidden="true"></i>
@@ -3118,6 +2797,8 @@ const app = {
             sessionStorage.setItem('especialidad_seleccionada', cita.especialidad);
 
             this.cerrarModal();
+            sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+            sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
             app.navegar('citas');
             setTimeout(() => {
                 app.citas.mostrarPaso(2);
@@ -3127,7 +2808,7 @@ const app = {
         // ── Helper: Normalizar cita de invitado (mapeo de datos H1) ──
         /**
          * Busca la cita en sanitas_citas por ID y normaliza el campo `paciente`
-         * que el store público no persiste (citas.js:1462 lo omite).
+         * (registros antiguos pueden no tenerlo; las nuevas confirmaciones sí lo guardan en citas.js).
          * Estrategia de resolución del nombre del paciente:
          *   1. Si la cita ya tiene `paciente`, se usa tal cual.
          *   2. Cross-ref con sanitas_mis_citas (store privado que SÍ guarda `paciente`).
@@ -3211,6 +2892,6 @@ app.salud = salud;
 app.utilidades = utilidades;
 
 document.addEventListener('DOMContentLoaded', () => {
-    app.init();
+    void app.init();
 });
 window.app = app;

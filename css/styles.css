@@ -2073,28 +2073,41 @@ textarea:focus-visible {
     line-height: 1.4;
 }
 
-/* Pie de tarjeta: stock + precio */
+/* Pie de tarjeta: disponibilidad (directorio, sin precio) */
 .medicine-card__footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     margin-top: auto;
     padding-top: 12px;
     border-top: 1px solid #f0f4fa;
     flex-wrap: wrap;
-    /* permite que bajen a la siguiente línea si no hay espacio */
     gap: 6px;
+}
+
+.medicine-card__lab {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.72rem;
+    color: var(--gray-text);
+    margin: 0 0 2px;
+    line-height: 1.35;
+}
+
+.medicine-card[role="button"]:focus-visible {
+    outline: 3px solid #0da99f;
+    outline-offset: 3px;
 }
 
 /* Badge de Stock */
 .medicine-card__stock {
     font-family: 'Montserrat', sans-serif;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 50px;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 8px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    max-width: 100%;
 }
 
 .stock-high {
@@ -2112,12 +2125,9 @@ textarea:focus-visible {
     color: #c0392b;
 }
 
-/* Precio */
+/* Precio retirado del directorio de farmacia (IHC) */
 .medicine-card__price {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #1a1a2e;
+    display: none;
 }
 
 /* --- Estado Vacío --- */
@@ -3294,6 +3304,47 @@ textarea:focus-visible {
     color: var(--text-main, #1a1a2e);
     margin: 8px 0 4px;
     text-transform: uppercase;
+}
+
+/* ── Medicamentos en receta + inventario farmacia ──── */
+.salud-med__nombre--con-badge {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.35;
+}
+
+.salud-receta-inv {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 5px 9px;
+    border-radius: 6px;
+    max-width: min(100%, 280px);
+    line-height: 1.25;
+    border: 1px solid transparent;
+}
+
+.salud-receta-inv--ok {
+    background: #e6f9f3;
+    color: #0a5c46;
+    border-color: #b8e8d9;
+}
+
+.salud-receta-inv--no {
+    background: #fdecea;
+    color: #922b21;
+    border-color: #f5c6c0;
+}
+
+.salud-receta-inv--na {
+    background: #eef2f8;
+    color: #4a5568;
+    border-color: #d6deea;
 }
 
 /* Tarjeta agotada */

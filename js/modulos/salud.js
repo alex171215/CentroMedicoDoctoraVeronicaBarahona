@@ -1,5 +1,14 @@
 import { utilidades } from './utilidades.js';
 import { estado } from '../estado.js';
+import { clasificarDisponibilidadReceta } from './inventarioFarmacia.js';
+
+function escapeHtml(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
 export const salud = {
         _filtroActual: 'proximas',
@@ -169,6 +178,22 @@ export const salud = {
                     }
                 } catch (e) { }
             }
+
+            // TR-24: tras listar citas, abrir detalle si el agendamiento dejó el id en sessionStorage.
+            const abrirDetalleId = sessionStorage.getItem('sanitas_abrir_detalle_id');
+            if (abrirDetalleId) {
+                sessionStorage.removeItem('sanitas_abrir_detalle_id');
+                const idNorm = String(abrirDetalleId).trim();
+                const citaAbrir = estado.citas.find(c =>
+                    String(c.id_cita ?? '') === idNorm
+                    || String(c.id ?? '') === idNorm
+                    || String(c._id ?? '') === idNorm
+                );
+                if (citaAbrir) {
+                    const idDom = citaAbrir.id ?? citaAbrir._id ?? citaAbrir.id_cita;
+                    this.verDetalleCita(idDom);
+                }
+            }
         },
 
         // ------------------------------------------------------------------
@@ -291,19 +316,6 @@ export const salud = {
                 return filtro === 'proximas' ? esProxima : !esProxima;
             });
 
-            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
-            let nombreTitular = '';
-            if (estaLogueado) {
-                try {
-                    const user = JSON.parse(localStorage.getItem('usuarioActivo'));
-                    if (user) {
-                        const nom1 = user.nombre1 || user.nombre_1 || '';
-                        const ape1 = user.apellido1 || user.apellido_1 || '';
-                        nombreTitular = (nom1 + ' ' + ape1).trim();
-                    }
-                } catch (e) { }
-            }
-
             const contenedor = document.getElementById('salud-citas-lista');
             if (!contenedor) return;
             if (!filtradas.length) {
@@ -321,26 +333,20 @@ export const salud = {
                     ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
                     : '';
 
-                // ── Añadir línea de paciente si es distinto al titular ──
-                let lineaPaciente = '';
-                if (estaLogueado && nombreTitular && c.paciente && c.paciente.trim() !== '') {
-                    // Normalizar: quitar espacios múltiples y comparar en minúsculas
-                    const nombrePaciente = c.paciente.replace(/\s+/g, ' ').trim();
-                    const nombreTitularNorm = nombreTitular.replace(/\s+/g, ' ').trim();
-                    if (nombrePaciente.toLowerCase() !== nombreTitularNorm.toLowerCase()) {
-                        lineaPaciente = `<span class="salud-item__sub" style="font-style:italic;color:#0DA99F;"><i class="fa-solid fa-user" style="margin-right:4px;"></i>Paciente: ${nombrePaciente}</span>`;
-                    }
-                }
+                const nombrePacienteTarjeta = escapeHtml(c.paciente || c.nombres || 'No especificado');
+                const nombreMedicoTarjeta = escapeHtml(c.medico || 'No especificado');
+                const espTarjeta = escapeHtml(c.especialidad || 'No especificado');
+                const fechaTarjeta = escapeHtml(`${fechaFmt}${c.hora ? ' – ' + c.hora : ''}`);
 
                 return `
                 <div class="salud-item${esCancelada ? ' salud-item--cancelada' : ''}" role="listitem" tabindex="0"
                     onclick="app.salud.verDetalleCita('${idCita}')"
                     onkeydown="if(event.key==='Enter')app.salud.verDetalleCita('${idCita}')">
                     <div class="salud-item__info">
-                        <strong class="salud-item__nombre">${c.medico || 'Médico Especialista'}</strong>
-                        <span class="salud-item__sub">${c.especialidad || 'Consulta General'}</span>
-                        ${lineaPaciente}
-                        <span class="salud-item__fecha">${fechaFmt}${c.hora ? ' – ' + c.hora : ''} ${badgeHtml}</span>
+                        <strong class="salud-item__nombre">${nombreMedicoTarjeta}</strong>
+                        <span class="salud-item__sub">${espTarjeta}</span>
+                        <p class="cita-card__paciente"><strong>Paciente:</strong> ${nombrePacienteTarjeta}</p>
+                        <span class="salud-item__fecha">${fechaTarjeta} ${badgeHtml}</span>
                     </div>
                     <i class="fa-solid fa-chevron-right salud-item__arrow" aria-hidden="true"></i>
                 </div>`;
@@ -397,40 +403,44 @@ export const salud = {
                 </div>
                 <div class="salud-det__row">
                     <span class="salud-det__label">Fecha</span>
-                    <span class="salud-det__val">${fechaFmt}</span>
+                    <span class="salud-det__val">${escapeHtml(fechaFmt)}</span>
                 </div>
                 ${cita.hora ? `
                 <div class="salud-det__row">
                     <span class="salud-det__label">Hora</span>
-                    <span class="salud-det__val">${cita.hora}</span>
+                    <span class="salud-det__val">${escapeHtml(cita.hora)}</span>
                 </div>` : ''}
                 <div class="salud-det__row">
                     <span class="salud-det__label">Médico tratante</span>
-                    <span class="salud-det__val salud-det__val--bold">${cita.medico || 'Médico Especialista'}</span>
+                    <span class="salud-det__val salud-det__val--bold">${escapeHtml(cita.medico || 'No especificado')}</span>
                 </div>
                 <div class="salud-det__row">
                     <span class="salud-det__label">Especialidad</span>
-                    <span class="salud-det__val">${cita.especialidad || 'Consulta General'}</span>
+                    <span class="salud-det__val">${escapeHtml(cita.especialidad || 'No especificado')}</span>
+                </div>
+                <div class="salud-det__row">
+                    <span class="salud-det__label">Paciente</span>
+                    <span class="salud-det__val">${escapeHtml(cita.paciente || cita.nombres || 'No especificado')}</span>
                 </div>
                 ${cita.tipo ? `
                 <div class="salud-det__row">
                     <span class="salud-det__label">Tipo</span>
-                    <span class="salud-det__val">${cita.tipo}</span>
+                    <span class="salud-det__val">${escapeHtml(cita.tipo)}</span>
                 </div>` : ''}
                 ${cita.motivo ? `
                 <div class="salud-det__row">
                     <span class="salud-det__label">Motivo</span>
-                    <span class="salud-det__val">${cita.motivo}</span>
+                    <span class="salud-det__val">${escapeHtml(cita.motivo)}</span>
                 </div>` : ''}
                 ${cita.centro ? `
                 <div class="salud-det__row">
                     <span class="salud-det__label">Centro Médico</span>
-                    <span class="salud-det__val">${cita.centro}</span>
+                    <span class="salud-det__val">${escapeHtml(cita.centro)}</span>
                 </div>` : ''}
                 ${cita.direccion ? `
                 <div class="salud-det__row">
                     <span class="salud-det__label">Dirección</span>
-                    <span class="salud-det__val">${cita.direccion}</span>
+                    <span class="salud-det__val">${escapeHtml(cita.direccion)}</span>
                 </div>` : ''}
                 ${accionesHtml}`;
 
@@ -509,13 +519,23 @@ export const salud = {
             if (!bodyEl) return;
             const fechaFmt = r.fecha.split('-').reverse().join('/');
             const diags = r.diagnostico.map(d => `<li>– ${d}</li>`).join('');
-            const meds = r.medicamentos.map(m => `
+            const meds = r.medicamentos.map(m => {
+                const inv = clasificarDisponibilidadReceta(m);
+                const badgeClass = inv.tipo === 'disponible'
+                    ? 'salud-receta-inv salud-receta-inv--ok'
+                    : inv.tipo === 'no_aplica'
+                        ? 'salud-receta-inv salud-receta-inv--na'
+                        : 'salud-receta-inv salud-receta-inv--no';
+                const icono = inv.tipo === 'disponible' ? '✅' : inv.tipo === 'no_aplica' ? 'ℹ️' : '❌';
+                const badgeHtml = `<span class="${badgeClass}" aria-label="${escapeHtml(inv.ariaLabel)}"><span aria-hidden="true">${icono}</span> ${escapeHtml(inv.etiquetaVisible)}</span>`;
+                return `
                 <div class="salud-med">
-                    <p class="salud-med__nombre">${m.nombre}</p>
-                    <div class="salud-det__row"><span class="salud-det__label">Dosis</span><span class="salud-det__val">${m.dosis}</span></div>
+                    <p class="salud-med__nombre salud-med__nombre--con-badge">${escapeHtml(m.nombre)} ${badgeHtml}</p>
+                    <div class="salud-det__row"><span class="salud-det__label">Dosis</span><span class="salud-det__val">${escapeHtml(m.dosis)}</span></div>
                     <div class="salud-det__row"><span class="salud-det__label">Cantidad</span><span class="salud-det__val">${m.cantidad}</span></div>
-                    <div class="salud-det__row"><span class="salud-det__label">Vía de administración</span><span class="salud-det__val salud-det__val--bold">${m.via}</span></div>
-                </div>`).join('');
+                    <div class="salud-det__row"><span class="salud-det__label">Vía de administración</span><span class="salud-det__val salud-det__val--bold">${escapeHtml(m.via)}</span></div>
+                </div>`;
+            }).join('');
 
             bodyEl.innerHTML = `
                 <div class="salud-det__row">

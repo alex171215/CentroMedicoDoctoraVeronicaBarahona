@@ -1,6 +1,15 @@
 /**
  * Utilidades transversales: validación cédula/celular, PDF, impresión, plantillas.
+ *
+ * TR-22: cualquier limpieza amplia de sessionStorage debe excluir la clave
+ * `STORAGE_AUTO_CONSULTA_INVITADO` (exportada desde estado.js) hasta que el widget
+ * de index la consuma; el flujo de citas ya no la borra en `limpiarSessionFlujoCitas`.
  */
+import { STORAGE_AUTO_CONSULTA_INVITADO } from '../estado.js';
+
+export function clavesSesionProtegidasPostAgendamientoInvitado() {
+    return [STORAGE_AUTO_CONSULTA_INVITADO];
+}
 export const utilidades = {
     /**
      * Validación contextual de celular (H9). Retorna mensaje de error o null si es válido.
