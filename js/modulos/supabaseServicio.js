@@ -171,6 +171,24 @@ export async function insertPacienteSupabase(row) {
     return data;
 }
 
+/** TR-30: comprobación previa antes del paso 2 (evitar OTP si la cédula ya existe). */
+export async function existePacienteConCedula(cedula) {
+    const c = String(cedula || '').trim();
+    if (!c) return false;
+    const { data, error } = await supabase.from('pacientes').select('cedula').eq('cedula', c).maybeSingle();
+    if (error) throw error;
+    return !!data;
+}
+
+/** TR-30: comprobación antes del paso 3 (correo ya registrado). */
+export async function existePacienteConCorreo(correo) {
+    const e = String(correo || '').trim();
+    if (!e) return false;
+    const { data, error } = await supabase.from('pacientes').select('correo').eq('correo', e).maybeSingle();
+    if (error) throw error;
+    return !!data;
+}
+
 export async function updatePacientePorCedula(cedula, patch) {
     if (!cedula) return;
     const { error } = await supabase.from('pacientes').update(patch).eq('cedula', cedula);

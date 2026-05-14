@@ -12,7 +12,9 @@ import {
     insertPacienteSupabase,
     pacienteDesdeRegistroLocal,
     updatePacientePorCedula,
-    updateCitaSupabasePorIdCita
+    updateCitaSupabasePorIdCita,
+    existePacienteConCedula,
+    existePacienteConCorreo
 } from './modulos/supabaseServicio.js';
 
 // function enviarCorreoOTP(correo, codigo) {}
@@ -1359,6 +1361,7 @@ const app = {
         // 10.1 Inicialización: bloqueos de input + on-blur + fecha max
         // ------------------------------------------------------------------
         inicializar() {
+            this._cerrarModalCuentaExistenteRegistro();
             // Los límites de fecha (min: 120 años, max: 18 años) son aplicados por
             // app._aplicarLimitesFechaGlobal() que se ejecuta en app.inicializar().
             // No es necesario establecer atributos de fecha aquí.
@@ -1632,13 +1635,104 @@ const app = {
                     requestAnimationFrame(() => this._emitirOTPAlEntrarPaso3());
                 });
             }
-            // Regla 12 – Gestión de Foco y Scroll (TR-12):
-            // Al transicionar entre pasos el usuario debe ver el inicio del nuevo contenido.
+            // TR-29 / TR-12: scroll al inicio al cambiar de paso en el registro.
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
-        siguientePaso(pasoActual) {
+        /** TR-30: cierra el modal de cuenta duplicada si está abierto. */
+        _cerrarModalCuentaExistenteRegistro() {
+            const el = document.getElementById('reg-modal-cuenta-existente');
+            if (el) el.remove();
+        },
+
+        /**
+         * TR-30: modal de recuperación (Heurística #9) — evita callejón sin salida.
+         * @param {{ titulo: string, mensaje: string }} opts
+         */
+        _mostrarModalCuentaExistenteRegistro(opts) {
+            this._cerrarModalCuentaExistenteRegistro();
+            const titulo = escapeHtmlWidget(opts.titulo || 'Cuenta existente');
+            const mensaje = escapeHtmlWidget(opts.mensaje || 'Ya existe una cuenta con estos datos.');
+            const modal = document.createElement('div');
+            modal.id = 'reg-modal-cuenta-existente';
+            modal.className = 'modal-overlay';
+            modal.setAttribute('role', 'alertdialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'reg-modal-cuenta-existente-title');
+            modal.style.display = 'flex';
+            modal.innerHTML =
+                '<div class="modal-content modal-colision-content" style="max-width:440px;">' +
+                `<h2 id="reg-modal-cuenta-existente-title" class="modal-colision-title">${titulo}</h2>` +
+                `<p class="modal-colision-text" style="margin-bottom:20px;">${mensaje}</p>` +
+                '<div class="modal-colision-actions" style="flex-direction:column;gap:12px;align-items:stretch;">' +
+                '<button type="button" class="btn btn--primario" onclick="app.navegar(\'login\')">Ir a Iniciar Sesión</button>' +
+                '<button type="button" class="btn btn--secundario" data-reg-cerrar-modal style="border:none;background:transparent;text-decoration:underline;">Cerrar</button>' +
+                '</div></div>';
+            const cerrar = modal.querySelector('[data-reg-cerrar-modal]');
+            if (cerrar) cerrar.onclick = () => this._cerrarModalCuentaExistenteRegistro();
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this._cerrarModalCuentaExistenteRegistro();
+            });
+            document.body.appendChild(modal);
+        },
+
+        /** Detecta violación de unicidad / duplicado en insert pacientes (Postgres / PostgREST). */
+        _esErrorDuplicadoPaciente(err) {
+            const code = err?.code ?? err?.cause?.code;
+            if (code === '23505') return true;
+            const msg = String(err?.message || err?.details || err?.hint || '').toLowerCase();
+            return msg.includes('duplicate') || msg.includes('unique') || msg.includes('already exists');
+        },
+
+        async siguientePaso(pasoActual) {
             if (!this._validarPaso(pasoActual)) return;
+
+            if (pasoActual === 1) {
+                const ident = (document.getElementById('reg-identificacion')?.value || '').trim();
+                if (ident) {
+                    try {
+                        const existe = await conCargaGlobal(
+                            () => existePacienteConCedula(ident),
+                            'Verificando datos…'
+                        );
+                        if (existe) {
+                            this._mostrarModalCuentaExistenteRegistro({
+                                titulo: 'Cédula ya registrada',
+                                mensaje: 'Ya existe una cuenta con esta cédula.'
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('[Supabase] Comprobación cédula registro:', e);
+                        alert('No se pudo verificar la cédula. Comprueba tu conexión e inténtalo de nuevo.');
+                        return;
+                    }
+                }
+            }
+
+            if (pasoActual === 2) {
+                const correoVal = (document.getElementById('reg-email')?.value || '').trim();
+                if (correoVal) {
+                    try {
+                        const existe = await conCargaGlobal(
+                            () => existePacienteConCorreo(correoVal),
+                            'Verificando datos…'
+                        );
+                        if (existe) {
+                            this._mostrarModalCuentaExistenteRegistro({
+                                titulo: 'Correo ya registrado',
+                                mensaje: 'Ya existe una cuenta con este correo electrónico.'
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('[Supabase] Comprobación correo registro:', e);
+                        alert('No se pudo verificar el correo. Comprueba tu conexión e inténtalo de nuevo.');
+                        return;
+                    }
+                }
+            }
+
             this._irAPaso(pasoActual + 1);
         },
 
@@ -1961,8 +2055,16 @@ const app = {
                 );
             } catch (err) {
                 console.error('[Supabase] Registro:', err);
+                if (this._esErrorDuplicadoPaciente(err)) {
+                    this._limpiarError('reg-codigo');
+                    this._mostrarModalCuentaExistenteRegistro({
+                        titulo: 'No se pudo crear la cuenta',
+                        mensaje: 'Los datos coinciden con una cuenta que ya existe. Puedes iniciar sesión con tu cédula o correo y tu contraseña.'
+                    });
+                    return;
+                }
                 this._mostrarError('reg-codigo',
-                    'No se pudo guardar el registro en el servidor. Si la cédula ya existe, inicia sesión.');
+                    'No se pudo guardar el registro en el servidor. Revisa los datos o intenta más tarde.');
                 return;
             }
 
@@ -2003,6 +2105,11 @@ const app = {
                         </button>
                     </div>
                 `;
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                });
             } else {
                 app.navegar('home');
             }
@@ -2075,6 +2182,7 @@ const app = {
         // 10.11 Cancelar Registro — limpia formulario y redirige al login
         // ------------------------------------------------------------------
         cancelarRegistro() {
+            this._cerrarModalCuentaExistenteRegistro();
             // 1. Vaciar todos los inputs de texto del formulario
             const camposTexto = [
                 'reg-tipo-doc-select', 'reg-identificacion',

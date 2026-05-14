@@ -516,8 +516,6 @@ export function createCitas() {
                 });
             }
 
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-
             // ─── Paso 4: inyectar aviso si es modificación ───
             // ─── Paso 5: inyectar aviso si es modificación ───
             // ─── Paso 5: inyectar aviso si es modificación ───
@@ -539,6 +537,9 @@ export function createCitas() {
                     }
                 }
             }
+
+            // TR-29: scroll al inicio tras estabilizar el DOM del paso (incl. éxito cita / revisión).
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
             if (!this._enRecuperacion) {
                 this._persistirProgresoCita();
@@ -2231,6 +2232,13 @@ export function createCitas() {
 
             this.mostrarPaso(5);
             sessionStorage.removeItem('_citaTemporal_respaldo');
+
+            // TR-29: refuerzo tras confirmación (contenido del paso 5 ya visible).
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            });
         },
 
         // Reconstruir ocupadas a partir de sanitas_citas (evitar duplicados)

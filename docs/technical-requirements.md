@@ -445,3 +445,10 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-28: Experiencia de Carga No Invasiva (Heurística #7)
 1. **Adiós a Modales Intermedios:** Se eliminan los modales de texto como "Guardando cita...". En su lugar, se usará el `conCargaGlobal()` (overlay semitransparente) solo durante la petición de red.
 2. **Transición Atómica:** Al recibir éxito de la base de datos, el sistema debe ocultar la carga y mostrar el Paso 5 (Éxito) en un solo movimiento, sin clics intermedios del usuario.
+
+## TR-29: Gestión de Foco y Scroll en Transiciones (UX)
+1. **Reset Visual:** Cada vez que el usuario avanza a un nuevo paso en un formulario largo (como Registro o Agendamiento) o llega a una pantalla de éxito, el sistema DEBE forzar un `window.scrollTo({ top: 0, behavior: 'smooth' })` para asegurar que el usuario vea el inicio del nuevo contenido.
+
+## TR-30: Prevención y Recuperación de Cuentas Duplicadas (Heurísticas #5 y #9)
+1. **Prevención Temprana (Paso 1):** Al intentar avanzar del Paso 1 al Paso 2 en el Registro, el sistema debe consultar a Supabase si la `cedula` o el `correo` ya existen.
+2. **Recuperación Clara (Modal):** Si los datos ya existen (ya sea detectado en el Paso 1 o por un fallo en el Paso 3), se debe mostrar un Modal o un Estado de Error amigable que explique claramente el problema y ofrezca un botón primario de "Ir a Iniciar Sesión" que redirija al usuario a `login.html`. Quedan prohibidos los mensajes de error genéricos y los "callejones sin salida".
