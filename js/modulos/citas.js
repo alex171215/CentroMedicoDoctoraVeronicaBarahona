@@ -5,8 +5,7 @@ import {
     fetchTodasLasCitasAgenda,
     insertCitaSupabase,
     updateCitaSupabasePorIdCita,
-    upsertPacienteInvitadoSiNoExiste,
-    ocultarCargaGlobalForzado
+    upsertPacienteParaAgenda
 } from './supabaseServicio.js';
 
 function escapeHtmlCita(s) {
@@ -28,6 +27,8 @@ export function createCitas() {
         historialPasos: [],
         validadoresIniciados: false,
         _enRecuperacion: false,
+        /** Lista del paso 1 (índice → médico) para enlazar `id_especialista` sin onclick frágil. */
+        _medicosPaso1List: null,
         /** TR-18: evita push en historialPasos al navegar hacia atrás (no es avance). */
         _suppressHistorialPush: false,
         /** Ticket de confirmación (paso 5) persistido en sessionStorage hasta salir con las acciones de cierre (TR-20) */
@@ -133,7 +134,15 @@ export function createCitas() {
 
             if (preCita && preCita.medico) {
                 const esp = preEspecialidad || preCita.especialidad;
-                const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
+                let db;
+                try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
+
+                let idEspPre = preCita.id_especialista;
+                if ((idEspPre == null || idEspPre === '') && db && esp && Array.isArray(db.cartera_especialistas)) {
+                    const medicosAll = db.cartera_especialistas.filter(e => e.especialidad === esp && e.doctor);
+                    const match = medicosAll.find(m => m.doctor && m.doctor.nombre_completo === preCita.medico);
+                    if (match) idEspPre = match.id_especialista ?? match.id;
+                }
 
                 if (db && esp) {
                     const medicos = db.cartera_especialistas.filter(e => e.especialidad === esp && e.doctor);
@@ -147,7 +156,10 @@ export function createCitas() {
                     }
                 }
 
-                this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url);
+                const preSel = { ...preCita, id_especialista: idEspPre ?? preCita.id_especialista };
+                sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify(preSel));
+
+                this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, idEspPre);
                 this.mostrarPaso(2);
                 this.generarCalendario(true);
             } else if (preEspecialidad) {
@@ -170,9 +182,10 @@ export function createCitas() {
                 sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                     medico: med.doctor.nombre_completo,
                     especialidad: especialidad,
-                    imagen_url: med.imagen_url
+                    imagen_url: med.imagen_url,
+                    id_especialista: med.id_especialista
                 }));
-                this.prepararResumenMedico(med.doctor.nombre_completo, especialidad, med.imagen_url);
+                this.prepararResumenMedico(med.doctor.nombre_completo, especialidad, med.imagen_url, med.id_especialista);
                 this.mostrarPaso(2);
                 this.generarCalendario(true);
             } else if (medicos.length > 1) {
@@ -232,7 +245,7 @@ export function createCitas() {
             return imagenSrc;
         },
 
-        prepararResumenMedico(medicoNombre, especialidad, imgUrl) {
+        prepararResumenMedico(medicoNombre, especialidad, imgUrl, idEspecialista) {
             document.getElementById('citas-doctor-name').textContent = medicoNombre;
             document.getElementById('citas-doctor-specialty').textContent = especialidad || '';
             const imagenCorrecta = this.obtenerImagenMedico(medicoNombre, especialidad, imgUrl);
@@ -242,15 +255,25 @@ export function createCitas() {
                 imgDoctor.src = imagenCorrecta;
             }
 
-            // Nuevo: guardar el objeto médico completo
-            const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
-            if (db && db.cartera_especialistas) {
-                this._doctorActual = db.cartera_especialistas.find(
-                    e => e.especialidad === especialidad && e.doctor && e.doctor.nombre_completo === medicoNombre
-                ) || null;
-            } else {
-                this._doctorActual = null;
+            const db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+            let doc = null;
+            if (db && Array.isArray(db.cartera_especialistas)) {
+                if (idEspecialista != null && idEspecialista !== '') {
+                    doc = db.cartera_especialistas.find(
+                        e =>
+                            e.id_especialista === idEspecialista ||
+                            String(e.id_especialista) === String(idEspecialista) ||
+                            e.id === idEspecialista ||
+                            String(e.id) === String(idEspecialista)
+                    ) || null;
+                }
+                if (!doc) {
+                    doc = db.cartera_especialistas.find(
+                        e => e.especialidad === especialidad && e.doctor && e.doctor.nombre_completo === medicoNombre
+                    ) || null;
+                }
             }
+            this._doctorActual = doc;
         },
 
         // Inyectar especialidades dinámicas (Paso 0)
@@ -291,11 +314,11 @@ export function createCitas() {
 
         renderizarPasoDoctores(especialidad, medicos) {
             const step1Content = document.getElementById('citas-step-1-content');
+            this._medicosPaso1List = medicos;
             let html = `<h2 style="text-align:center; color:#3B49A3; margin-bottom: 30px;">Especialistas en ${especialidad}</h2>`;
             html += `<div class="specialists-directory-grid">`;
 
-            medicos.forEach(med => {
-                // AQUÍ: Usamos la función para obtener la imagen
+            medicos.forEach((med, idx) => {
                 const img = this.obtenerImagenMedico(med.doctor.nombre_completo, med.especialidad, med.imagen_url);
 
                 html += `
@@ -307,7 +330,7 @@ export function createCitas() {
                             <h3 class="doctor-card-dir__name">${med.doctor.nombre_completo}</h3>
                             <p class="doctor-card-dir__specialty">${med.especialidad}</p>
                             <div class="doctor-card-dir__actions" style="margin-top: 15px;">
-                                <button onclick="app.citas.seleccionarDoctorParaCita('${med.doctor.nombre_completo}', '${med.especialidad}', '${img}')" class="btn btn--primario directory-card__btn">
+                                <button type="button" class="btn btn--primario directory-card__btn js-cita-elegir-medico" data-med-index="${idx}">
                                     Seleccionar Médico
                                 </button>
                             </div>
@@ -317,18 +340,27 @@ export function createCitas() {
             });
             html += `</div>`;
             step1Content.innerHTML = html;
+            step1Content.querySelectorAll('.js-cita-elegir-medico').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.getAttribute('data-med-index'), 10);
+                    const med = this._medicosPaso1List && this._medicosPaso1List[idx];
+                    if (med) this.seleccionarDoctorParaCita(med);
+                });
+            });
         },
 
-        seleccionarDoctorParaCita(nombre, especialidad, img) {
-            // Guardamos en memoria el médico, especialidad y la imagen que viene de la tarjeta
+        seleccionarDoctorParaCita(med) {
+            const nombre = med.doctor.nombre_completo;
+            const especialidad = med.especialidad;
+            const img = this.obtenerImagenMedico(nombre, especialidad, med.imagen_url);
             sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                 medico: nombre,
                 especialidad: especialidad,
-                imagen_url: img
+                imagen_url: img,
+                id_especialista: med.id_especialista
             }));
 
-            // Llamamos a la función que ya existe para actualizar la interfaz
-            this.prepararResumenMedico(nombre, especialidad, img);
+            this.prepararResumenMedico(nombre, especialidad, img, med.id_especialista);
             this.mostrarPaso(2);
             this.generarCalendario(true);
         },
@@ -1495,9 +1527,10 @@ export function createCitas() {
                     sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                         medico: med.doctor.nombre_completo,
                         especialidad: esp,
-                        imagen_url: med.imagen_url
+                        imagen_url: med.imagen_url,
+                        id_especialista: med.id_especialista
                     }));
-                    this.prepararResumenMedico(med.doctor.nombre_completo, esp, med.imagen_url);
+                    this.prepararResumenMedico(med.doctor.nombre_completo, esp, med.imagen_url, med.id_especialista);
                     this.mostrarPaso(2);
                     this.generarCalendario(true);
                     return;
@@ -1529,7 +1562,7 @@ export function createCitas() {
                     this.mostrarPaso(0);
                     return;
                 }
-                this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url);
+                this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, preCita.id_especialista);
                 this.mostrarPaso(2);
                 this.generarCalendario(true);
                 const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada;
@@ -1669,6 +1702,77 @@ export function createCitas() {
             return 'CIT-' + codigo;
         },
 
+        /** Parte "nombres" / "apellidos" desde un solo campo (invitado / proxy). */
+        _splitNombreCompletoParaPaciente(texto) {
+            const t = String(texto || '').trim().replace(/\s+/g, ' ');
+            if (!t) return { nombres: 'Invitado', apellidos: 'Invitado' };
+            const i = t.lastIndexOf(' ');
+            if (i <= 0) return { nombres: t, apellidos: 'Invitado' };
+            return { nombres: t.slice(0, i).trim() || 'Invitado', apellidos: t.slice(i + 1).trim() || 'Invitado' };
+        },
+
+        /**
+         * Fila `pacientes` para upsert antes del INSERT en `citas` (FK cedula_paciente).
+         * @returns {Record<string, unknown>|null}
+         */
+        _filaPacienteUpsertParaConfirmar(cita, estaLogueado, modoProxy) {
+            const defFecha = '2000-01-01';
+            const pwdInv = (ced) => `invitado_${ced}`;
+
+            if (estaLogueado && !modoProxy) {
+                let user = null;
+                try {
+                    user = JSON.parse(localStorage.getItem('usuarioActivo') || 'null');
+                } catch (_) {
+                    user = null;
+                }
+                if (!user) return null;
+                const ced = String(user.identificacion || user.cedula || '').trim();
+                if (!ced) return null;
+                const nomRaw = (user.nombres || '').trim();
+                const apeRaw = (user.apellidos || '').trim();
+                const n1 = (user.nombre1 || user.nombre_1 || '').trim();
+                const n2 = (user.nombre2 || user.nombre_2 || '').trim();
+                const a1 = (user.apellido1 || user.apellido_1 || '').trim();
+                const a2 = (user.apellido2 || user.apellido_2 || '').trim();
+                const nombres = nomRaw || [n1, n2].filter(Boolean).join(' ').trim() || 'Usuario';
+                const apellidos = apeRaw || [a1, a2].filter(Boolean).join(' ').trim() || 'Paciente';
+                const correo = String(user.correo || user.email || '').trim() || `usuario_${ced}@sin-correo.local`;
+                return {
+                    cedula: ced,
+                    nombres,
+                    apellidos,
+                    correo,
+                    password: String(user.password || pwdInv(ced)).trim() || pwdInv(ced),
+                    celular: String(user.celular || '0900000000').trim(),
+                    fecha_nacimiento: String(user.fecha_nacimiento || user.fechaNac || defFecha).slice(0, 10),
+                    es_invitado: !!user.es_invitado
+                };
+            }
+
+            let ced = String(cita.cedula || cita.cedula_paciente || '').trim();
+            const inputCed = document.getElementById('citas-cedula');
+            if (inputCed && inputCed.value.trim()) ced = inputCed.value.trim();
+            if (!ced) return null;
+
+            const celInput = document.getElementById('citas-celular');
+            const cel = (celInput?.value || '').trim() || '0900000000';
+
+            const fullNom = (document.getElementById('citas-nombres')?.value || '').trim() || String(cita.paciente || '').trim();
+            const { nombres, apellidos } = this._splitNombreCompletoParaPaciente(fullNom);
+
+            return {
+                cedula: ced,
+                nombres: nombres || 'Invitado',
+                apellidos: apellidos || 'Invitado',
+                correo: `invitado_${ced}@guest.centromedico.local`,
+                password: pwdInv(ced),
+                celular: cel,
+                fecha_nacimiento: defFecha,
+                es_invitado: true
+            };
+        },
+
         // Variable temporal para guardar el código de la cita actual (para el PDF)
         _ultimoCodigoCita: '',
 
@@ -1762,6 +1866,9 @@ export function createCitas() {
             this._ultimoCodigoCita = codigoCita;
             const idCitaUnico = 'C' + Date.now().toString();
 
+            const docSel = this._doctorActual;
+            const idEspCita = docSel?.id_especialista ?? docSel?.id ?? null;
+
             const nuevaCita = {
                 id: idCitaUnico,
                 id_cita: idCitaUnico,
@@ -1776,6 +1883,7 @@ export function createCitas() {
                 paciente: paciente,
                 cedula: cedulaPaciente,
                 cedula_titular: cedulaTitular,
+                id_especialista: idEspCita,
                 lugar: 'Centro Médico Familiar Dra. Verónica Barahona',
                 lugar_direccion: 'Tumbaco - Quito',
                 seguro: 'Particular',
@@ -1952,14 +2060,15 @@ export function createCitas() {
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
             const esModificacion = !!modCtx;
 
-            const fechaHoraStr = this.horaSeleccionada;
             const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
 
             try {
                 await conCargaGlobal(async () => {
-                    if (!estaLogueado) {
-                        await upsertPacienteInvitadoSiNoExiste(String(cita.cedula || '').trim(), cita.paciente);
+                    const filaPac = this._filaPacienteUpsertParaConfirmar(cita, estaLogueado, this.modoProxy);
+                    if (!filaPac) {
+                        throw new Error('No se pudo obtener los datos del paciente para confirmar la cita.');
                     }
+                    await upsertPacienteParaAgenda(filaPac);
 
                     if (modCtx) {
                         let citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
@@ -1989,6 +2098,9 @@ export function createCitas() {
                             const realId = modCtx.id_cita || modCtx.idCita;
                             const docUpd = this._doctorActual;
                             const idEspUpd = docUpd?.id_especialista ?? docUpd?.id ?? cita.id_especialista ?? null;
+                            if (idEspUpd == null || idEspUpd === '') {
+                                throw new Error('Falta id_especialista. Vuelve a seleccionar el médico.');
+                            }
                             await updateCitaSupabasePorIdCita(realId, {
                                 fecha: fechaISO,
                                 hora: cita.hora,
@@ -1996,7 +2108,7 @@ export function createCitas() {
                                 motivo: cita.motivo ?? null,
                                 tipo_consulta: cita.tipo_consulta || cita.tipo || 'Consulta Externa',
                                 id_especialista: idEspUpd,
-                                cedula_paciente: cita.cedula || cita.cedula_paciente || null
+                                cedula_paciente: String(filaPac.cedula || cita.cedula || cita.cedula_paciente || '').trim()
                             });
 
                             let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
@@ -2032,15 +2144,19 @@ export function createCitas() {
                         this._reconstruirOcupadas();
                     } else {
                         const doc = this._doctorActual;
-                        const idEsp = doc?.id_especialista ?? doc?.id ?? null;
+                        const idEsp = doc?.id_especialista ?? doc?.id ?? cita.id_especialista ?? null;
+                        if (idEsp == null || idEsp === '') {
+                            throw new Error('Falta el especialista (id_especialista). Vuelve al paso 1 y elige un médico.');
+                        }
+                        const cedulaPacienteFila = String(filaPac.cedula || cita.cedula || cita.cedula_paciente || '').trim();
                         const filaSupabase = {
-                            cedula_paciente: String(cita.cedula || cita.cedula_paciente || '').trim(),
+                            cedula_paciente: cedulaPacienteFila,
                             id_especialista: idEsp,
                             fecha: fechaISO,
                             hora: cita.hora,
-                            estado: cita.estado || 'Próxima',
                             motivo: cita.motivo ?? null,
-                            tipo_consulta: cita.tipo_consulta || cita.tipo || 'Consulta Externa'
+                            tipo_consulta: cita.tipo_consulta || cita.tipo || 'Consulta Externa',
+                            estado: cita.estado || 'Próxima'
                         };
                         const insertada = await insertCitaSupabase(filaSupabase);
                         if (insertada && insertada.id_cita != null) {
@@ -2056,8 +2172,8 @@ export function createCitas() {
                         citasPublicas.push({
                             id_cita: cita.id_cita,
                             codigo: cita.codigo,
-                            cedula: cita.cedula,
-                            cedula_paciente: cita.cedula || cita.cedula_paciente,
+                            cedula: cedulaPacienteFila,
+                            cedula_paciente: cedulaPacienteFila,
                             medico: cita.medico,
                             especialidad: cita.especialidad,
                             fecha: fechaISO,
@@ -2082,8 +2198,6 @@ export function createCitas() {
                 console.error('[Supabase] Error al guardar cita:', err);
                 alert('No se pudo guardar la cita en el servidor. Revisa la consola o intenta de nuevo.');
                 return;
-            } finally {
-                ocultarCargaGlobalForzado();
             }
 
             this._citaTemporal = null;

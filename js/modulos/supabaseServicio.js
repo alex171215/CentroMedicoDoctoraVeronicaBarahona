@@ -177,6 +177,20 @@ export async function updatePacientePorCedula(cedula, patch) {
     if (error) throw error;
 }
 
+
+/**
+ * Inserta o actualiza por cedula antes de enlazar citas (FK).
+ */
+export async function upsertPacienteParaAgenda(row) {
+    if (!row || !row.cedula) throw new Error('upsertPacienteParaAgenda: falta cedula');
+    const { data, error } = await supabase
+        .from('pacientes')
+        .upsert([row], { onConflict: 'cedula' })
+        .select(SELECT_PACIENTE)
+        .maybeSingle();
+    if (error) throw error;
+    return data;
+}
 export async function upsertPacienteInvitadoSiNoExiste(cedula, nombresPaciente) {
     const { data: existente, error: e0 } = await supabase.from('pacientes').select('cedula').eq('cedula', cedula).maybeSingle();
     if (e0) throw e0;
@@ -278,7 +292,7 @@ export function pacienteDesdeRegistroLocal(nuevoUsuario) {
         cedula: nuevoUsuario.identificacion,
         nombres: [n1, n2].filter(Boolean).join(' ').trim(),
         apellidos: [a1, a2].filter(Boolean).join(' ').trim(),
-        correo: (nuevoUsuario.email || '').trim(),
+        correo: (nuevoUsuario.correo || nuevoUsuario.email || '').trim(),
         celular: (nuevoUsuario.celular || '').trim(),
         fecha_nacimiento: nuevoUsuario.fechaNac || null,
         password: nuevoUsuario.password,

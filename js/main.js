@@ -1607,6 +1607,17 @@ const app = {
             }
         },
 
+        _emitirOTPAlEntrarPaso3() {
+            const emailVal = (document.getElementById('reg-email')?.value || '').trim();
+            const emailEl = document.getElementById('reg-email-show');
+            if (emailEl) emailEl.textContent = emailVal;
+            const codigo = String(Math.floor(100000 + Math.random() * 900000));
+            this._codigoOTPGenerado = codigo;
+            console.log('[QA OTP] Código de verificación:', codigo, '| correo:', emailVal);
+            alert('Tu código de validación es: ' + codigo);
+            this._iniciarCountdown(60);
+        },
+
         // ------------------------------------------------------------------
         // 10.2 Navegación de Pasos
         // ------------------------------------------------------------------
@@ -1617,14 +1628,9 @@ const app = {
             }
             this._pasoActual = n;
             if (n === 3) {
-                const emailEl = document.getElementById('reg-email-show');
-                const emailVal = document.getElementById('reg-email')?.value || '';
-                if (emailEl) emailEl.textContent = emailVal;
-                const codigo = String(Math.floor(100000 + Math.random() * 900000));
-                this._codigoOTPGenerado = codigo;
-                console.log('[QA OTP] Código de verificación (revisa la consola):', codigo, '| correo:', emailVal);
-                // enviarCorreoOTP(emailVal, codigo);
-                this._iniciarCountdown(60);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => this._emitirOTPAlEntrarPaso3());
+                });
             }
             // Regla 12 – Gestión de Foco y Scroll (TR-12):
             // Al transicionar entre pasos el usuario debe ver el inicio del nuevo contenido.
@@ -1940,14 +1946,17 @@ const app = {
                 sexo: this._sexo,
                 celular: (document.getElementById('reg-celular')?.value || '').trim(),
                 fijo: (document.getElementById('reg-fijo')?.value || '').trim(),
+                correo: (document.getElementById('reg-email')?.value || '').trim(),
                 email: (document.getElementById('reg-email')?.value || '').trim(),
                 password: document.getElementById('reg-password')?.value || ''
             };
 
+            const filaPacienteSupabase = pacienteDesdeRegistroLocal(nuevoUsuario);
+
             let filaInsertada;
             try {
                 filaInsertada = await conCargaGlobal(
-                    () => insertPacienteSupabase(pacienteDesdeRegistroLocal(nuevoUsuario)),
+                    () => insertPacienteSupabase(filaPacienteSupabase),
                     'Creando tu cuenta…'
                 );
             } catch (err) {
@@ -1957,7 +1966,7 @@ const app = {
                 return;
             }
 
-            const usuarioActivo = mapPacienteAUsuarioActivo(filaInsertada || pacienteDesdeRegistroLocal(nuevoUsuario));
+            const usuarioActivo = mapPacienteAUsuarioActivo(filaInsertada || filaPacienteSupabase);
             localStorage.setItem('usuarioLogueado', 'true');
             localStorage.setItem('usuarioActivo', JSON.stringify(usuarioActivo));
 
@@ -2015,8 +2024,8 @@ const app = {
             const emailVal = document.getElementById('reg-email')?.value || '';
             const codigo = String(Math.floor(100000 + Math.random() * 900000));
             this._codigoOTPGenerado = codigo;
-            console.log('[QA OTP] Nuevo código (revisa la consola):', codigo, '| correo:', emailVal);
-            // enviarCorreoOTP(emailVal, codigo);
+            console.log('[QA OTP] Nuevo código:', codigo, '| correo:', emailVal);
+            alert('Tu código de validación es: ' + codigo);
             this._iniciarCountdown(60);
         },
 
