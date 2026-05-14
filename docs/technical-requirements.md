@@ -430,3 +430,25 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-25: Control de Visibilidad Preventivo (Widget Invitado)
 1. **Estado Inicial:** El contenedor del widget de invitados en `index.html` debe tener la propiedad `style="display: none;"` de forma nativa en el HTML o mediante una clase de utilidad.
 2. **Aparición Condicional:** El script de `main.js` solo debe remover el rastro de ocultamiento si y solo si `usuarioActual` es nulo. Esto evita el "efecto flash" o parpadeo del elemento desapareciendo al iniciar sesión.
+
+## TR-26: Optimización de Rendimiento y Caché (FCP y LCP)
+1. **Estrategia Cache-First para Catálogos:** Los catálogos estáticos (como la tabla `especialistas` de Supabase) NO DEBEN bloquear la interfaz con pantallas de carga en cada navegación. 
+   - El sistema debe leer primero de `localStorage`.
+   - Solo si el `localStorage` está vacío, se permite mostrar el spinner `conCargaGlobal()` para traer los datos de la API.
+2. **Lazy Loading de Recursos Visuales:** Toda imagen inyectada dinámicamente desde JS (tarjetas de doctores, avatares, etc.) debe incluir el atributo HTML nativo `loading="lazy"` para diferir su carga y optimizar el ancho de banda, cumpliendo con las guías de optimización de recursos.
+
+## TR-27: Protocolo de Inserción Relacional (Citas e Invitados)
+1. **Existencia Previa de Paciente:** NUNCA se debe intentar un INSERT en la tabla `citas` sin confirmar que la `cedula_paciente` existe en la tabla `pacientes`. 
+2. **Flujo de Registro Silencioso:** Si el usuario es Invitado o Proxy, el sistema debe realizar un `upsert` (insertar o actualizar) en la tabla `pacientes` con el flag `es_invitado: true` ANTES de proceder al insert de la cita.
+3. **Mapeo de IDs:** El campo `id_especialista` en la tabla `citas` debe ser obligatoriamente el ID que viene de Supabase, no el nombre del doctor.
+
+## TR-28: Experiencia de Carga No Invasiva (Heurística #7)
+1. **Adiós a Modales Intermedios:** Se eliminan los modales de texto como "Guardando cita...". En su lugar, se usará el `conCargaGlobal()` (overlay semitransparente) solo durante la petición de red.
+2. **Transición Atómica:** Al recibir éxito de la base de datos, el sistema debe ocultar la carga y mostrar el Paso 5 (Éxito) en un solo movimiento, sin clics intermedios del usuario.
+
+## TR-29: Gestión de Foco y Scroll en Transiciones (UX)
+1. **Reset Visual:** Cada vez que el usuario avanza a un nuevo paso en un formulario largo (como Registro o Agendamiento) o llega a una pantalla de éxito, el sistema DEBE forzar un `window.scrollTo({ top: 0, behavior: 'smooth' })` para asegurar que el usuario vea el inicio del nuevo contenido.
+
+## TR-30: Prevención y Recuperación de Cuentas Duplicadas (Heurísticas #5 y #9)
+1. **Prevención Temprana (Paso 1):** Al intentar avanzar del Paso 1 al Paso 2 en el Registro, el sistema debe consultar a Supabase si la `cedula` o el `correo` ya existen.
+2. **Recuperación Clara (Modal):** Si los datos ya existen (ya sea detectado en el Paso 1 o por un fallo en el Paso 3), se debe mostrar un Modal o un Estado de Error amigable que explique claramente el problema y ofrezca un botón primario de "Ir a Iniciar Sesión" que redirija al usuario a `login.html`. Quedan prohibidos los mensajes de error genéricos y los "callejones sin salida".

@@ -7,13 +7,17 @@ import {
     conCargaGlobal,
     fetchEspecialistasSupabase,
     mergeCarteraEnSanitasFamDb,
-    loginPacientePorCedulaYPassword,
+    loginPacientePorIdentificadorYPassword,
     mapPacienteAUsuarioActivo,
     insertPacienteSupabase,
     pacienteDesdeRegistroLocal,
     updatePacientePorCedula,
-    updateCitaSupabasePorIdCita
+    updateCitaSupabasePorIdCita,
+    existePacienteConCedula,
+    existePacienteConCorreo
 } from './modulos/supabaseServicio.js';
+
+// function enviarCorreoOTP(correo, codigo) {}
 
 function escapeHtmlWidget(s) {
     return String(s ?? '')
@@ -21,6 +25,19 @@ function escapeHtmlWidget(s) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+/** TR-26: catálogo de especialistas ya persistido (cache-first). */
+function carteraEspecialistasCacheValida() {
+    try {
+        const raw = localStorage.getItem('sanitasFam_db');
+        if (!raw) return false;
+        const db = JSON.parse(raw);
+        const arr = db && db.cartera_especialistas;
+        return Array.isArray(arr) && arr.length > 0;
+    } catch (_) {
+        return false;
+    }
 }
 
 /** Mapa vista lógica → URL física (MPA). */
@@ -48,10 +65,20 @@ const app = {
 
     init: async function () {
         try {
-            await conCargaGlobal(async () => {
-                const lista = await fetchEspecialistasSupabase();
-                if (lista.length) mergeCarteraEnSanitasFamDb(lista);
-            }, 'Cargando especialistas…');
+            if (carteraEspecialistasCacheValida()) {
+                fetchEspecialistasSupabase()
+                    .then((lista) => {
+                        if (lista.length) mergeCarteraEnSanitasFamDb(lista);
+                    })
+                    .catch((err) => {
+                        console.warn('[Supabase] Refresco en segundo plano de especialistas no disponible.', err);
+                    });
+            } else {
+                await conCargaGlobal(async () => {
+                    const lista = await fetchEspecialistasSupabase();
+                    if (lista.length) mergeCarteraEnSanitasFamDb(lista);
+                }, 'Cargando especialistas…');
+            }
         } catch (err) {
             console.warn('[Supabase] Especialistas no disponibles; se usa caché local (data.js).', err);
         }
@@ -364,8 +391,8 @@ const app = {
                 try {
                     const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
                     if (userActivo) {
-                        const nom1 = (userActivo.nombre1 || userActivo.nombre_1 || '').trim();
-                        const ape1 = (userActivo.apellido1 || userActivo.apellido_1 || '').trim();
+                        const nom1 = (userActivo.nombre1 || userActivo.nombre_1 || (userActivo.nombres || '').split(/\s+/)[0] || '').trim();
+                        const ape1 = (userActivo.apellido1 || userActivo.apellido_1 || (userActivo.apellidos || '').split(/\s+/)[0] || '').trim();
                         if (nom1) {
                             nombreMostrar = ape1 ? `${nom1} ${ape1}` : nom1;
                             if (nombreMostrar.length > 22) nombreMostrar = nombreMostrar.substring(0, 20) + '…';
@@ -400,8 +427,8 @@ const app = {
                 try {
                     const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
                     if (userActivo) {
-                        const nom1 = (userActivo.nombre1 || userActivo.nombre_1 || '').trim();
-                        const ape1 = (userActivo.apellido1 || userActivo.apellido_1 || '').trim();
+                        const nom1 = (userActivo.nombre1 || userActivo.nombre_1 || (userActivo.nombres || '').split(/\s+/)[0] || '').trim();
+                        const ape1 = (userActivo.apellido1 || userActivo.apellido_1 || (userActivo.apellidos || '').split(/\s+/)[0] || '').trim();
                         if (nom1) {
                             nombreCorto = ape1 ? `${nom1} ${ape1}` : nom1;
                             if (nombreCorto.length > 18) nombreCorto = nombreCorto.substring(0, 16) + '…';
@@ -851,7 +878,7 @@ const app = {
                 <article class="doctor-card" onclick="app.seleccionarEspecialidad('${esp}')" style="cursor: pointer;" title="Ver especialistas en ${esp}">
                     <div class="doctor-card__img-container" style="position: relative; height: 200px;">
                         <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(59, 73, 163, 0.9), rgba(59, 73, 163, 0.3)); z-index: 1;"></div>
-                        <img src="${imagen}" alt="${esp}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <img src="${imagen}" alt="${esp}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
                         <h3 style="position: absolute; bottom: 20px; left: 20px; color: #ffffff; z-index: 2; margin: 0; font-size: 1.2rem; font-weight: 700;">${esp}</h3>
                     </div>
                     <div class="doctor-card__content">
@@ -1023,7 +1050,7 @@ const app = {
                 const card = document.createElement('article');
                 card.className = 'directory-card';
                 card.innerHTML = `  
-                    <img src="${imagenSrc}" alt="${nombreMed}" class="directory-card__img" tabindex="0">
+                    <img src="${imagenSrc}" alt="${nombreMed}" class="directory-card__img" tabindex="0" loading="lazy">
                     <h3 class="directory-card__name">${nombreMed}</h3>
                     <p class="directory-card__specialty">${med.especialidad}</p>
                     <button class="btn btn--secundario directory-card__link" aria-label="Ver perfil de ${nombreMed}">Ver perfil y servicios</button>
@@ -1105,7 +1132,10 @@ const app = {
                     imagenSrc = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80'; // fallback genérico
             }
 
-            imgModal.src = imagenSrc;
+            if (imgModal) {
+                imgModal.loading = 'lazy';
+                imgModal.src = imagenSrc;
+            }
 
             const list = document.getElementById('modal-doc-activities');
             list.innerHTML = '';
@@ -1241,7 +1271,10 @@ const app = {
             this._limpiarError('login-cedula');
             this._limpiarError('login-password');
 
-            if (identificacion.length === 10 || identificacion.length === 13) {
+            const esCorreoLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identificacion);
+            if (esCorreoLogin) {
+                // acceso por columna `correo` en Supabase
+            } else if (identificacion.length === 10 || identificacion.length === 13) {
                 if (!utilidades.validarCedulaEcuatoriana(identificacion)) {
                     this._mostrarError('login-cedula', 'La cédula ingresada no es válida.');
                     valido = false;
@@ -1252,7 +1285,7 @@ const app = {
                 this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
                 valido = false;
             } else {
-                this._mostrarError('login-cedula', 'Ingresa una identificación.');
+                this._mostrarError('login-cedula', 'Ingresa una identificación o correo.');
                 valido = false;
             }
 
@@ -1266,7 +1299,7 @@ const app = {
             let fila = null;
             try {
                 fila = await conCargaGlobal(
-                    () => loginPacientePorCedulaYPassword(identificacion, password),
+                    () => loginPacientePorIdentificadorYPassword(identificacion, password),
                     'Iniciando sesión…'
                 );
             } catch (err) {
@@ -1320,6 +1353,7 @@ const app = {
         _pasoActual: 1,
         _tipoDoc: '',   // 'Cédula' | 'Pasaporte'
         _sexo: '',
+        _codigoOTPGenerado: '',
         _countdownInterval: null,
         _regexNombre: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
 
@@ -1327,15 +1361,32 @@ const app = {
         // 10.1 Inicialización: bloqueos de input + on-blur + fecha max
         // ------------------------------------------------------------------
         inicializar() {
+            this._cerrarModalCuentaExistenteRegistro();
             // Los límites de fecha (min: 120 años, max: 18 años) son aplicados por
             // app._aplicarLimitesFechaGlobal() que se ejecuta en app.inicializar().
             // No es necesario establecer atributos de fecha aquí.
 
-            // Deshabilitar identificación hasta que se elija tipo de documento
+            const docSelect = document.getElementById('reg-tipo-doc-select');
             const identInput = document.getElementById('reg-identificacion');
             if (identInput) {
-                identInput.disabled = true;
-                identInput.value = '';
+                identInput.disabled = !docSelect?.value;
+                if (!docSelect?.value) identInput.value = '';
+            }
+            if (docSelect) {
+                docSelect.removeEventListener('change', docSelect._tipoDocChange);
+                docSelect._tipoDocChange = () => {
+                    this._tipoDoc = docSelect.value;
+                    if (identInput) {
+                        identInput.disabled = !this._tipoDoc;
+                        if (!this._tipoDoc) identInput.value = '';
+                        else {
+                            identInput.placeholder = this._tipoDoc === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
+                            identInput.maxLength = this._tipoDoc === 'Cédula' ? 10 : 13;
+                        }
+                    }
+                    this._limpiarError('reg-tipo-doc-select');
+                };
+                docSelect.addEventListener('change', docSelect._tipoDocChange);
             }
 
             // ── Sanitización en tiempo real + ON-BLUR (valida) ──
@@ -1465,7 +1516,7 @@ const app = {
         // Guarda todos los campos visibles y ocultos del registro en sessionStorage
         _guardarBorrador() {
             const campos = [
-                'reg-tipo-doc', 'reg-identificacion',
+                'reg-tipo-doc-select', 'reg-identificacion',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha-nac',
@@ -1502,13 +1553,20 @@ const app = {
             if (borrador._tipoDoc) this._tipoDoc = borrador._tipoDoc;
             if (borrador._sexo) this._sexo = borrador._sexo;
 
+            const docSel = document.getElementById('reg-tipo-doc-select');
+            if (docSel && borrador['reg-tipo-doc-select']) docSel.value = borrador['reg-tipo-doc-select'];
+            if (docSel && this._tipoDoc) docSel.value = this._tipoDoc;
+            if (docSel?.value) this._tipoDoc = docSel.value;
+
             // Si ya hay un tipo de documento, habilitar el input y ajustar placeholder/maxlength
-            if (this._tipoDoc) {
+            if (this._tipoDoc || docSel?.value) {
+                const tipo = this._tipoDoc || docSel.value;
+                this._tipoDoc = tipo;
                 const identInput = document.getElementById('reg-identificacion');
                 if (identInput) {
                     identInput.disabled = false;
-                    identInput.placeholder = this._tipoDoc === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
-                    identInput.maxLength = this._tipoDoc === 'Cédula' ? 10 : 13;
+                    identInput.placeholder = tipo === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
+                    identInput.maxLength = tipo === 'Cédula' ? 10 : 13;
                 }
             }
         },
@@ -1526,7 +1584,7 @@ const app = {
 
                 // Limpiar todos los campos de texto y desmarcar radios
                 const campos = [
-                    'reg-tipo-doc', 'reg-identificacion',
+                    'reg-tipo-doc-select', 'reg-identificacion',
                     'reg-nombre1', 'reg-nombre2',
                     'reg-apellido1', 'reg-apellido2',
                     'reg-fecha-nac',
@@ -1548,7 +1606,19 @@ const app = {
                 // Restablecer estados internos
                 this._tipoDoc = '';
                 this._sexo = '';
+                this._codigoOTPGenerado = '';
             }
+        },
+
+        _emitirOTPAlEntrarPaso3() {
+            const emailVal = (document.getElementById('reg-email')?.value || '').trim();
+            const emailEl = document.getElementById('reg-email-show');
+            if (emailEl) emailEl.textContent = emailVal;
+            const codigo = String(Math.floor(100000 + Math.random() * 900000));
+            this._codigoOTPGenerado = codigo;
+            console.log('[QA OTP] Código de verificación:', codigo, '| correo:', emailVal);
+            alert('Tu código de validación es: ' + codigo);
+            this._iniciarCountdown(60);
         },
 
         // ------------------------------------------------------------------
@@ -1561,18 +1631,108 @@ const app = {
             }
             this._pasoActual = n;
             if (n === 3) {
-                const emailEl = document.getElementById('reg-email-show');
-                const emailVal = document.getElementById('reg-email')?.value || '';
-                if (emailEl) emailEl.textContent = emailVal;
-                this._iniciarCountdown(60);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => this._emitirOTPAlEntrarPaso3());
+                });
             }
-            // Regla 12 – Gestión de Foco y Scroll (TR-12):
-            // Al transicionar entre pasos el usuario debe ver el inicio del nuevo contenido.
+            // TR-29 / TR-12: scroll al inicio al cambiar de paso en el registro.
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
-        siguientePaso(pasoActual) {
+        /** TR-30: cierra el modal de cuenta duplicada si está abierto. */
+        _cerrarModalCuentaExistenteRegistro() {
+            const el = document.getElementById('reg-modal-cuenta-existente');
+            if (el) el.remove();
+        },
+
+        /**
+         * TR-30: modal de recuperación (Heurística #9) — evita callejón sin salida.
+         * @param {{ titulo: string, mensaje: string }} opts
+         */
+        _mostrarModalCuentaExistenteRegistro(opts) {
+            this._cerrarModalCuentaExistenteRegistro();
+            const titulo = escapeHtmlWidget(opts.titulo || 'Cuenta existente');
+            const mensaje = escapeHtmlWidget(opts.mensaje || 'Ya existe una cuenta con estos datos.');
+            const modal = document.createElement('div');
+            modal.id = 'reg-modal-cuenta-existente';
+            modal.className = 'modal-overlay';
+            modal.setAttribute('role', 'alertdialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'reg-modal-cuenta-existente-title');
+            modal.style.display = 'flex';
+            modal.innerHTML =
+                '<div class="modal-content modal-colision-content" style="max-width:440px;">' +
+                `<h2 id="reg-modal-cuenta-existente-title" class="modal-colision-title">${titulo}</h2>` +
+                `<p class="modal-colision-text" style="margin-bottom:20px;">${mensaje}</p>` +
+                '<div class="modal-colision-actions" style="flex-direction:column;gap:12px;align-items:stretch;">' +
+                '<button type="button" class="btn btn--primario" onclick="app.navegar(\'login\')">Ir a Iniciar Sesión</button>' +
+                '<button type="button" class="btn btn--secundario" data-reg-cerrar-modal style="border:none;background:transparent;text-decoration:underline;">Cerrar</button>' +
+                '</div></div>';
+            const cerrar = modal.querySelector('[data-reg-cerrar-modal]');
+            if (cerrar) cerrar.onclick = () => this._cerrarModalCuentaExistenteRegistro();
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this._cerrarModalCuentaExistenteRegistro();
+            });
+            document.body.appendChild(modal);
+        },
+
+        /** Detecta violación de unicidad / duplicado en insert pacientes (Postgres / PostgREST). */
+        _esErrorDuplicadoPaciente(err) {
+            const code = err?.code ?? err?.cause?.code;
+            if (code === '23505') return true;
+            const msg = String(err?.message || err?.details || err?.hint || '').toLowerCase();
+            return msg.includes('duplicate') || msg.includes('unique') || msg.includes('already exists');
+        },
+
+        async siguientePaso(pasoActual) {
             if (!this._validarPaso(pasoActual)) return;
+
+            if (pasoActual === 1) {
+                const ident = (document.getElementById('reg-identificacion')?.value || '').trim();
+                if (ident) {
+                    try {
+                        const existe = await conCargaGlobal(
+                            () => existePacienteConCedula(ident),
+                            'Verificando datos…'
+                        );
+                        if (existe) {
+                            this._mostrarModalCuentaExistenteRegistro({
+                                titulo: 'Cédula ya registrada',
+                                mensaje: 'Ya existe una cuenta con esta cédula.'
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('[Supabase] Comprobación cédula registro:', e);
+                        alert('No se pudo verificar la cédula. Comprueba tu conexión e inténtalo de nuevo.');
+                        return;
+                    }
+                }
+            }
+
+            if (pasoActual === 2) {
+                const correoVal = (document.getElementById('reg-email')?.value || '').trim();
+                if (correoVal) {
+                    try {
+                        const existe = await conCargaGlobal(
+                            () => existePacienteConCorreo(correoVal),
+                            'Verificando datos…'
+                        );
+                        if (existe) {
+                            this._mostrarModalCuentaExistenteRegistro({
+                                titulo: 'Correo ya registrado',
+                                mensaje: 'Ya existe una cuenta con este correo electrónico.'
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('[Supabase] Comprobación correo registro:', e);
+                        alert('No se pudo verificar el correo. Comprueba tu conexión e inténtalo de nuevo.');
+                        return;
+                    }
+                }
+            }
+
             this._irAPaso(pasoActual + 1);
         },
 
@@ -1783,10 +1943,11 @@ const app = {
             let ok = true;
 
             if (paso === 1) {
-                // Tipo de documento (no tiene campo con blur, validar aquí)
-                this._limpiarError('reg-tipo-doc');
+                const docSelect = document.getElementById('reg-tipo-doc-select');
+                this._tipoDoc = docSelect?.value || this._tipoDoc;
+                this._limpiarError('reg-tipo-doc-select');
                 if (!this._tipoDoc) {
-                    this._mostrarError('reg-tipo-doc',
+                    this._mostrarError('reg-tipo-doc-select',
                         'Por favor, selecciona el tipo de documento antes de continuar.');
                     ok = false;
                 }
@@ -1838,7 +1999,7 @@ const app = {
                 if (restante === 0) {
                     clearInterval(this._countdownInterval);
                     if (resendTxt) resendTxt.innerHTML =
-                        '<a href="javascript:void(0)" onclick="app.registro._iniciarCountdown(60)" ' +
+                        '<a href="javascript:void(0)" onclick="app.registro._renovarOTP()" ' +
                         'style="color:var(--action-color);font-weight:600;">' +
                         'Solicitar código nuevamente</a>';
                 }
@@ -1861,7 +2022,7 @@ const app = {
                     'Revisa el correo que enviamos y cópialo aquí.');
                 return;
             }
-            if (codigo !== '123456') {
+            if (codigo !== this._codigoOTPGenerado) {
                 this._mostrarError('reg-codigo',
                     'El código ingresado no coincide. Verifica que lo hayas escrito correctamente ' +
                     'o solicita uno nuevo cuando el contador llegue a cero.');
@@ -1879,25 +2040,35 @@ const app = {
                 sexo: this._sexo,
                 celular: (document.getElementById('reg-celular')?.value || '').trim(),
                 fijo: (document.getElementById('reg-fijo')?.value || '').trim(),
+                correo: (document.getElementById('reg-email')?.value || '').trim(),
                 email: (document.getElementById('reg-email')?.value || '').trim(),
-                password: document.getElementById('reg-password')?.value || '',
-                nombres: `${(document.getElementById('reg-nombre1')?.value || '').trim()} ${(document.getElementById('reg-apellido1')?.value || '').trim()}`
+                password: document.getElementById('reg-password')?.value || ''
             };
+
+            const filaPacienteSupabase = pacienteDesdeRegistroLocal(nuevoUsuario);
 
             let filaInsertada;
             try {
                 filaInsertada = await conCargaGlobal(
-                    () => insertPacienteSupabase(pacienteDesdeRegistroLocal(nuevoUsuario)),
+                    () => insertPacienteSupabase(filaPacienteSupabase),
                     'Creando tu cuenta…'
                 );
             } catch (err) {
                 console.error('[Supabase] Registro:', err);
+                if (this._esErrorDuplicadoPaciente(err)) {
+                    this._limpiarError('reg-codigo');
+                    this._mostrarModalCuentaExistenteRegistro({
+                        titulo: 'No se pudo crear la cuenta',
+                        mensaje: 'Los datos coinciden con una cuenta que ya existe. Puedes iniciar sesión con tu cédula o correo y tu contraseña.'
+                    });
+                    return;
+                }
                 this._mostrarError('reg-codigo',
-                    'No se pudo guardar el registro en el servidor. Si la cédula ya existe, inicia sesión.');
+                    'No se pudo guardar el registro en el servidor. Revisa los datos o intenta más tarde.');
                 return;
             }
 
-            const usuarioActivo = mapPacienteAUsuarioActivo(filaInsertada || pacienteDesdeRegistroLocal(nuevoUsuario));
+            const usuarioActivo = mapPacienteAUsuarioActivo(filaInsertada || filaPacienteSupabase);
             localStorage.setItem('usuarioLogueado', 'true');
             localStorage.setItem('usuarioActivo', JSON.stringify(usuarioActivo));
 
@@ -1905,7 +2076,7 @@ const app = {
             app.iniciarSesionUsuario();
             sessionStorage.removeItem('sanitas_borrador_registro');
             const campos = [
-                'reg-tipo-doc', 'reg-identificacion',
+                'reg-tipo-doc-select', 'reg-identificacion',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha-nac',
@@ -1920,6 +2091,7 @@ const app = {
             });
             this._tipoDoc = '';
             this._sexo = '';
+            this._codigoOTPGenerado = '';
 
             const contenedorRegistro = document.getElementById('view-registro');
             if (contenedorRegistro) {
@@ -1933,45 +2105,35 @@ const app = {
                         </button>
                     </div>
                 `;
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                });
             } else {
                 app.navegar('home');
             }
         },
 
-            const m = document.getElementById('modal-tipo-doc');
-            if (m) m.style.display = 'flex';
+        abrirModalDoc() {
+            document.getElementById('reg-tipo-doc-select')?.focus();
         },
-        cerrarModalDoc() {
-            const m = document.getElementById('modal-tipo-doc');
-            if (m) m.style.display = 'none';
-        },
+        cerrarModalDoc() {},
         seleccionarDoc(tipo) {
-            this._tipoDoc = tipo;
-
-            // Actualizar input visible
-            const input = document.getElementById('reg-tipo-doc');
-            if (input) input.value = tipo;
-
-            // Forzar checked en el radio del modal (reactividad aunque repita opción)
-            const radio = document.querySelector(`#modal-tipo-doc input[type="radio"][value="${tipo}"]`);
-            if (radio) radio.checked = true;
-
-            // Habilitar campo de identificación y limpiar valor anterior
-            const identInput = document.getElementById('reg-identificacion');
-            if (identInput) {
-                identInput.disabled = false;
-                identInput.value = '';
-                if (tipo === 'Cédula') {
-                    identInput.placeholder = 'Ej: 1712345678';
-                    identInput.maxLength = 10;
-                } else {
-                    identInput.placeholder = 'Ej: AB123456';
-                    identInput.maxLength = 13;
-                }
+            const docSelect = document.getElementById('reg-tipo-doc-select');
+            if (docSelect) {
+                docSelect.value = tipo;
+                docSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
+        },
 
-            this.cerrarModalDoc();
-            this._limpiarError('reg-tipo-doc');
+        _renovarOTP() {
+            const emailVal = document.getElementById('reg-email')?.value || '';
+            const codigo = String(Math.floor(100000 + Math.random() * 900000));
+            this._codigoOTPGenerado = codigo;
+            console.log('[QA OTP] Nuevo código:', codigo, '| correo:', emailVal);
+            alert('Tu código de validación es: ' + codigo);
+            this._iniciarCountdown(60);
         },
 
         // ------------------------------------------------------------------
@@ -2020,9 +2182,10 @@ const app = {
         // 10.11 Cancelar Registro — limpia formulario y redirige al login
         // ------------------------------------------------------------------
         cancelarRegistro() {
+            this._cerrarModalCuentaExistenteRegistro();
             // 1. Vaciar todos los inputs de texto del formulario
             const camposTexto = [
-                'reg-tipo-doc', 'reg-identificacion',
+                'reg-tipo-doc-select', 'reg-identificacion',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha-nac',
@@ -2046,7 +2209,7 @@ const app = {
 
             // 3. Limpiar todos los spans de error
             const errores = [
-                'reg-tipo-doc', 'reg-ident',
+                'reg-tipo-doc-select', 'reg-ident',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha', 'reg-sexo',
@@ -2058,6 +2221,7 @@ const app = {
             // 4. Restablecer estado interno (valores por defecto del objeto)
             this._tipoDoc = '';
             this._sexo = '';
+            this._codigoOTPGenerado = '';
             this._pasoActual = 1;
             clearInterval(this._countdownInterval);
 
@@ -2089,12 +2253,14 @@ const app = {
             const u = JSON.parse(raw);
 
             // Construir nombre completo (soporta claves del usuario demo y del registro)
-            const nombre1 = u.nombre1 || u.nombre_1 || '';
-            const nombre2 = u.nombre2 || u.nombre_2 || '';
-            const apellido1 = u.apellido1 || u.apellido_1 || '';
-            const apellido2 = u.apellido2 || u.apellido_2 || '';
+            const nombre1 = u.nombre1 || u.nombre_1 || (u.nombres || '').split(/\s+/)[0] || '';
+            const nombre2 = u.nombre2 || u.nombre_2 || (u.nombres || '').split(/\s+/).slice(1).join(' ') || '';
+            const apellido1 = u.apellido1 || u.apellido_1 || (u.apellidos || '').split(/\s+/)[0] || '';
+            const apellido2 = u.apellido2 || u.apellido_2 || (u.apellidos || '').split(/\s+/).slice(1).join(' ') || '';
             const nombreCompleto = [nombre1, nombre2, apellido1, apellido2]
-                .filter(Boolean).join(' ');
+                .filter(Boolean).join(' ')
+                || [u.nombres, u.apellidos].filter(Boolean).join(' ').trim()
+                || '—';
             const celular = u.celular || '—';
 
             // Inyectar en el DOM
@@ -2107,7 +2273,7 @@ const app = {
             // Avatar: mostrar inicial del primer nombre
             const elAvatar = document.getElementById('perfil-avatar-iniciales');
             if (elAvatar) {
-                const inicial = nombre1.charAt(0).toUpperCase();
+                const inicial = (nombre1 || (u.nombres || '').trim().charAt(0) || '').toUpperCase();
                 if (inicial) {
                     elAvatar.textContent = inicial;
                 } else {
@@ -2161,10 +2327,10 @@ const app = {
                 if (el) el.value = val || '';
             };
 
-            set('edit-nombre1', u.nombre1 || u.nombre_1 || '');
-            set('edit-nombre2', u.nombre2 || u.nombre_2 || '');
-            set('edit-apellido1', u.apellido1 || u.apellido_1 || '');
-            set('edit-apellido2', u.apellido2 || u.apellido_2 || '');
+            set('edit-nombre1', u.nombre1 || u.nombre_1 || (u.nombres || '').split(/\s+/)[0] || '');
+            set('edit-nombre2', u.nombre2 || u.nombre_2 || (u.nombres || '').split(/\s+/).slice(1).join(' ') || '');
+            set('edit-apellido1', u.apellido1 || u.apellido_1 || (u.apellidos || '').split(/\s+/)[0] || '');
+            set('edit-apellido2', u.apellido2 || u.apellido_2 || (u.apellidos || '').split(/\s+/).slice(1).join(' ') || '');
             set('edit-celular', u.celular || '');
             set('edit-email', u.email || '');
             // H3 (Control y Libertad): cargar fecha de nacimiento para permitir corrección
@@ -2336,14 +2502,11 @@ const app = {
                 void (async () => {
                     const ced = u.identificacion || u.cedula;
                     const patch = {
-                        nombre1: u.nombre1 ?? u.nombre_1 ?? '',
-                        nombre2: u.nombre2 ?? u.nombre_2 ?? '',
-                        apellido1: u.apellido1 ?? u.apellido_1 ?? '',
-                        apellido2: u.apellido2 ?? u.apellido_2 ?? '',
+                        nombres: [u.nombre1 || u.nombre_1, u.nombre2 || u.nombre_2].filter(Boolean).join(' ').trim(),
+                        apellidos: [u.apellido1 || u.apellido_1, u.apellido2 || u.apellido_2].filter(Boolean).join(' ').trim(),
                         celular: u.celular,
-                        email: u.email,
-                        fecha_nacimiento: u.fecha_nacimiento || null,
-                        nombres: [u.nombre1 || u.nombre_1, u.apellido1 || u.apellido_1].filter(Boolean).join(' ').trim() || u.nombres
+                        correo: u.email,
+                        fecha_nacimiento: u.fecha_nacimiento || null
                     };
                     try {
                         if (ced) await updatePacientePorCedula(ced, patch);
@@ -2855,10 +3018,10 @@ const app = {
                     const usuarios = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
                     const usuario = usuarios.find(u => u.identificacion === cita.cedula);
                     if (usuario) {
-                        const n1 = (usuario.nombre_1 || usuario.nombre1 || '').trim();
-                        const n2 = (usuario.nombre_2 || usuario.nombre2 || '').trim();
-                        const a1 = (usuario.apellido_1 || usuario.apellido1 || '').trim();
-                        const a2 = (usuario.apellido_2 || usuario.apellido2 || '').trim();
+                        const n1 = (usuario.nombre_1 || usuario.nombre1 || (usuario.nombres || '').split(/\s+/)[0] || '').trim();
+                        const n2 = (usuario.nombre_2 || usuario.nombre2 || (usuario.nombres || '').split(/\s+/).slice(1).join(' ') || '').trim();
+                        const a1 = (usuario.apellido_1 || usuario.apellido1 || (usuario.apellidos || '').split(/\s+/)[0] || '').trim();
+                        const a2 = (usuario.apellido_2 || usuario.apellido2 || (usuario.apellidos || '').split(/\s+/).slice(1).join(' ') || '').trim();
                         cita.paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Paciente no especificado';
                     } else {
                         // Estrategia 3: Fallback digno
