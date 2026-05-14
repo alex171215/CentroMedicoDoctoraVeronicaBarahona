@@ -5,7 +5,8 @@ import {
     fetchTodasLasCitasAgenda,
     insertCitaSupabase,
     updateCitaSupabasePorIdCita,
-    upsertPacienteInvitadoSiNoExiste
+    upsertPacienteInvitadoSiNoExiste,
+    ocultarCargaGlobalForzado
 } from './supabaseServicio.js';
 
 function escapeHtmlCita(s) {
@@ -235,7 +236,11 @@ export function createCitas() {
             document.getElementById('citas-doctor-name').textContent = medicoNombre;
             document.getElementById('citas-doctor-specialty').textContent = especialidad || '';
             const imagenCorrecta = this.obtenerImagenMedico(medicoNombre, especialidad, imgUrl);
-            document.getElementById('citas-doctor-img').src = imagenCorrecta;
+            const imgDoctor = document.getElementById('citas-doctor-img');
+            if (imgDoctor) {
+                imgDoctor.loading = 'lazy';
+                imgDoctor.src = imagenCorrecta;
+            }
 
             // Nuevo: guardar el objeto médico completo
             const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
@@ -296,7 +301,7 @@ export function createCitas() {
                 html += `
                     <div class="doctor-card-dir">
                         <div class="doctor-card-dir__header">
-                            <img src="${img}" alt="${med.doctor.nombre_completo}" class="doctor-card-dir__img">
+                            <img src="${img}" alt="${med.doctor.nombre_completo}" class="doctor-card-dir__img" loading="lazy">
                         </div>
                         <div class="doctor-card-dir__body">
                             <h3 class="doctor-card-dir__name">${med.doctor.nombre_completo}</h3>
@@ -1703,10 +1708,10 @@ export function createCitas() {
                     const userActivoStr = localStorage.getItem('usuarioActivo');
                     if (userActivoStr) {
                         const user = JSON.parse(userActivoStr);
-                        const n1 = (user.nombre_1 || user.nombre1 || '').trim();
-                        const n2 = (user.nombre_2 || user.nombre2 || '').trim();
-                        const a1 = (user.apellido_1 || user.apellido1 || '').trim();
-                        const a2 = (user.apellido_2 || user.apellido2 || '').trim();
+                        const n1 = (user.nombre_1 || user.nombre1 || (user.nombres || '').split(/\s+/)[0] || '').trim();
+                        const n2 = (user.nombre_2 || user.nombre2 || (user.nombres || '').split(/\s+/).slice(1).join(' ') || '').trim();
+                        const a1 = (user.apellido_1 || user.apellido1 || (user.apellidos || '').split(/\s+/)[0] || '').trim();
+                        const a2 = (user.apellido_2 || user.apellido2 || (user.apellidos || '').split(/\s+/).slice(1).join(' ') || '').trim();
                         // Formato: Nombre + Apellido (sin campos vacíos intermedios)
                         paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Usuario Sanitas';
                         cedulaPaciente = user.identificacion || '';
@@ -1765,6 +1770,9 @@ export function createCitas() {
                 especialidad: especialidad,
                 fecha: fecha,
                 hora: hora,
+                tipo: 'Consulta Externa',
+                tipo_consulta: 'Consulta Externa',
+                motivo: null,
                 paciente: paciente,
                 cedula: cedulaPaciente,
                 cedula_titular: cedulaTitular,
@@ -1979,14 +1987,16 @@ export function createCitas() {
 
                         if (modCtx.id_cita || modCtx.idCita) {
                             const realId = modCtx.id_cita || modCtx.idCita;
+                            const docUpd = this._doctorActual;
+                            const idEspUpd = docUpd?.id_especialista ?? docUpd?.id ?? cita.id_especialista ?? null;
                             await updateCitaSupabasePorIdCita(realId, {
                                 fecha: fechaISO,
                                 hora: cita.hora,
-                                medico: cita.medico,
-                                especialidad: cita.especialidad,
-                                cedula_titular: cita.cedula_titular,
-                                paciente: cita.paciente,
-                                estado: 'Próxima'
+                                estado: 'Próxima',
+                                motivo: cita.motivo ?? null,
+                                tipo_consulta: cita.tipo_consulta || cita.tipo || 'Consulta Externa',
+                                id_especialista: idEspUpd,
+                                cedula_paciente: cita.cedula || cita.cedula_paciente || null
                             });
 
                             let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
@@ -2022,29 +2032,21 @@ export function createCitas() {
                         this._reconstruirOcupadas();
                     } else {
                         const doc = this._doctorActual;
-                        const filaCita = {
-                            id_cita: cita.id_cita,
-                            codigo: cita.codigo,
-                            medico: cita.medico,
-                            especialidad: cita.especialidad,
+                        const idEsp = doc?.id_especialista ?? doc?.id ?? null;
+                        const filaSupabase = {
+                            cedula_paciente: String(cita.cedula || cita.cedula_paciente || '').trim(),
+                            id_especialista: idEsp,
                             fecha: fechaISO,
                             hora: cita.hora,
-                            tipo: cita.tipo || 'Consulta Externa',
-                            motivo: cita.motivo || null,
-                            centro: cita.lugar || cita.centro || 'Centro Médico Familiar Dra. Verónica Barahona',
-                            direccion: cita.lugar_direccion || cita.direccion || 'Tumbaco - Quito',
-                            lugar: cita.lugar,
-                            lugar_direccion: cita.lugar_direccion,
-                            seguro: cita.seguro || 'Particular',
                             estado: cita.estado || 'Próxima',
-                            paciente: cita.paciente,
-                            nombres: cita.nombres,
-                            cedula: cita.cedula,
-                            cedula_paciente: cita.cedula || cita.cedula_paciente,
-                            cedula_titular: cita.cedula_titular,
-                            id_especialista: doc?.id ?? null
+                            motivo: cita.motivo ?? null,
+                            tipo_consulta: cita.tipo_consulta || cita.tipo || 'Consulta Externa'
                         };
-                        await insertCitaSupabase(filaCita);
+                        const insertada = await insertCitaSupabase(filaSupabase);
+                        if (insertada && insertada.id_cita != null) {
+                            cita.id_cita = insertada.id_cita;
+                            cita.id = insertada.id_cita;
+                        }
 
                         let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
                         historial.push(cita);
@@ -2080,6 +2082,8 @@ export function createCitas() {
                 console.error('[Supabase] Error al guardar cita:', err);
                 alert('No se pudo guardar la cita en el servidor. Revisa la consola o intenta de nuevo.');
                 return;
+            } finally {
+                ocultarCargaGlobalForzado();
             }
 
             this._citaTemporal = null;

@@ -89,15 +89,14 @@
 
                             <!-- Tipo de Documento -->
                             <div class="login-field">
-                                <label class="login-field__label">Documento de Identificación</label>
-                                <div class="reg-select-wrap">
-                                    <input type="text" id="reg-tipo-doc" class="login-field__input reg-select-input"
-                                        readonly placeholder="Seleccionar…" aria-haspopup="dialog" aria-required="true"
-                                        aria-describedby="reg-tipo-doc-error"
-                                        onclick="app.registro.abrirModalDoc()">
-                                    <i class="fa-solid fa-chevron-down reg-select-arrow" aria-hidden="true"></i>
-                                </div>
-                                <span id="reg-tipo-doc-error" class="login-field__error" role="alert"
+                                <label for="reg-tipo-doc-select" class="login-field__label">Documento de Identificación</label>
+                                <select id="reg-tipo-doc-select" class="login-field__input" required
+                                    aria-required="true" aria-describedby="reg-tipo-doc-select-error">
+                                    <option value="">Seleccionar…</option>
+                                    <option value="Cédula">Cédula</option>
+                                    <option value="Pasaporte">Pasaporte</option>
+                                </select>
+                                <span id="reg-tipo-doc-select-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
 
@@ -271,16 +270,12 @@
                             <!-- Campo Código -->
                             <div class="login-field" style="margin-top:20px;">
                                 <label for="reg-codigo" class="login-field__label">Código de verificación *</label>
-                                <input type="text" id="reg-codigo" class="login-field__input" placeholder="123456"
+                                <input type="text" id="reg-codigo" class="login-field__input" placeholder="6 dígitos"
                                     inputmode="numeric" maxlength="6" aria-required="true"
                                     autocomplete="one-time-code" aria-describedby="reg-codigo-error"
                                     style="letter-spacing: 6px; font-size:1.2rem; text-align:center;">
                                 <span id="reg-codigo-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
-                                <p
-                                    style="margin-top:6px; font-size:0.75rem; color:var(--gray-text); font-style:italic; text-align:center;">
-                                    Nota para evaluación (Prototipo): Utilice el código <strong>123456</strong>
-                                </p>
                             </div>
 
                             <!-- Contador -->
@@ -297,31 +292,6 @@
 
             </div><!-- /.login-layout -->
         </section>
-        <!-- Modal: Tipo de Documento -->
-        <div id="modal-tipo-doc" class="reg-modal-overlay" style="display:none;" role="dialog" aria-modal="true"
-            aria-labelledby="modal-doc-title">
-            <div class="reg-modal">
-                <div class="reg-modal__header">
-                    <h3 id="modal-doc-title" class="reg-modal__title">Seleccione el tipo de identificación</h3>
-                    <button class="reg-modal__close" aria-label="Cerrar" onclick="app.registro.cerrarModalDoc()">
-                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <ul class="reg-modal__list" role="listbox" aria-label="Tipo de documento">
-                    <li><label class="reg-modal__option">
-                            <input type="radio" name="tipo-doc-radio" value="Pasaporte"
-                                onchange="app.registro.seleccionarDoc('Pasaporte')">
-                            <span class="reg-modal__radio-circle"></span>Pasaporte
-                        </label></li>
-                    <li><label class="reg-modal__option">
-                            <input type="radio" name="tipo-doc-radio" value="Cédula"
-                                onchange="app.registro.seleccionarDoc('Cédula')">
-                            <span class="reg-modal__radio-circle"></span>Cédula
-                        </label></li>
-                </ul>
-            </div>
-        </div>
-
         <!-- Modal: Sexo -->
         <div id="modal-sexo" class="reg-modal-overlay" style="display:none;" role="dialog" aria-modal="true"
             aria-labelledby="modal-sexo-title">
