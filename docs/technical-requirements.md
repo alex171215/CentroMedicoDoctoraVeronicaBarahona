@@ -452,3 +452,10 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-30: Prevención y Recuperación de Cuentas Duplicadas (Heurísticas #5 y #9)
 1. **Prevención Temprana (Paso 1):** Al intentar avanzar del Paso 1 al Paso 2 en el Registro, el sistema debe consultar a Supabase si la `cedula` o el `correo` ya existen.
 2. **Recuperación Clara (Modal):** Si los datos ya existen (ya sea detectado en el Paso 1 o por un fallo en el Paso 3), se debe mostrar un Modal o un Estado de Error amigable que explique claramente el problema y ofrezca un botón primario de "Ir a Iniciar Sesión" que redirija al usuario a `login.html`. Quedan prohibidos los mensajes de error genéricos y los "callejones sin salida".
+
+## TR-31: Control de Eventos Nativos en Formularios Multipaso
+1. **Prevención de Submit Prematuro:** En formularios multipaso (Registro/Citas), los botones de avance intermedios (ej. "Siguiente") DEBEN ser `<button type="button">`. Solo el botón final de culminación puede comportarse como un `submit` lógico para evitar que el navegador dispare las alertas nativas de "Guardar Contraseña" antes de tiempo.
+
+## TR-32: Sincronización Bidireccional Continua
+1. **Actualización de Perfil:** Cualquier modificación en la vista de "Editar Perfil" debe reflejarse inmediatamente en la base de datos mediante una operación `UPDATE` en la tabla correspondiente (`pacientes`), protegida por un estado de carga (`conCargaGlobal`).
+2. **Mapeo Estricto de Credenciales:** Es mandatorio que el objeto de inserción en el registro incluya la clave `password` poblada correctamente desde el DOM hacia la base de datos.
