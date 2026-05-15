@@ -1,16 +1,20 @@
-# Sesión de Diseño Activa: Auditoría y Corrección de Sincronización de Perfil
+# Sesión de Diseño Activa: Reparación de Identidad y Envío de Correos
 
 ## 1. Objetivo
-Delegar al agente la auditoría del flujo de edición de perfil para corregir el bug de "Desincronización de Estado Local", donde los nombres/apellidos se revierten visualmente a su valor anterior tras ser guardados.
+Garantizar que el sistema siempre use el nombre real del paciente en los correos, arreglar el envío fallido en el registro y eliminar definitivamente el modal de Chrome.
 
-## 2. Instrucciones de Auditoría y Corrección para Antigravity
+## 2. Instrucciones para Antigravity
 
-### A. Auditoría de `guardarCambios()` (Módulo Perfil)
-* **El Problema:** La actualización de `celular` y `email` funciona, pero los nombres vuelven a su estado anterior en la UI.
-* **Tu Tarea:** Analiza la función que se dispara con el botón "Guardar Cambios" (`app.perfil.guardarCambios` o equivalente).
-* **Corrección Exigida:** Revisa el bloque de código que se ejecuta **después** de que Supabase responde con éxito. Debes asegurarte de que el objeto `usuarioActivo` que se guarda de vuelta en `localStorage` actualice explícitamente sus propiedades divididas (`nombre_1`, `nombre_2`, `apellido_1`, `apellido_2`) tomando los valores exactos que el usuario acaba de escribir en los inputs `#edit-nombre1`, etc.
+### A. Corrección de Saludo en Recuperación (`recuperacion.js`)
+* **Localización:** Función `buscarUsuario()` o similar.
+* **Acción:** Asegúrate de que el select a Supabase sea: `.select('correo, nombres')`. 
+* **Mapeo:** Pasa `data.nombres` a la función `_enviarOTP()`. Borra el fallback `|| 'Usuario'`. Si el nombre no viene, lanza un error de sistema; el usuario no debe recibir correos anónimos.
 
-### B. Auditoría de la Recarga de UI
-* **El Problema:** Al cerrar la vista de edición y volver al perfil, el nombre visible (ej. "Hola, Pepito") no se actualiza.
-* **Tu Tarea:** Analiza qué función renderiza la vista principal del perfil.
-* **Corrección Exigida:** Asegúrate de que, tras un guardado exitoso y la actualización del `localStorage`, se invoque automáticamente a la función que redibuja el DOM del perfil con los datos frescos.
+### B. Reparación del Registro (`main.js`)
+* **El Problema del Correo:** Verifica que `emailjs.init()` esté presente al inicio del archivo. 
+* **Acción:** En `_emitirOTPAlEntrarPaso3`, captura el nombre directamente del input: `const nombreReal = document.getElementById('reg-nombre1').value;`. Pásalo al payload de EmailJS.
+* **El Hack de Chrome:** Asegura este orden: 1. Guardar pass en sessionStorage. 2. `input.value = ''`. 3. `input.type = 'text'`. 4. Cambiar de paso. (Cambiar el tipo a 'text' confunde totalmente a Chrome y evita el modal al 100%).
+
+### C. Temporizador y Variables
+* Cambia todos los contadores de reenvío de OTP a **90 segundos**.
+* Payload único de EmailJS en ambos archivos: `{ nombre_usuario, correo_destino, codigo_otp }`.

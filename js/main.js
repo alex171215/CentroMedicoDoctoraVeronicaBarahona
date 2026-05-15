@@ -1613,13 +1613,40 @@ const app = {
 
         _emitirOTPAlEntrarPaso3() {
             const emailVal = (document.getElementById('reg-email')?.value || '').trim();
-            const emailEl = document.getElementById('reg-email-show');
+            const emailEl  = document.getElementById('reg-email-show');
             if (emailEl) emailEl.textContent = emailVal;
+
             const codigo = String(Math.floor(100000 + Math.random() * 900000));
             this._codigoOTPGenerado = codigo;
-            console.log('[QA OTP] Código de verificación:', codigo, '| correo:', emailVal);
-            alert('Tu código de validación es: ' + codigo);
-            this._iniciarCountdown(60);
+
+            // ── TR-40 + TR-41: OTP por EmailJS con nombre real (sin fallback genérico) ──
+            const EMAILJS_PUBLIC_KEY  = 'kk20Q6x-B6giGcqcU';
+            const EMAILJS_SERVICE_ID  = 'service_y7c5ugc';
+            const EMAILJS_TEMPLATE_ID = 'template_kf8kpt8';
+
+            // TR-41: Capturar el nombre real del DOM (el usuario lo escribió en el Paso 1).
+            // No se permite sustituir con 'Usuario' si el campo existe y tiene contenido.
+            const nombreReal = (document.getElementById('reg-nombre1')?.value || '').trim();
+            if (!nombreReal) console.warn('[TR-41] #reg-nombre1 vacío al emitir OTP.');
+
+            console.log('[QA OTP Registro] Código:', codigo, '| correo:', emailVal, '| nombre:', nombreReal);
+
+            if (typeof emailjs !== 'undefined') {
+                emailjs.init(EMAILJS_PUBLIC_KEY);
+                emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                    nombre_usuario: nombreReal,
+                    correo_destino: emailVal,
+                    codigo_otp:     codigo
+                }).then(() => {
+                    console.log('[EmailJS] OTP de registro enviado a', emailVal);
+                }).catch(err => {
+                    console.error('[EmailJS] Error al enviar OTP de registro:', err);
+                });
+            } else {
+                console.warn('[EmailJS] SDK no disponible. Código en consola (arriba).');
+            }
+
+            this._iniciarCountdown(90);
         },
 
         // ------------------------------------------------------------------
@@ -1733,15 +1760,17 @@ const app = {
                     }
                 }
 
-                // ── TR-34: Hack de evasión de Chrome ──────────────────────────────
-                // Antes de ocultar el Paso 2, sacamos el password del DOM y lo
-                // guardamos en sessionStorage. Al ocultarse estando vacío, Chrome
-                // no detecta un campo de contraseña desapareciendo y no dispara
-                // el prompt de "Guardar contraseña" de forma prematura.
+                // ── TR-34++: Hack de evasión de Chrome (nivel definitivo) ────────────
+                // Secuencia obligatoria antes de ocultar el Paso 2:
+                // 1. Guardar el valor en sessionStorage (para recuperarlo en el OTP/ghost-form).
+                // 2. Vaciar el DOM — Chrome deja de ver la contraseña en el campo.
+                // 3. Cambiar type a 'text' — Chrome no sabe que era un campo de contraseña
+                //    cuando se oculta el contenedor, eliminando el prompt al 100%.
                 const pwdInput = document.getElementById('reg-password');
                 if (pwdInput) {
-                    sessionStorage.setItem('temp_pass', pwdInput.value);
-                    pwdInput.value = ''; // Borrado del DOM — Chrome no lo ve desaparecer
+                    sessionStorage.setItem('temp_pass', pwdInput.value); // paso 1
+                    pwdInput.value = '';                                  // paso 2
+                    pwdInput.type  = 'text';                              // paso 3 — mata el prompt
                 }
             }
 

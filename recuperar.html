@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Centro Médico Familiar Dra. Verónica Barahona - Recuperar contraseña">
+    <link rel="icon" type="image/png" href="assets/img/Logo.png">
+    <title>Recuperar contraseña — Centro Médico Dra. Verónica Barahona</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- TR-40: EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+
+<body>
+    <!-- Bypass Block: Skip Link (WCAG 2.4.1) -->
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+    <!-- Encabezado / Header -->
+    <header class="header" role="banner">
+        <div class="header__top">
+            <div class="header__top-container">
+                <div class="header__top-links"></div>
+                <div class="header__top-buttons">
+                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
+                        <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <nav class="header__main" aria-label="Navegación principal">
+            <div class="header__main-container">
+                <a href="index.html" class="header__logo" aria-label="Inicio">
+                    <span class="header__logo-text">
+                        <img src="assets/img/Logo.png" alt="Logo Centro Médico" class="header__logo-img">
+                        <span class="header__logo-words">Centro Médico Familiar<br><strong>Dra. Verónica
+                                Barahona</strong></span>
+                    </span>
+                </a>
+
+                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false"
+                    aria-controls="main-menu">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
+
+                <div class="header__nav-wrapper" id="main-menu">
+                    <ul class="header__nav-list">
+                        <li class="header__nav-item"><a href="index.html" class="header__nav-link">Inicio</a></li>
+                        <li class="header__nav-item"><a href="especialistas.html" class="header__nav-link">Especialistas</a></li>
+                        <li class="header__nav-item"><a href="farmacia.html" class="header__nav-link">Farmacia</a></li>
+                        <li class="header__nav-item" id="nav-mi-salud" style="display:none;"><a href="mi-salud.html" class="header__nav-link">Mi Salud</a></li>
+                        <li class="header__nav-item"><a href="citas.html" class="header__nav-link">Agendar Cita</a></li>
+                        <li class="header__nav-item"><a href="contacto.html" class="header__nav-link">Contacto</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main id="main-content">
+        <section id="view-recuperar" class="view-section login-view" aria-labelledby="recuperar-heading">
+            <div class="login-layout">
+
+                <!-- Columna Izquierda: Imagen -->
+                <div class="login-panel login-panel--image"
+                    style="background-image: url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600');"
+                    role="img" aria-label="Ambiente médico seguro"></div>
+
+                <!-- Columna Derecha: Formulario -->
+                <div class="login-panel login-panel--form">
+                    <div class="login-form-wrapper">
+
+                        <!-- ══════════════════════════════════════════════════
+                             FASE 1: Identificación del usuario
+                             ══════════════════════════════════════════════════ -->
+                        <div id="rec-fase-1">
+                            <h2 id="recuperar-heading" class="login-title">Recuperar contraseña</h2>
+                            <p style="color:var(--text-secondary,#666);margin-bottom:20px;font-size:0.95rem;">
+                                Ingresa tu cédula o correo registrado y te enviaremos un código de verificación.
+                            </p>
+
+                            <div class="login-field">
+                                <label for="rec-identificador" class="login-field__label">Cédula o correo</label>
+                                <input type="text" id="rec-identificador" name="rec-identificador"
+                                    class="login-field__input" placeholder="Cédula o correo registrado"
+                                    autocomplete="off" inputmode="text" maxlength="80"
+                                    aria-required="true" aria-describedby="rec-ident-error">
+                                <span id="rec-ident-error" class="login-field__error" role="alert"
+                                    style="display:none;"></span>
+                            </div>
+
+                            <button type="button" id="rec-btn-fase1" class="btn btn--accion login-submit"
+                                onclick="recuperacion.buscarUsuario()">
+                                Enviar código
+                            </button>
+
+                            <p class="login-register-link">
+                                <a href="login.html" class="enlace-accion">
+                                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al inicio de sesión
+                                </a>
+                            </p>
+                        </div>
+
+                        <!-- ══════════════════════════════════════════════════
+                             FASE 2: Código OTP + Nueva contraseña
+                             ══════════════════════════════════════════════════ -->
+                        <div id="rec-fase-2" style="display:none;">
+                            <h2 class="login-title">Verifica tu identidad</h2>
+                            <p style="color:var(--text-secondary,#666);margin-bottom:8px;font-size:0.95rem;">
+                                Enviamos un código a: <strong id="rec-correo-show" style="color:var(--action-color);"></strong>
+                            </p>
+                            <p style="color:var(--text-secondary,#666);margin-bottom:20px;font-size:0.85rem;">
+                                El código expira en: <span id="rec-countdown" style="font-weight:700;color:var(--action-color);">01:00</span>
+                            </p>
+
+                            <div class="login-field">
+                                <label for="rec-codigo" class="login-field__label">Código de verificación</label>
+                                <input type="text" id="rec-codigo" name="rec-codigo" class="login-field__input"
+                                    placeholder="6 dígitos" inputmode="numeric" maxlength="6"
+                                    autocomplete="one-time-code" aria-required="true"
+                                    aria-describedby="rec-codigo-error">
+                                <span id="rec-codigo-error" class="login-field__error" role="alert"
+                                    style="display:none;"></span>
+                            </div>
+
+                            <div class="login-field">
+                                <label for="rec-new-password" class="login-field__label">Nueva contraseña</label>
+                                <div class="login-field__password-wrap">
+                                    <input type="password" id="rec-new-password" name="rec-new-password"
+                                        class="login-field__input" placeholder="Mínimo 6 caracteres"
+                                        autocomplete="new-password" aria-required="true"
+                                        aria-describedby="rec-pass-error">
+                                    <button type="button" class="login-field__eye" id="rec-toggle-pw"
+                                        aria-label="Mostrar u ocultar contraseña"
+                                        onclick="recuperacion._togglePassword()">
+                                        <i class="fa-regular fa-eye" id="rec-eye-icon" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <span id="rec-pass-error" class="login-field__error" role="alert"
+                                    style="display:none;"></span>
+                            </div>
+
+                            <button type="button" id="rec-btn-fase2" class="btn btn--accion login-submit"
+                                onclick="recuperacion.validarYActualizar()">
+                                Cambiar contraseña
+                            </button>
+
+                            <p id="rec-resend-txt" style="margin-top:12px;font-size:0.875rem;text-align:center;color:var(--text-secondary,#666);">
+                                ¿No recibiste el código?
+                            </p>
+
+                            <p class="login-register-link">
+                                <a href="login.html" class="enlace-accion">
+                                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al inicio de sesión
+                                </a>
+                            </p>
+                        </div>
+
+                        <!-- ══════════════════════════════════════════════════
+                             FASE 3: Éxito
+                             ══════════════════════════════════════════════════ -->
+                        <div id="rec-fase-3" style="display:none;text-align:center;">
+                            <div style="font-size:3.5rem;color:var(--action-color);margin-bottom:16px;">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                            </div>
+                            <h2 class="login-title" style="font-size:1.5rem;">¡Contraseña actualizada!</h2>
+                            <p style="color:var(--text-secondary,#666);margin-bottom:28px;font-size:0.95rem;">
+                                Tu contraseña ha sido cambiada correctamente. Ya puedes iniciar sesión con tus nuevas credenciales.
+                            </p>
+                            <a href="login.html" class="btn btn--accion login-submit"
+                                style="display:inline-block;text-decoration:none;">
+                                Ir a Iniciar Sesión
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer" id="site-footer" role="contentinfo">
+        <div class="container">
+            <div class="footer__grid">
+                <div class="footer__col footer__col--brand">
+                    <img src="assets/img/Logo.png" alt="Logo Centro Médico Familiar Dra. Verónica Barahona"
+                        style="width: 140px; height: auto; margin-bottom: 15px;">
+                    <p class="footer__tagline">Cuidando de su salud integralmente</p>
+                </div>
+                <div class="footer__col footer__col--links">
+                    <h3 class="footer__title">EXPLORA</h3>
+                    <ul class="footer__nav">
+                        <li><a href="index.html" class="footer__link">Inicio</a></li>
+                        <li><a href="especialistas.html" class="footer__link">Especialistas</a></li>
+                        <li><a href="farmacia.html" class="footer__link">Farmacia</a></li>
+                        <li><a href="contacto.html" class="footer__link">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="footer__col footer__col--locations">
+                    <h3 class="footer__title">ATENCIÓN</h3>
+                    <ul class="footer__address-list">
+                        <li>
+                            <a href="https://maps.app.goo.gl/YwkDycizBWUpwCPo9" target="_blank" rel="noopener noreferrer">
+                                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                                <span>Pifo, Ignacio Jarrín y Tulio Garzón<br>170175 Quito</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="tel:+593998908034">
+                                <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                                <span>099 890 8034</span>
+                            </a>
+                        </li>
+                        <li>
+                            <span class="footer__horario">
+                                <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                                Lun-Vie: 7:00 — 17:00 | Sáb: 8:00 — 13:00
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="footer__col footer__col--social">
+                    <h3 class="footer__title">SÍGUENOS</h3>
+                    <div class="footer__social">
+                        <a href="https://www.facebook.com/p/Centro-Medico-Familiar-Dra-Veronica-Barahona-100063595058008/?locale=es_LA"
+                            aria-label="Visitar página de Facebook" target="_blank" rel="noopener noreferrer"
+                            class="footer__social-link"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i></a>
+                        <a href="https://www.instagram.com/centromedicodraveronicab/"
+                            aria-label="Visitar perfil de Instagram" target="_blank" rel="noopener noreferrer"
+                            class="footer__social-link"><i class="fa-brands fa-instagram" aria-hidden="true"></i></a>
+                        <a href="https://wa.me/593998908034" aria-label="Contactar por WhatsApp" target="_blank"
+                            rel="noopener noreferrer" class="footer__social-link"><i class="fa-brands fa-whatsapp"
+                                aria-hidden="true"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer__legal">
+                <p class="footer__copyright">Centro Médico Familiar Dra. Verónica Barahona. Todos los derechos
+                    reservados.<br>© 2026</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bottom Navigation Bar (Mobile) -->
+    <nav class="bottom-nav" aria-label="Navegación móvil">
+        <a href="citas.html" class="bottom-nav__item">
+            <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
+            <span>Citas</span>
+        </a>
+        <a href="especialistas.html" class="bottom-nav__item">
+            <i class="fa-solid fa-stethoscope" aria-hidden="true"></i>
+            <span>Médicos</span>
+        </a>
+        <a href="index.html" class="bottom-nav__item">
+            <i class="fa-solid fa-house" aria-hidden="true"></i>
+            <span>Inicio</span>
+        </a>
+        <a href="farmacia.html" class="bottom-nav__item">
+            <i class="fa-solid fa-pills" aria-hidden="true"></i>
+            <span>Farmacia</span>
+        </a>
+        <a href="login.html" id="bottom-auth-item" class="bottom-nav__item" aria-label="Iniciar Sesión">
+            <i class="fa-regular fa-user" aria-hidden="true"></i>
+            <span>Entrar</span>
+        </a>
+    </nav>
+
+    <script src="js/data.js"></script>
+    <!-- recuperacion.js es un módulo ES independiente (no necesita main.js completo) -->
+    <script type="module" src="js/modulos/recuperacion.js"></script>
+</body>
+
+</html>

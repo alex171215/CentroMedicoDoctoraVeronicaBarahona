@@ -465,8 +465,12 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-33: Integridad de Credenciales en el Registro
 1. **Mapeo Completo:** La función de empaquetado de datos para nuevos registros (`pacienteDesdeRegistroLocal` o similar) DEBE mapear explícitamente el campo `password` ingresado por el usuario hacia la columna `password` de Supabase.
 
-## TR-34: Evasión de Heurísticas de Chrome (Password Prompt)
-1. **Borrado de Memoria en DOM:** Para evitar que Chrome dispare la alerta de "Guardar contraseña" al ocultar pasos del registro, el valor del input de contraseña DEBE ser extraído a `sessionStorage` y luego borrado del DOM (`input.value = ''`) justo ANTES de realizar la transición visual al Paso 3. 
+## TR-34: Evasión de Heurísticas de Chrome (Anti-Regresión)
+1. **Borrado de Memoria en DOM (Inmutable):** Bajo ninguna circunstancia se debe eliminar el hack de evasión de Chrome en la transición del Paso 2 al Paso 3 del registro. 
+2. El flujo exacto y obligatorio antes de aplicar `display: none` al Paso 2 es:
+   `sessionStorage.setItem('temp_pass', document.getElementById('reg-password').value);`
+   `document.getElementById('reg-password').value = '';`
+   Si un agente elimina esto durante una refactorización, está introduciendo un Bug Crítico (P-0).
 
 ## TR-35: Transparencia en Base de Datos (Zero Silent Failures)
 1. **Updates Explícitos:** Toda operación `UPDATE` a Supabase debe manejar su propio objeto `{ error }`. Si hay error, el sistema está OBLIGADO a hacer un `alert()` o mostrar en la UI el `error.message` exacto que devuelve Supabase, para evitar fallos silenciosos en producción.
@@ -488,3 +492,22 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
    - `nombres` = Primer Nombre + (espacio) + Segundo Nombre
    - `apellidos` = Primer Apellido + (espacio) + Segundo Apellido
 2. **Sincronización Total del Estado:** Al actualizar el perfil, el objeto `usuarioActivo` en `localStorage` debe conservar TANTO las propiedades divididas (para rellenar el formulario de edición en el futuro) COMO las propiedades unificadas (para enviar a Supabase).
+
+## TR-39: Flujo de Recuperación de Contraseña (H9 y MPA)
+1. **Arquitectura:** La recuperación de contraseña debe vivir en su propio archivo físico `recuperar.html`, sumando a la cuota de pantallas del proyecto. Debe heredar exactamente el mismo layout, CSS y clases de `login.html` para mantener la Heurística 4 (Consistencia).
+2. **Proceso de 3 Fases (Divulgación Progresiva):**
+   - **Fase 1:** Input de Cédula o Correo. Validar existencia en la tabla `pacientes` de Supabase.
+   - **Fase 2:** Si existe, generar OTP, enviar por EmailJS y mostrar inputs para "Código OTP" y "Nueva Contraseña".
+   - **Fase 3:** Validar OTP. Si es correcto, hacer `UPDATE` estricto en Supabase. Si hay éxito, mostrar mensaje y botón para ir al Login.
+
+## TR-40: Integración de Notificaciones (EmailJS)
+1. **Contrato de Variables Exacto:** Al usar `emailjs.send()`, el objeto de parámetros (payload) DEBE usar estrictamente las siguientes llaves para coincidir con la plantilla del usuario:
+   - `nombre_usuario` (Nombres del paciente)
+   - `correo_destino` (Email del destinatario)
+   - `codigo_otp` (El código de 6 dígitos)
+   Queda prohibido usar variaciones como `to_name` o `otp_code`.
+
+## TR-41: Integridad de Identidad en Notificaciones
+1. **Prohibición de Anonimato:** Queda estrictamente prohibido el uso del fallback 'Usuario' en los correos electrónicos si el dato existe en la base de datos o en el formulario.
+2. **Carga Obligatoria:** Toda consulta a la tabla `pacientes` realizada para enviar un OTP DEBE incluir la columna `nombres` en el `select` de Supabase para personalizar el saludo.
+3. **Sincronía de EmailJS:** El envío del correo de registro debe esperar a que el DOM esté completamente listo y las credenciales cargadas.
