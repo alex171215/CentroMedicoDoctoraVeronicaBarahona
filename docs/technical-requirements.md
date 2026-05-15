@@ -453,9 +453,38 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Prevención Temprana (Paso 1):** Al intentar avanzar del Paso 1 al Paso 2 en el Registro, el sistema debe consultar a Supabase si la `cedula` o el `correo` ya existen.
 2. **Recuperación Clara (Modal):** Si los datos ya existen (ya sea detectado en el Paso 1 o por un fallo en el Paso 3), se debe mostrar un Modal o un Estado de Error amigable que explique claramente el problema y ofrezca un botón primario de "Ir a Iniciar Sesión" que redirija al usuario a `login.html`. Quedan prohibidos los mensajes de error genéricos y los "callejones sin salida".
 
-## TR-31: Control de Eventos Nativos en Formularios Multipaso
-1. **Prevención de Submit Prematuro:** En formularios multipaso (Registro/Citas), los botones de avance intermedios (ej. "Siguiente") DEBEN ser `<button type="button">`. Solo el botón final de culminación puede comportarse como un `submit` lógico para evitar que el navegador dispare las alertas nativas de "Guardar Contraseña" antes de tiempo.
+## TR-31: Gestión de Credenciales en SPA y Accesibilidad (WCAG)
+1. **Semántica Obligatoria:** Los formularios SIEMPRE deben usar la etiqueta `<form>`. Está PROHIBIDO usar `<div>` como contenedor principal de inputs, ya que viola la WCAG.
+2. **Prevención de Prompts Prematuros:** Para evitar que el navegador ofrezca guardar la contraseña al cambiar de paso, todos los botones de navegación interna ("Siguiente") deben ser estrictamente `<button type="button">`. 
+3. **Ghost Form para Guardado (UX):** El prompt de "Guardar contraseña" del navegador solo debe dispararse cuando Supabase confirme la creación del usuario. Se logrará inyectando un formulario temporal en el DOM con las credenciales, ejecutando `.submit()` y eliminándolo inmediatamente.
 
-## TR-32: Sincronización Bidireccional Continua
-1. **Actualización de Perfil:** Cualquier modificación en la vista de "Editar Perfil" debe reflejarse inmediatamente en la base de datos mediante una operación `UPDATE` en la tabla correspondiente (`pacientes`), protegida por un estado de carga (`conCargaGlobal`).
-2. **Mapeo Estricto de Credenciales:** Es mandatorio que el objeto de inserción en el registro incluya la clave `password` poblada correctamente desde el DOM hacia la base de datos.
+## TR-32: Sincronización Bidireccional (Single Source of Truth)
+1. **Updates Seguros:** En la vista de "Editar Perfil", el sistema DEBE ejecutar primero un `UPDATE` en la tabla `pacientes` de Supabase (`await supabase.from('pacientes').update(...)`).
+2. **Fallback Local:** Solo si Supabase responde con éxito, se actualizará el `localStorage`. Si falla, se lanza un error y el estado local se mantiene intacto.
+
+## TR-33: Integridad de Credenciales en el Registro
+1. **Mapeo Completo:** La función de empaquetado de datos para nuevos registros (`pacienteDesdeRegistroLocal` o similar) DEBE mapear explícitamente el campo `password` ingresado por el usuario hacia la columna `password` de Supabase.
+
+## TR-34: Evasión de Heurísticas de Chrome (Password Prompt)
+1. **Borrado de Memoria en DOM:** Para evitar que Chrome dispare la alerta de "Guardar contraseña" al ocultar pasos del registro, el valor del input de contraseña DEBE ser extraído a `sessionStorage` y luego borrado del DOM (`input.value = ''`) justo ANTES de realizar la transición visual al Paso 3. 
+
+## TR-35: Transparencia en Base de Datos (Zero Silent Failures)
+1. **Updates Explícitos:** Toda operación `UPDATE` a Supabase debe manejar su propio objeto `{ error }`. Si hay error, el sistema está OBLIGADO a hacer un `alert()` o mostrar en la UI el `error.message` exacto que devuelve Supabase, para evitar fallos silenciosos en producción.
+
+## TR-36: Prevención Heurística del Navegador (Password Prompts)
+1. **Control de Credenciales:** El sistema DEBE prevenir que el navegador (Chrome, Edge, Safari) dispare el modal de "Guardar Contraseña" de forma prematura durante las transiciones visuales (ej. ocultar pasos con `display: none`).
+2. **Disparo Legítimo:** El modal del navegador SOLO debe permitirse al final del flujo, cuando la base de datos (Supabase) ha confirmado la inserción exitosa del nuevo usuario. El desarrollador/agente tiene la libertad de elegir la mejor técnica técnica para lograr esto sin romper el DOM ni la accesibilidad.
+
+## TR-37: Sincronización Estricta de Perfil (Single Source of Truth)
+1. **Prioridad Backend:** Toda edición de datos del usuario (Perfil) debe seguir un flujo estricto: 
+   1ro. Petición `UPDATE` a Supabase.
+   2do. Si falla, detener flujo y mostrar error real.
+   3ro. Si es exitoso, actualizar `localStorage` con los datos devueltos.
+   4to. Reflejar visualmente en la UI (mensaje de éxito y actualización de textos).
+2. **Prohibición de Falsos Positivos:** Queda prohibido mostrar mensajes de "Datos actualizados correctamente" si la transacción en Supabase no se completó.
+
+## TR-38: Mapeo de Datos UI-DB (Data Shape Matching)
+1. **Concatenación Obligatoria:** Dado que el esquema de la tabla `pacientes` en Supabase utiliza columnas unificadas (`nombres` y `apellidos`), todo formulario que recolecte estos datos de forma dividida (`nombre1`, `nombre2`, `apellido1`, `apellido2`) DEBE concatenarlos antes de ejecutar un `INSERT` o `UPDATE`.
+   - `nombres` = Primer Nombre + (espacio) + Segundo Nombre
+   - `apellidos` = Primer Apellido + (espacio) + Segundo Apellido
+2. **Sincronización Total del Estado:** Al actualizar el perfil, el objeto `usuarioActivo` en `localStorage` debe conservar TANTO las propiedades divididas (para rellenar el formulario de edición en el futuro) COMO las propiedades unificadas (para enviar a Supabase).

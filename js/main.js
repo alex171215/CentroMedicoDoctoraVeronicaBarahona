@@ -1,4 +1,5 @@
 import { utilidades } from './modulos/utilidades.js';
+import { supabase } from './supabaseClient.js';
 import { estado, STORAGE_CITA_EN_PROGRESO, STORAGE_CITA_POST_LOGIN, STORAGE_AUTO_CONSULTA_INVITADO } from './estado.js';
 import { createCitas } from './modulos/citas.js';
 import { salud } from './modulos/salud.js';
@@ -1731,6 +1732,17 @@ const app = {
                         return;
                     }
                 }
+
+                // ── TR-34: Hack de evasión de Chrome ──────────────────────────────
+                // Antes de ocultar el Paso 2, sacamos el password del DOM y lo
+                // guardamos en sessionStorage. Al ocultarse estando vacío, Chrome
+                // no detecta un campo de contraseña desapareciendo y no dispara
+                // el prompt de "Guardar contraseña" de forma prematura.
+                const pwdInput = document.getElementById('reg-password');
+                if (pwdInput) {
+                    sessionStorage.setItem('temp_pass', pwdInput.value);
+                    pwdInput.value = ''; // Borrado del DOM — Chrome no lo ve desaparecer
+                }
             }
 
             this._irAPaso(pasoActual + 1);
@@ -2029,6 +2041,11 @@ const app = {
                 return;
             }
 
+            // TR-34/B: Recuperar la contraseña real desde sessionStorage.
+            // El input #reg-password fue vaciado al pasar al Paso 3; el valor
+            // real está guardado en 'temp_pass' para evitar fallos silenciosos.
+            const finalPass = sessionStorage.getItem('temp_pass') || '';
+
             const nuevoUsuario = {
                 tipoDoc: this._tipoDoc,
                 identificacion: (document.getElementById('reg-identificacion')?.value || '').trim(),
@@ -2042,7 +2059,7 @@ const app = {
                 fijo: (document.getElementById('reg-fijo')?.value || '').trim(),
                 correo: (document.getElementById('reg-email')?.value || '').trim(),
                 email: (document.getElementById('reg-email')?.value || '').trim(),
-                password: document.getElementById('reg-password')?.value || ''
+                password: finalPass  // ← desde sessionStorage, no del DOM vaciado
             };
 
             const filaPacienteSupabase = pacienteDesdeRegistroLocal(nuevoUsuario);
@@ -2071,6 +2088,50 @@ const app = {
             const usuarioActivo = mapPacienteAUsuarioActivo(filaInsertada || filaPacienteSupabase);
             localStorage.setItem('usuarioLogueado', 'true');
             localStorage.setItem('usuarioActivo', JSON.stringify(usuarioActivo));
+
+            // ── TR-31 §3 — Ghost Form: disparar prompt nativo de guardado de contraseñas ──
+            // Se crea un formulario invisible con las credenciales reales, se hace submit
+            // interceptado (preventDefault) para que el navegador ofrezca guardar la
+            // contraseña, y se elimina de inmediato. No altera el <form> original.
+            try {
+                const ghostForm = document.createElement('form');
+                ghostForm.style.cssText = 'display:none;position:fixed;top:-9999px;left:-9999px;';
+                ghostForm.setAttribute('autocomplete', 'on');
+                ghostForm.setAttribute('action', 'javascript:void(0);');
+
+                const ghostUser = document.createElement('input');
+                ghostUser.type = 'text';
+                ghostUser.name = 'username';
+                ghostUser.autocomplete = 'username';
+                ghostUser.value = nuevoUsuario.identificacion || '';
+
+                const ghostPwd = document.createElement('input');
+                ghostPwd.type = 'password';
+                ghostPwd.name = 'password';
+                ghostPwd.autocomplete = 'new-password';
+                ghostPwd.value = finalPass || nuevoUsuario.password || ''; // TR-34: usa el valor real
+
+                const ghostSubmit = document.createElement('button');
+                ghostSubmit.type = 'submit';
+
+                ghostForm.appendChild(ghostUser);
+                ghostForm.appendChild(ghostPwd);
+                ghostForm.appendChild(ghostSubmit);
+
+                // Interceptar el submit para evitar navegación pero dejar que el
+                // gestor de contraseñas del navegador capture las credenciales.
+                ghostForm.addEventListener('submit', (e) => e.preventDefault(), { once: true });
+
+                document.body.appendChild(ghostForm);
+                ghostSubmit.click(); // Activa el prompt nativo sin navegación
+                ghostForm.remove();
+
+                // TR-34/B §4: Limpiar la clave temporal tras usarla en el Ghost Form.
+                sessionStorage.removeItem('temp_pass');
+            } catch (_) {
+                // No interrumpir el flujo si el ghost form falla (degradación controlada)
+                sessionStorage.removeItem('temp_pass'); // Limpiar igualmente en caso de error
+            }
 
             clearInterval(this._countdownInterval);
             app.iniciarSesionUsuario();
@@ -2479,41 +2540,83 @@ const app = {
             const u = JSON.parse(raw);
             const val = id => document.getElementById(id)?.value.trim() || '';
 
-            // Soportar ambas convenciones de claves (usuario demo vs. usuario registrado)
-            if ('nombre_1' in u) {
-                u.nombre_1 = val('edit-nombre1');
-                u.nombre_2 = val('edit-nombre2');
-                u.apellido_1 = val('edit-apellido1');
-                u.apellido_2 = val('edit-apellido2');
-            } else {
-                u.nombre1 = val('edit-nombre1');
-                u.nombre2 = val('edit-nombre2');
-                u.apellido1 = val('edit-apellido1');
-                u.apellido2 = val('edit-apellido2');
-            }
+            // TR-38 §2 — Bug fix: Siempre actualizar AMBAS convenciones de claves.
+            // El bug anterior usaba if/else: si el objeto tenía AMBAS propiedades
+            // (nombre1 Y nombre_1), solo una se actualizaba y la otra conservaba
+            // el valor viejo. _rellenarFormularioEditarDesdeStorage() lee con
+            // prioridad u.nombre1 → u.nombre_1, por lo que la vieja tomaba precedencia.
+            // Solución: escribir las cuatro propiedades incondicionalmente.
+            const n1 = val('edit-nombre1');
+            const n2 = val('edit-nombre2');
+            const a1 = val('edit-apellido1');
+            const a2 = val('edit-apellido2');
+
+            u.nombre1   = n1;  u.nombre_1   = n1;
+            u.nombre2   = n2;  u.nombre_2   = n2;
+            u.apellido1 = a1;  u.apellido_1 = a1;
+            u.apellido2 = a2;  u.apellido_2 = a2;
             u.celular = val('edit-celular');
             u.email   = val('edit-email');
             // H3: persistir fecha de nacimiento corregida (TR-13)
             const nuevaFecha = val('edit-fecha-nac');
             if (nuevaFecha) u.fecha_nacimiento = nuevaFecha;
 
-            // ── PASO 2 — Procesamiento (800ms simulan latencia de red) ──
+            // ── PASO 2 — TR-32/TR-38: UPDATE en Supabase primero; localStorage solo si Supabase ok ──
+            // TR-38: Construir las propiedades unificadas (nombres/apellidos) ANTES del
+            // UPDATE, y escribirlas de vuelta en `u` para que el localStorage conserve
+            // AMBAS convenciones (dividida para el form + unificada para Supabase/UI).
+            const nombresCompletos  = [val('edit-nombre1'), val('edit-nombre2')].filter(Boolean).join(' ');
+            const apellidosCompletos = [val('edit-apellido1'), val('edit-apellido2')].filter(Boolean).join(' ');
+
+            // Propiedades unificadas (para Supabase y para UI: modal, navbar)
+            u.nombres   = nombresCompletos;
+            u.apellidos = apellidosCompletos;
+
+            // ── PASO 3 — Ejecutar actualización asíncrona (800ms simulan latencia de red) ──
             setTimeout(() => {
                 void (async () => {
                     const ced = u.identificacion || u.cedula;
+
+                    // TR-38 §1: patch usa los valores unificados ya calculados sincrónicamente.
                     const patch = {
-                        nombres: [u.nombre1 || u.nombre_1, u.nombre2 || u.nombre_2].filter(Boolean).join(' ').trim(),
-                        apellidos: [u.apellido1 || u.apellido_1, u.apellido2 || u.apellido_2].filter(Boolean).join(' ').trim(),
-                        celular: u.celular,
-                        correo: u.email,
+                        nombres:          u.nombres,
+                        apellidos:        u.apellidos,
+                        celular:          u.celular,
+                        correo:           u.email,
                         fecha_nacimiento: u.fecha_nacimiento || null
                     };
-                    try {
-                        if (ced) await updatePacientePorCedula(ced, patch);
-                    } catch (err) {
-                        console.error('[Supabase] Actualizar perfil:', err);
+
+                    // TR-32 §1 + TR-35: UPDATE directo a Supabase sin wrappers.
+                    // Zero Silent Failures: si hay error se muestra alert() con el
+                    // mensaje exacto de Supabase para diagnóstico inmediato en producción.
+                    if (ced) {
+                        const { error: supaError } = await supabase
+                            .from('pacientes')
+                            .update({
+                                nombres: patch.nombres,
+                                apellidos: patch.apellidos,
+                                correo: patch.correo,
+                                celular: patch.celular,
+                                fecha_nacimiento: patch.fecha_nacimiento
+                            })
+                            .eq('cedula', ced);
+
+                        if (supaError) {
+                            // TR-35: Transparencia total — alertar el error exacto de Supabase.
+                            alert('Error en BD: ' + supaError.message);
+                            console.error('[Supabase] Actualizar perfil:', supaError);
+                            if (btnGuardar) {
+                                btnGuardar.disabled = false;
+                                btnGuardar.innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Guardar Cambios';
+                            }
+                            return; // ← Abortar: no tocar localStorage
+                        }
                     }
 
+                    // TR-32 §2 / TR-38 §2: Solo si Supabase respondió ok, actualizar estado local.
+                    // El objeto `u` ya tiene nombres/apellidos unificados + las propiedades
+                    // divididas, por lo que el formulario de edición y el modal de perfil
+                    // podrán reconstruir ambas representaciones sin perder información.
                     localStorage.setItem('usuarioActivo', JSON.stringify(u));
 
                     const lista = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
@@ -2523,7 +2626,35 @@ const app = {
                         localStorage.setItem('sanitas_usuarios', JSON.stringify(lista));
                     }
 
+                    // ── Refrescar navbar (btn-auth: "Nombre Apellido") ──
                     app.iniciarSesionUsuario();
+
+                    // ── TR-38 §2: Refrescar DOM del modal de perfil si está abierto ──
+                    // Actualiza #perfil-nombre-completo, #perfil-celular y #perfil-avatar-iniciales
+                    // directamente para que el cambio sea visible sin cerrar y reabrir el modal.
+                    const modalPerfil = document.getElementById('modal-perfil');
+                    if (modalPerfil && modalPerfil.style.display !== 'none') {
+                        const nombre1Show = u.nombre1 || u.nombre_1 || (u.nombres || '').split(/\s+/)[0] || '';
+                        const elNombreModal = document.getElementById('perfil-nombre-completo');
+                        if (elNombreModal) {
+                            elNombreModal.textContent =
+                                [u.nombres, u.apellidos].filter(Boolean).join(' ').trim() || '—';
+                        }
+                        const elCelularModal = document.getElementById('perfil-celular');
+                        if (elCelularModal) elCelularModal.textContent = u.celular || '—';
+                        const elAvatar = document.getElementById('perfil-avatar-iniciales');
+                        if (elAvatar) {
+                            const inicial = nombre1Show.charAt(0).toUpperCase();
+                            if (inicial) elAvatar.textContent = inicial;
+                        }
+                    }
+
+                    // ── TR-38 §2: Refrescar campos del formulario de edición ──
+                    // Si el usuario está en perfil.html y el formulario sigue visible,
+                    // actualizar los inputs para reflejar los datos guardados.
+                    if (document.getElementById('edit-nombre1')) {
+                        app.perfil._rellenarFormularioEditarDesdeStorage();
+                    }
 
                     if (btnGuardar) {
                         btnGuardar.disabled = false;
