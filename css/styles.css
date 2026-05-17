@@ -441,6 +441,49 @@ textarea:focus-visible {
     }
 }
 
+/* TR-65: Menú móvil abierto — activado por JS con clase .active */
+@media (max-width: 767px) {
+    .header__nav-wrapper.active {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: rgba(250, 252, 254, 0.98);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+        padding: 12px 0 16px;
+        z-index: 999;
+        animation: slideDown 0.2s ease;
+    }
+
+    .header__nav-wrapper.active .header__nav-list {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0 20px;
+        gap: 4px;
+    }
+
+    .header__nav-wrapper.active .header__nav-link {
+        padding: 10px 0;
+        font-size: 1rem;
+        width: 100%;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .header__nav-wrapper.active .header__nav-link--active {
+        border-bottom: 1px solid var(--border-color);
+        color: var(--action-color);
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+}
+
 .header__nav-list {
     display: flex;
     flex-direction: row;
@@ -588,10 +631,9 @@ textarea:focus-visible {
         max-width: 100%;
     }
 
-    /* Subtítulo reducido */
+    /* Subtítulo — TR-66: ocultar en mobile (Divulgación Progresiva) */
     .hero__subtitle {
-        font-size: 0.7rem;
-        margin-bottom: 4px;
+        display: none;
     }
 
     /* Título principal más pequeño */
@@ -600,26 +642,22 @@ textarea:focus-visible {
         margin-bottom: 10px;
     }
 
-    /* Dos columnas para las características que quedan */
+    /* Features — TR-66/TR-67: ocultar en mobile para reducir carga cognitiva */
     .hero__features {
-        grid-template-columns: 1fr 1fr;
-        gap: 8px 15px;
-        margin-bottom: 15px;
-    }
-
-    .hero__feature {
-        font-size: 0.75rem;
-        gap: 4px;
-    }
-
-    .hero__feature-icon {
-        font-size: 1rem;
-    }
-
-    /* Ocultamos solo las características 3 y 4 en el primer slide (móvil) */
-    .hero__slide:first-child .hero__feature:nth-child(3),
-    .hero__slide:first-child .hero__feature:nth-child(4) {
         display: none;
+    }
+
+    /* TR-67 §2: La slide de Política 24h invierte la prioridad:
+       - .hero__features (icón de reloj): oculto en mobile (cubierto por regla anterior)
+       - .hero__subtitle (texto de advertencia): SIEMPRE visible, nunca oculto */
+    .hero__slide--policy .hero__subtitle {
+        display: block !important;
+        font-size: 0.9rem;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        line-height: 1.5;
+        margin-top: 8px;
     }
 
     /* Botón con espacio suficiente respecto a los puntos */
@@ -664,18 +702,34 @@ textarea:focus-visible {
         margin-bottom: 20px;
     }
 
-    /* Diapositiva 2: se deja con padding izquierdo reducido */
+    /* Diapositiva 3 (Especialidades): se deja con padding izquierdo reducido */
     .hero__slide:nth-child(2) .hero__content {
         padding-left: 200px;
         max-width: 50%;
         /* Valor original */
     }
 
-    /* Diapositiva 3: más abajo y también más ancha */
+    /* Diapositiva 4 (Historial Digital): más abajo y también más ancha */
     .hero__slide:nth-child(3) .hero__content {
         padding-top: 120px;
         padding-left: 180px;
         max-width: 60%;
+    }
+}
+
+/* TR-67 §3: Desktop — Destruir la "pared invisible" en Slide 3
+   El texto largo de especialidades fuerza saltos de línea prematuros
+   cuando max-width es 50%. Se expande a 800px en pantallas grandes. */
+@media (min-width: 1024px) {
+    .hero__slide:nth-child(2) .hero__content {
+        max-width: 800px;
+        padding-left: 180px;
+    }
+
+    /* El Slide 4 (historial) y Slide 5 (política) también se benefician */
+    .hero__slide:nth-child(3) .hero__content,
+    .hero__slide--policy .hero__content {
+        max-width: 700px;
     }
 }
 
@@ -694,6 +748,19 @@ textarea:focus-visible {
 }
 
 @media (min-width: 768px) {
+    /* TR-66/TR-67: Restaurar subtitle y features a partir de tablet */
+    .hero__subtitle {
+        display: block;
+    }
+
+    /* Restaurar grid de features (se ocultan en mobile) */
+    .hero__features {
+        display: grid;
+    }
+
+    /* La excepción de la slide de política ya no necesita !important
+       porque la regla de display:none solo aplica en max-width:767px */
+
     .hero__title {
         font-size: 2.5rem;
     }
@@ -4015,6 +4082,7 @@ textarea:focus-visible {
    Modal: Resultado de Consulta de Cita
    =================================================== */
 .modal-consulta__content {
+    width: 90%;
     max-width: 440px;
     text-align: center;
     padding: 36px 28px;

@@ -571,3 +571,67 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Consistencia Universal:** El evento nativo `window.popstate` actuará como el controlador supremo de navegación para todos los formularios por pasos (Agendamiento, Registro, Recuperación de Contraseña) y Modales del sitio.
 2. **Registro Obligatorio de Pasos:** Cada vez que cualquier flujo cambie de paso hacia adelante (vía JS), o se abra un modal, el sistema DEBE registrar un estado único usando `history.pushState({ tipo: 'nombre-flujo', paso: numeroPaso }, '', '')`.
 3. **Delegación de Cierre:** El `popstate` jamás modificará el DOM directamente ni usará restas matemáticas elementales. Su única función será invocar los métodos visuales de retroceso propios de cada módulo (ej. `app.citas.irAtras()`, `app.registro.irAtras()`, `app.recuperar.irAtras()`), respetando el historial dinámico de cada flujo.
+
+## TR-55: Protección de Integridad de Credenciales (Safe Upsert)
+1. **Bloqueo de Upsert Destructivo:** Al agendar una cita sin sesión iniciada (flujo invitado), el sistema tiene PROHIBIDO hacer un `upsert` directo que pueda borrar credenciales (`password`, `correo`) de un usuario previamente registrado.
+2. **Patrón Read-Before-Write:** Se debe consultar primero si la cédula existe. Si existe y el usuario tiene cuenta (`es_invitado: false`), se omitirá la actualización de sus credenciales para preservar la integridad de su cuenta.
+
+## TR-56: Integridad de Nombres en Listados (Supabase JOINs / H1)
+1. **Consultas Relacionales:** Todas las consultas a la tabla `citas` que alimenten listados visuales (tanto en "Mi Salud" como en el Widget de Invitados) DEBEN incluir un JOIN explícito a la tabla `pacientes` mediante la sintaxis de Supabase: `select('*, pacientes(nombres, apellidos)')`.
+2. **Eliminación de Fallbacks:** Esto garantiza que el nombre del paciente se renderice correctamente en las tarjetas HTML, erradicando el error "Paciente: No especificado".
+
+## TR-57: Retorno Contextual entre Páginas (Heurística 6)
+1. **Memoria de Transición:** Al finalizar un flujo de creación o reagendamiento de cita en `citas.html`, el CTA principal ("Ver mi cita") debe inyectar el `id_cita` en `sessionStorage` bajo la clave `cita_destacada` ANTES de redirigir a la vista del historial.
+2. **Auto-Apertura:** El módulo de listado (`salud.js` o `main.js`) DEBE interceptar esta clave durante su inicialización. Si la clave existe, debe disparar automáticamente la función `verDetalleCita(id)` y luego eliminar la clave del `sessionStorage`.
+
+## TR-58: Integridad Relacional y Desambiguación (Supabase JOINs)
+1. **Desambiguación Obligatoria:** Como la tabla `citas` tiene dos llaves foráneas apuntando a `pacientes` (`cedula_paciente` y `cedula_titular`), CUALQUIER consulta `SELECT` que incluya un JOIN debe especificar la llave foránea exacta para evitar errores de ambigüedad. 
+   - Sintaxis obligatoria: `.select('*, datos_paciente:pacientes!fk_paciente(nombres, apellidos)')`
+2. **Consulta Híbrida (Titular y Dependiente):** Para cargar el historial de citas en "Mi Salud", la consulta debe usar un filtro lógico `OR` que traiga las citas donde el usuario es el paciente directo O donde es el gestor (titular): `.or('cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}')`.
+
+## TR-59: Retorno Contextual y Prevención de Errores Visuales (H6, H5)
+1. **Redirección con Memoria:** Al reagendar o agendar una cita, el botón "Ver mi cita" debe guardar el ID generado en `sessionStorage.setItem('cita_destacada', id)` antes de navegar a la lista. La lista atrapará este ID y disparará `verDetalleCita(id)`.
+2. **Estética Informativa (H8):** Los elementos del carrusel promocional o de políticas (ej. restricción de 24 horas) deben prescindir de botones engañosos (H5) y usar espaciado asimétrico (alineación a la derecha o con márgenes amplios) para evitar superposiciones con imágenes de fondo complejas.
+
+## TR-60: Manejo de Nombres Incompletos (Proxy / Dependientes)
+1. **Sanitización de Fallbacks:** Queda estrictamente prohibido usar placeholders visibles como "Invitado" o "Desconocido" para rellenar apellidos de pacientes dependientes. Si el apellido no se proporciona, el sistema debe enviar un string vacío `''` (soportado por el `NOT NULL` de Postgres).
+2. **Renderizado Limpio:** Toda UI que concatene nombres y apellidos DEBE aplicar la función `.trim()` para evitar espacios en blanco cuando el apellido esté vacío.
+
+## TR-61: Robustez en Consultas Supabase (Zero-Single-Trap)
+1. **Manejo de Multiplicidad:** En consultas de lectura (ej. consultar citas por cédula en el Widget de Invitados), queda prohibido el uso del modificador `.single()` si la columna filtrada no es estrictamente UNIQUE (como la cédula, que puede tener múltiples citas asociadas).
+2. **Resolución Segura:** Se debe omitir `.single()`, recibir la data como un Array, y si hay resultados, procesar `data[0]` (o listar todos los resultados pertinentes). Además, los bloques `catch` deben imprimir/mostrar el `error.message` real de Supabase en consola para diagnóstico.
+
+## TR-62: Bloqueo Temporal de Edición (Regla de Negocio de 24h / H5)
+1. **Validación de Tiempo Real:** El sistema debe calcular dinámicamente la diferencia entre la fecha/hora actual del sistema y la fecha/hora agendada de la cita.
+2. **Ocultamiento Preventivo:** Si la diferencia es menor a 24 horas, los botones de "Modificar Cita" y "Cancelar Cita" DEBEN ocultarse del DOM (o deshabilitarse visualmente) en el detalle de la cita, previniendo acciones tardías.
+
+## TR-63: Deprecación del Módulo de Farmacias (Scope del MVP)
+1. **Amputación de Módulo:** El alcance del proyecto excluye formalmente la geolocalización e inventario de farmacias.
+2. **Limpieza de Interfaz:** Se prohíbe renderizar estados de "Disponibilidad en Farmacia" dentro de las recetas médicas. Asimismo, se debe eliminar cualquier enlace de navegación que apunte al archivo `farmacia.html`.
+
+
+## TR-64: Arquitectura Mobile-First y Breakpoints (Diseño Responsivo)
+1. **Flujo de Trabajo CSS:** Todos los estilos base deben estar programados para dispositivos móviles (0px a 480px). Las adaptaciones para pantallas grandes se harán exclusivamente mediante `min-width` (Mobile-First).
+2. **Breakpoints Oficiales:** Basado en los estándares del proyecto, se utilizarán las siguientes Media Queries:
+   - Móvil Grande: `@media (min-width: 481px)`
+   - Tablet: `@media (min-width: 768px)`
+   - Laptop: `@media (min-width: 1024px)`
+   - Desktop: `@media (min-width: 1200px)`
+
+## TR-65: Patrón de Navegación Adaptativa (H4 y H7)
+1. **Móviles (< 768px):** La navegación principal DEBE ocultarse en un Menú Hamburguesa (Off-canvas o desplegable), liberando espacio en la pantalla. Queda descartado el uso de "Bottom Navigation Bars" tipo App nativa para mantener el estándar web.
+2. **Desktop (>= 768px):** El ícono de hamburguesa debe desaparecer y los enlaces de navegación deben mostrarse en una barra horizontal clásica en el Header.
+
+## TR-66: Divulgación Progresiva en Hero/Slider
+1. **Control de Carga Cognitiva:** En la vista móvil del Carrusel Principal, los textos secundarios (ej. subtítulos extensos o la grilla de características `.hero__features`) DEBEN ocultarse usando `display: none;` para privilegiar el Título Principal y el Botón de Acción (Call to Action).
+2. Estos elementos ocultos deben restaurarse (`display: flex` o `block`) a partir del breakpoint de Tablet (`min-width: 768px`).
+
+## TR-67: Comportamiento Responsivo del Carrusel Principal (H8)
+1. **Control de Desbordamiento Vertical (Móvil):** Para evitar que el botón principal (CTA) colisione con los controles de navegación del carrusel en resoluciones menores a `768px`, se DEBE aplicar `display: none;` a los contenedores secundarios (`.hero__features` y `.hero__subtitle`) en las slides que presenten sobrecarga visual (específicamente Slide 1 y Slide 3).
+2. **Priorización de Información Crítica:** En el Slide de "Políticas" (Slide 4/5), la prioridad se invierte: El título informativo (`.hero__title`) DEBE permanecer siempre visible (`display: block`), mientras que los íconos ilustrativos (`.hero__features`) pueden ocultarse en móvil.
+3. **Liberación de Ancho en Desktop:** El contenedor de texto del carrusel (`.hero__content`) debe expandir su `max-width` en resoluciones Desktop (`>= 1024px`) para evitar forzar saltos de línea prematuros que empujen el contenido hacia abajo (eliminación del efecto "pared invisible").
+
+## TR-66: Especificidad CSS y Prevención de Desbordamiento (H8)
+1. **Prohibición de Pseudo-clases de Posición:** Queda estrictamente prohibido usar `:nth-child` para aplicar estilos críticos de layout a las diapositivas del carrusel, debido a su fragilidad en el DOM dinámico. Toda diapositiva con requerimientos de diseño únicos DEBE tener una clase modificadora explícita (ej. `.hero__slide--policy`, `.hero__slide--wide`).
+2. **Control de Carga Cognitiva (Slide 1):** En dispositivos móviles (`max-width: 767px`), la primera diapositiva debe mostrar estrictamente DOS características (features) para evitar que el botón principal colisione con la navegación inferior.
+3. **Erradicación de "Paredes Invisibles":** El contenedor principal `.hero__content` debe liberar su restricción de `max-width` en vistas de escritorio (`min-width: 1024px`) mediante el uso de anchos escalables (ej. `900px` o `80%`) para las diapositivas que requieran texto horizontal extenso.

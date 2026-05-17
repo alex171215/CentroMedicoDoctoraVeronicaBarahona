@@ -619,6 +619,17 @@ const app = {
         const mainMenu = document.getElementById('main-menu');
 
         if (menuToggle && mainMenu) {
+            // TR-65: asegurar que el header tenga position:relative para el off-canvas
+            const headerEl = menuToggle.closest('header');
+            if (headerEl) headerEl.style.position = 'relative';
+
+            const cerrarMenu = () => {
+                menuToggle.setAttribute('aria-expanded', 'false');
+                mainMenu.classList.remove('active');
+                const icon = menuToggle.querySelector('i');
+                if (icon) icon.classList.replace('fa-xmark', 'fa-bars');
+            };
+
             menuToggle.addEventListener('click', () => {
                 const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
 
@@ -632,6 +643,28 @@ const app = {
                     icon.classList.replace('fa-bars', 'fa-xmark');
                 } else {
                     icon.classList.replace('fa-xmark', 'fa-bars');
+                }
+            });
+
+            // TR-65 UX: Cerrar menú al hacer clic en un enlace
+            mainMenu.querySelectorAll('.header__nav-link').forEach(link => {
+                link.addEventListener('click', () => cerrarMenu());
+            });
+
+            // TR-65 Accesibilidad: Cerrar con Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && mainMenu.classList.contains('active')) {
+                    cerrarMenu();
+                    menuToggle.focus();
+                }
+            });
+
+            // TR-65 UX: Cerrar al hacer clic fuera del header
+            document.addEventListener('click', (e) => {
+                if (mainMenu.classList.contains('active') &&
+                    !mainMenu.contains(e.target) &&
+                    !menuToggle.contains(e.target)) {
+                    cerrarMenu();
                 }
             });
         }
@@ -3314,10 +3347,10 @@ const app = {
                 let resultados = [];
                 try {
                     await conCargaGlobal(async () => {
-                        // SELECT filtrando por cédula + fecha
+                        // TR-58: alias obligatorio para desambiguar FK (cedula_paciente vs cedula_titular)
                         const { data, error } = await supabase
                             .from('citas')
-                            .select('*')
+                            .select('*, datos_paciente:pacientes!fk_paciente(nombres, apellidos)')
                             .eq('cedula_paciente', cedula)
                             .eq('fecha', fecha);
                         if (error) throw error;
@@ -3339,6 +3372,16 @@ const app = {
                                 e.id_especialista === Number(idEsp) ||
                                 e.id === idEsp
                             );
+                            // TR-58/TR-60: mapear nombre desde alias datos_paciente con .trim()
+                            const nombrePaciente = (row.paciente ||
+                                (row.datos_paciente
+                                    ? `${row.datos_paciente.nombres || ''} ${row.datos_paciente.apellidos || ''}`.trim()
+                                    : null) ||
+                                (row.pacientes
+                                    ? `${row.pacientes.nombres || ''} ${row.pacientes.apellidos || ''}`.trim()
+                                    : null) ||
+                                row.nombres ||
+                                '').trim();
                             return {
                                 id_cita:       row.id_cita,
                                 cedula:        row.cedula_paciente || row.cedula,
@@ -3349,19 +3392,21 @@ const app = {
                                 motivo:        row.motivo || '',
                                 tipo:          row.tipo_consulta || '',
                                 tipo_consulta: row.tipo_consulta || '',
-                                // TR-51: JOIN UI — inyectar nombre legible
+                                // TR-51: JOIN UI — inyectar nombre legible del médico
                                 medico:        row.medico ||
                                                (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) ||
                                                '(Especialista #' + idEsp + ')',
                                 especialidad:  row.especialidad ||
                                                (esp && esp.especialidad) || '',
-                                paciente:      row.paciente || row.nombres || '',
+                                // TR-54: nombre del paciente resuelto desde el JOIN
+                                paciente:      nombrePaciente,
                                 id_especialista: idEsp
                             };
                         });
                     }, 'Sincronizando datos...');
                 } catch (err) {
-                    console.error('[TR-50] widgetInvitado.consultar Supabase:', err);
+                    // TR-61: imprimir error.message real para diagnóstico
+                    console.error('[TR-61] widgetInvitado.consultar Supabase:', err?.message || err);
                     const body = document.getElementById('modal-consulta-body');
                     const titulo = document.getElementById('modal-consulta-title');
                     if (titulo) titulo.textContent = 'Error de conexión';
@@ -3471,9 +3516,27 @@ const app = {
                     <span class="modal-consulta__val">${escapeHtmlWidget(cita.paciente || cita.nombres || 'No especificado')}</span>
                 </div>`;
 
+            // TR-62: Regla de negocio 24h — calcular tiempo restante para la cita
+            const horaWidgetStr = cita.hora ? String(cita.hora).slice(0, 5) : '00:00';
+            const fechaCitaWidgetISO = cita.fecha && /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha)
+                ? `${cita.fecha}T${horaWidgetStr}`
+                : null;
+            const fechaCitaWidgetMs = fechaCitaWidgetISO ? new Date(fechaCitaWidgetISO).getTime() : NaN;
+            const horasRestantesWidget = isNaN(fechaCitaWidgetMs)
+                ? Infinity // sin fecha parseable → no bloquear
+                : (fechaCitaWidgetMs - Date.now()) / (1000 * 60 * 60);
+            const bloqueadoPor24hWidget = !esCancelada && horasRestantesWidget < 24;
+
             // Botones CRUD solo si la cita NO está cancelada e id_cita disponible
             if (!esCancelada && idCitaEstable) {
-                html += `
+                if (bloqueadoPor24hWidget) {
+                    html += `
+                <p class="cita-aviso-24h" role="alert" style="font-size:0.85rem;color:#c0392b;margin:12px 0 8px;display:flex;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                    Ya no es posible modificar o cancelar esta cita (menos de 24 horas).
+                </p>`;
+                } else {
+                    html += `
                 <div class="cita-acciones" role="group" aria-label="Acciones de cita">
                     <button type="button" class="cita-acciones__btn cita-acciones__btn--modificar"
                         onclick="app.widgetInvitado.prepararModificacion('${idCitaEstable}')">
@@ -3484,6 +3547,7 @@ const app = {
                         <i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar Cita
                     </button>
                 </div>`;
+                }
             }
 
             // Botones de portabilidad (Imprimir / Descargar PDF) — solo si NO cancelada
