@@ -562,10 +562,7 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Soporte para Botón "Atrás" Móvil:** Toda vista dinámica que sobreponga contenido a la pantalla principal sin cambiar de página física (como el "Detalle de Cita" en Mi Salud, o transiciones entre pasos en formularios largos) DEBE registrar un estado en el historial del navegador utilizando `history.pushState()`.
 2. **Interceptación de Retroceso (Popstate):** El sistema debe implementar un listener global para el evento `window.addEventListener('popstate')`. Si el usuario presiona el botón físico "Atrás" del celular o el botón de retroceso del navegador, el sistema atrapará este evento y cerrará la vista dinámica o regresará al paso anterior de forma controlada, evitando expulsar al usuario de la aplicación.
 
-## TR-53: History API Global (Modales y Multi-pasos) (H3)
-1. **Pila de Historial (Stack):** El sistema debe registrar un `history.pushState` en dos escenarios obligatorios adicionales:
-   - Al cambiar de paso en CUALQUIER formulario multi-paso (Registro, Agendar Citas). Ej: `pushState({ paso: 2 }, '', '#paso-2')`.
-   - Al abrir CUALQUIER modal dinámico (Perfil, Sexo, Documento, etc.). Ej: `pushState({ modal: 'id-modal' }, '', '#modal')`.
-2. **Router Popstate Centralizado:** El listener global de `popstate` debe actuar como un router inteligente. Al retroceder, debe leer el `event.state`. 
-   - Si retrocede de un modal, la acción debe ser ÚNICAMENTE cerrar el modal activo, manteniendo el estado de fondo intacto.
-   - Si retrocede de un paso, debe invocar la función visual del paso correspondiente (ej. `mostrarPaso(event.state.paso)`) sin volver a hacer pushState.
+## TR-53: Sincronización Estricta de Router Nativo (History API) y DOM (H3)
+1. **Delegación Estricta en Popstate:** El evento global `window.popstate` tiene PROHIBIDO calcular pasos de formularios matemáticamente (`paso - 1`). Su única función debe ser actuar como un "gatillo" que dispare las mismas funciones visuales de "Cerrar Modal", "Ocultar Detalle" o "Volver Atrás" que ya existen en el sistema.
+2. **Registro Obligatorio en Modales (PushState):** NINGÚN modal (`.modal-overlay`) ni vista sobrepuesta (Detalle de Cita) puede hacerse visible sin antes inyectar un estado en el historial: `history.pushState({ modal: true }, '', '');`. Si esto se omite, el botón físico "Atrás" sacará al usuario del sitio.
+3. **Respeto al Flujo Dinámico (Smart Jumps):** En los formularios multi-paso, el retroceso disparado por el botón "Atrás" del celular debe invocar directamente la función interna de retroceso (ej. `app.citas.irAtras()`). Esta función consultará el historial real de navegación del usuario para respetar los saltos de pasos condicionales.
