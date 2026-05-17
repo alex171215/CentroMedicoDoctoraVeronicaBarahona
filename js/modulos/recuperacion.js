@@ -33,6 +33,8 @@ let _otpGenerado = '';
 let _correoUsuario = '';
 let _cedulaUsuario = '';
 let _countdownInterval = null;
+let _faseActual = 1;           // TR-54: rastreamos la fase activa para irAtras()
+let _suppressHistorialPush = false; // TR-54: bandera anti-bucle del popstate
 
 // ────────────────────────────────────────────────────────────────────────────
 // UTILIDADES DE UI
@@ -43,6 +45,11 @@ function _mostrarFase(n) {
         const el = document.getElementById(`rec-fase-${i}`);
         if (el) el.style.display = (i === n) ? 'block' : 'none';
     });
+    _faseActual = n;
+    // TR-54: registrar avance en el historial (se omite si venimos del popstate)
+    if (!_suppressHistorialPush) {
+        history.pushState({ tipo: 'formulario-recuperar', paso: n }, '', '');
+    }
 }
 
 function _mostrarError(idCampo, msg) {
@@ -306,6 +313,8 @@ function _togglePassword() {
 function abrirModalRescate() {
     const overlay = document.getElementById('modal-rescate-overlay');
     if (!overlay) return;
+    // TR-54: ancla en historial para que Atrás nativo cierre este modal
+    history.pushState({ tipo: 'modal', id: 'modal-rescate-overlay' }, '', '');
     overlay.style.display = 'flex';
     // Foco inicial en el primer botón para accesibilidad (WCAG 2.4.3)
     const primerBtn = overlay.querySelector('button');
@@ -319,6 +328,8 @@ function cerrarModalRescate() {
     if (!overlay) return;
     overlay.style.display = 'none';
     overlay.removeEventListener('click', _onOverlayClick);
+    // TR-54: limpiar ancla del historial al cerrar con botón visual
+    if (history.state && history.state.id === 'modal-rescate-overlay') history.back();
     // Devolver foco al input de correo (H3)
     document.getElementById('rec-identificador')?.focus();
 }
@@ -337,7 +348,23 @@ window.recuperacion = {
     validarYActualizar,
     reenviarCodigo,
     _togglePassword,
-    cerrarModalRescate
+    cerrarModalRescate,
+    // TR-54: función de retroceso delegada por el popstate global
+    irAtras() {
+        if (_faseActual <= 1) return; // Ya estamos en la fase inicial, no retroceder más
+        const faseDest = _faseActual - 1;
+        _suppressHistorialPush = true;
+        try {
+            _mostrarFase(faseDest);
+            // Limpiar estado OTP si retrocedemos de fase 2 a fase 1 (privacidad)
+            if (faseDest === 1) {
+                _otpGenerado = '';
+                clearInterval(_countdownInterval);
+            }
+        } finally {
+            _suppressHistorialPush = false;
+        }
+    }
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -392,5 +419,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Inicializar: mostrar solo Fase 1
+// TR-54: Inicializar en Fase 1 sin crear entrada extra en el historial.
+// _suppressHistorialPush evita que _mostrarFase() llame a pushState en el arranque.
+// replaceState sella la entrada actual del historial con el estado correcto.
+_suppressHistorialPush = true;
 _mostrarFase(1);
+_suppressHistorialPush = false;
+history.replaceState({ tipo: 'formulario-recuperar', paso: 1 }, '', '');

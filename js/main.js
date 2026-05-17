@@ -233,16 +233,25 @@ const app = {
             }
 
             // ── PRIORIDAD 4: Formulario multi-paso de REGISTRO ──
-            // Delegamos a pasoAnterior(st.paso) que llama internamente a _irAPaso(paso - 1).
-            // _suppressPushState bloquea el pushState dentro de _irAPaso (sin bucle).
+            // TR-54: Delegamos a irAtras() que lee _pasoActual como fuente de verdad.
+            // _suppressPushState ya está activo para bloquear pushState en _irAPaso (sin bucle).
             if (st && st.tipo === 'formulario-reg') {
-                if (app.registro && typeof app.registro.pasoAnterior === 'function') {
+                if (app.registro && typeof app.registro.irAtras === 'function') {
                     app.registro._suppressPushState = true;
                     try {
-                        app.registro.pasoAnterior(st.paso);
+                        app.registro.irAtras();
                     } finally {
                         app.registro._suppressPushState = false;
                     }
+                }
+                return;
+            }
+
+            // ── PRIORIDAD 5: Formulario de Recuperación de Contraseña ──
+            // TR-54: Delegamos a recuperacion.irAtras() que lee _faseActual como fuente de verdad.
+            if (st && st.tipo === 'formulario-recuperar') {
+                if (window.recuperacion && typeof window.recuperacion.irAtras === 'function') {
+                    window.recuperacion.irAtras();
                 }
                 return;
             }
@@ -1970,6 +1979,21 @@ const app = {
 
         pasoAnterior(pasoActual) {
             if (pasoActual > 1) this._irAPaso(pasoActual - 1);
+        },
+
+        // TR-54: Función de retroceso delegada por el router popstate global.
+        // Lee _pasoActual como fuente de verdad (no depende del estado del navegador).
+        // _suppressPushState ya está activo cuando el popstate la invoca, por lo que
+        // _irAPaso() no generará un pushState accidental (anti-bucle garantizado).
+        irAtras() {
+            if (this._pasoActual > 1) {
+                this._suppressPushState = true;
+                try {
+                    this._irAPaso(this._pasoActual - 1);
+                } finally {
+                    this._suppressPushState = false;
+                }
+            }
         },
 
         // ------------------------------------------------------------------
