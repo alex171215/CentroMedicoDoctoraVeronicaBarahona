@@ -102,7 +102,16 @@ export function mapCitaDesdeDb(row) {
         lugar_direccion: row.lugar_direccion,
         seguro: row.seguro,
         estado: row.estado || 'Próxima',
-        paciente: row.paciente,
+        // TR-58: resolver nombre desde alias datos_paciente (FK desambiguado) con cascada backward-compat
+        paciente: row.paciente ||
+                  (row.datos_paciente
+                      ? `${row.datos_paciente.nombres || ''} ${row.datos_paciente.apellidos || ''}`.trim()
+                      : null) ||
+                  (row.pacientes
+                      ? `${row.pacientes.nombres || ''} ${row.pacientes.apellidos || ''}`.trim()
+                      : null) ||
+                  row.nombres ||
+                  '',
         nombres: row.nombres,
         cedula: row.cedula || row.cedula_paciente,
         cedula_paciente: row.cedula_paciente || row.cedula,
@@ -111,8 +120,9 @@ export function mapCitaDesdeDb(row) {
     };
 }
 
+// TR-58: Alias obligatorio para desambiguar FK en Supabase (cedula_paciente vs cedula_titular)
 const SELECT_CITAS =
-    'id_cita, cedula_paciente, id_especialista, fecha, hora, estado, motivo, tipo_consulta';
+    'id_cita, cedula_paciente, cedula_titular, id_especialista, fecha, hora, estado, motivo, tipo_consulta, datos_paciente:pacientes!fk_paciente(nombres, apellidos)';
 
 export async function fetchTodasLasCitasAgenda() {
     const { data, error } = await supabase.from('citas').select(SELECT_CITAS);
@@ -122,10 +132,11 @@ export async function fetchTodasLasCitasAgenda() {
 
 export async function fetchCitasMiSaludPorCedula(cedula) {
     if (!cedula) return [];
+    // TR-58: Consulta híbrida — trae citas donde el usuario es paciente directo O titular (proxy)
     const { data, error } = await supabase
         .from('citas')
         .select(SELECT_CITAS)
-        .eq('cedula_paciente', cedula);
+        .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
     if (error) throw error;
     return (data || []).map(mapCitaDesdeDb);
 }

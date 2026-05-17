@@ -735,12 +735,16 @@ export function createCitas() {
             btnPrim?.addEventListener('click', (e) => {
                 e.preventDefault();
                 if (esRegistrado) {
-                    // TR-24: persistir id antes de limpiar sesión del flujo (resumenTicketConfirmado se anula ahí).
+                    // TR-24 / TR-55: persistir id antes de limpiar sesión del flujo.
+                    // sanitas_abrir_detalle_id → consumido por salud.js (TR-24)
+                    // cita_destacada           → consumido por salud.js.inicializar() (TR-55)
                     const t = this.resumenTicketConfirmado;
                     const idCita = t && (t.id_cita || t.id);
                     if (idCita) {
                         try {
                             sessionStorage.setItem('sanitas_abrir_detalle_id', String(idCita));
+                            // TR-55: Retorno contextual — auto-apertura del detalle al llegar
+                            sessionStorage.setItem('cita_destacada', String(idCita));
                         } catch (_) { /* noop */ }
                     }
                     limpiarYNavegar('mi-salud.html');
@@ -1723,10 +1727,11 @@ export function createCitas() {
         /** Parte "nombres" / "apellidos" desde un solo campo (invitado / proxy). */
         _splitNombreCompletoParaPaciente(texto) {
             const t = String(texto || '').trim().replace(/\s+/g, ' ');
-            if (!t) return { nombres: 'Invitado', apellidos: 'Invitado' };
+            // TR-60: fallback '' (string vacío) — prohibido usar 'Invitado' como dato
+            if (!t) return { nombres: '', apellidos: '' };
             const i = t.lastIndexOf(' ');
-            if (i <= 0) return { nombres: t, apellidos: 'Invitado' };
-            return { nombres: t.slice(0, i).trim() || 'Invitado', apellidos: t.slice(i + 1).trim() || 'Invitado' };
+            if (i <= 0) return { nombres: t, apellidos: '' };
+            return { nombres: t.slice(0, i).trim() || '', apellidos: t.slice(i + 1).trim() || '' };
         },
 
         /**
@@ -1781,8 +1786,9 @@ export function createCitas() {
 
             return {
                 cedula: ced,
-                nombres: nombres || 'Invitado',
-                apellidos: apellidos || 'Invitado',
+                // TR-60: '' como fallback — prohibido 'Invitado' como dato en BD
+                nombres: nombres || '',
+                apellidos: apellidos || '',
                 correo: `invitado_${ced}@guest.centromedico.local`,
                 password: pwdInv(ced),
                 celular: cel,
@@ -2167,8 +2173,13 @@ export function createCitas() {
                             throw new Error('Falta el especialista (id_especialista). Vuelve al paso 1 y elige un médico.');
                         }
                         const cedulaPacienteFila = String(filaPac.cedula || cita.cedula || cita.cedula_paciente || '').trim();
+                        // TR-58: cedula_titular permite la consulta .or() en fetchCitasMiSaludPorCedula
+                        const cedulaTitularFila = cita.cedula_titular
+                            ? String(cita.cedula_titular).trim()
+                            : cedulaPacienteFila; // si agendó para sí mismo, titular == paciente
                         const filaSupabase = {
                             cedula_paciente: cedulaPacienteFila,
+                            cedula_titular: cedulaTitularFila,
                             id_especialista: idEsp,
                             fecha: fechaISO,
                             hora: cita.hora,

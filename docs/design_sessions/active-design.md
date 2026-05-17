@@ -1,52 +1,51 @@
-# Sesión de Diseño Activa: Corrección de History API y Botón "Atrás" Móvil
+# Sesión de Diseño Activa: Fuerza Bruta CSS para Carrusel
 
 ## 1. Objetivo
-Unificar la History API con las funciones de cierre/retroceso existentes del sistema, solucionando el bug donde el botón "Atrás" del celular rompe el flujo dinámico de los formularios o expulsa al usuario de la página.
+Aplicar reglas de CSS inquebrantables para solucionar el desbordamiento en la Slide 1 (dejando solo 2 íconos en móvil), ocultar elementos no deseados en la Slide de Política y destruir la restricción de ancho (pared invisible) en la Slide 3.
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Refactorización de la Escucha Global (`js/main.js` o `app.js`)
-* **Acción:** Reemplaza el EventListener actual de `popstate` por este patrón de delegación segura:
-  ```javascript
-  window.addEventListener('popstate', (ev) => {
-      const st = ev.state;
-      
-      // 1. Prioridad: Cerrar Modales Abiertos
-      const modalAbierto = document.querySelector('.modal-overlay[style*="display: flex"], .modal-overlay[style*="display: block"]');
-      if (modalAbierto) {
-          const btnCerrar = modalAbierto.querySelector('.modal-cerrar, .btn-secondary, .reg-cancel-link span');
-          if(btnCerrar) btnCerrar.click(); 
-          else modalAbierto.style.display = 'none';
-          return;
-      }
+### A. Preparación del HTML (`index.html`)
+* Ve al slider principal.
+* Asegúrate de que el Slide 1 tenga la clase base: `<div class="hero__slide hero__slide--inicio">`.
+* Asegúrate de que el Slide 3 (Especialidades) tenga la clase explícita: `<div class="hero__slide hero__slide--wide">`.
+* Asegúrate de que el Slide 5 (Política 24h) tenga la clase explícita: `<div class="hero__slide hero__slide--policy">`.
 
-      // 2. Prioridad: Cerrar Detalle de Cita en "Mi Salud"
-      const detalleEl = document.getElementById('salud-cita-detalle');
-      if (detalleEl?.style.display === 'block') {
-          if (typeof app.salud._ocultarDetalleCitas === 'function') app.salud._ocultarDetalleCitas();
-          return;
-      }
+### B. Ejecución de Media Queries (`styles.css`)
+Inyecta las siguientes reglas exactas. Tienes permitido usar `!important` para sobrescribir la cascada CSS actual.
 
-      // 3. Retroceso Inteligente en Citas (Respeta Smart Jumps)
-      if (st && st.tipo === 'formulario-citas') {
-          app.citas._suppressHistorialPush = true;
-          app.citas.irAtras(); 
-          app.citas._suppressHistorialPush = false;
-          return;
-      }
+**Para Móviles (`@media (max-width: 767px)`):**
+```css
+/* Slide 1: Ocultar el 3er y 4to ícono para dejar solo 2 y salvar el botón */
+.hero__slide--inicio .hero__feature:nth-child(n+3) {
+    display: none !important;
+}
 
-      // 4. Retroceso Inteligente en Registro
-      if (st && st.tipo === 'formulario-reg') {
-          app.registro._suppressPushState = true;
-          if (typeof app.registro.pasoAnterior === 'function') app.registro.pasoAnterior(st.paso + 1); // o la función equivalente
-          app.registro._suppressPushState = false;
-          return;
-      }
-  });
-  ```
+/* Slide 5 (Política): Ocultar el ícono de 'Cancela o modifica' */
+.hero__slide--policy .hero__features {
+    display: none !important;
+}
 
-### B. Garantizar los pushState en Aperturas
-* **Acción:** Revisa TODAS las funciones que abren modales (ej. `abrirModalDoc`, `abrirModalSexo`, `abrirModalPassword`, modales de error/éxito) y asegúrate de que inyecten `history.pushState({ modal: true }, '', '');` inmediatamente antes de poner `display: flex/block`.
+/* Slide 5 (Política): Centrar el contenido que estaba muy a la izquierda */
+.hero__slide--policy .hero__content {
+    margin: 0 auto !important;
+    text-align: center !important;
+    padding: 0 15px !important;
+}
+```
 
-### C. Actualizar Funciones de Retroceso (`citas.js`, `main.js`)
-* **Acción:** Verifica que las funciones como `app.citas.irAtras()` NO ejecuten internamente `history.back()` ni `history.pushState()` si la bandera `_suppressHistorialPush` está en `true`, para evitar bucles infinitos de enrutamiento.
+**Para Escritorio (`@media (min-width: 1024px)`):**
+```css
+/* Slide 3 (Especialidades): Destruir la pared invisible */
+.hero__slide--wide .hero__content {
+    max-width: 900px !important;
+    width: 90% !important;
+}
+
+/* Slide 5 (Política): Centrar correctamente el bloque de texto */
+.hero__slide--policy .hero__content {
+    margin: 0 auto !important;
+    text-align: center !important;
+    max-width: 800px !important;
+}
+```
