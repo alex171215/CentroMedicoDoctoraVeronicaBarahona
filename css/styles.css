@@ -2256,11 +2256,13 @@ textarea:focus-visible {
 }
 
 /* Campo de texto (label flotante tipo Material) */
+/* TR-43: Espaciado vertical mínimo de 24px entre grupos de inputs (H8) */
 .login-field {
     position: relative;
     display: flex;
     flex-direction: column;
     gap: 0;
+    margin-bottom: 24px;
 }
 
 .login-field__label {
@@ -2381,6 +2383,7 @@ textarea:focus-visible {
 }
 
 /* Botón Iniciar Sesión */
+/* TR-43: Separación mínima de 32px entre el último input y el botón primario (H8) */
 .login-submit {
     width: 100%;
     padding: 15px;
@@ -2389,7 +2392,7 @@ textarea:focus-visible {
     font-family: 'Montserrat', sans-serif;
     letter-spacing: 0.5px;
     border-radius: 8px;
-    margin-top: 4px;
+    margin-top: 32px;
     transition: opacity 0.2s, transform 0.15s;
 }
 
@@ -2403,12 +2406,13 @@ textarea:focus-visible {
 }
 
 /* Enlace de Registro */
+/* TR-43: Espacio adecuado para el enlace inferior (H8) */
 .login-register-link {
     text-align: center;
     font-size: 0.85rem;
     font-family: 'Roboto', sans-serif;
     color: var(--gray-text);
-    margin-top: 4px;
+    margin-top: 16px;
 }
 
 .login-register-link__a {
@@ -4688,5 +4692,89 @@ textarea:focus-visible {
         display: block !important;
         padding: 0 !important;
         margin: 0 !important;
+    }
+}
+
+/* ==========================================================================
+   UI KIT — Modales globales (TR-47 §2)
+   Clases base para modales generados dinámicamente por JS.
+   Todos los modales del sistema deben usar esta estructura en lugar de estilos inline.
+   ========================================================================== */
+
+/* Fondo oscuro con blur */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 2100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* Tarjeta del modal */
+.modal-content {
+    background: var(--white);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    animation: modalSlideIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes modalSlideIn {
+    from { opacity: 0; transform: translateY(-18px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)     scale(1);    }
+}
+
+/* Cabecera del modal */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+}
+
+/* Cuerpo del modal */
+.modal-body {
+    padding: 20px 24px;
+    font-size: 0.92rem;
+    color: var(--gray-text);
+    line-height: 1.6;
+}
+
+.modal-body p {
+    margin: 0;
+}
+
+/* Zona de botones */
+.modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 24px 24px;
+}
+
+.modal-actions .btn {
+    width: 100%;
+    justify-content: center;
+}
+
+@media (max-width: 480px) {
+    .modal-content {
+        border-radius: 12px;
     }
 }

@@ -93,10 +93,10 @@
 
                             <!-- Campo: Identificación -->
                             <div class="login-field">
-                                <label for="login-cedula" class="login-field__label">Cédula o correo</label>
+                                <label for="login-cedula" class="login-field__label">Número de identificación</label>
                                 <input type="text" id="login-cedula" name="cedula" class="login-field__input"
-                                    placeholder="Cédula o correo registrado" autocomplete="on" inputmode="text"
-                                    maxlength="80" aria-required="true" aria-describedby="login-cedula-error">
+                                    placeholder="Cédula o pasaporte" autocomplete="username" inputmode="numeric"
+                                    maxlength="13" aria-required="true" aria-describedby="login-cedula-error">
                                 <span id="login-cedula-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -108,7 +108,7 @@
                                     <input type="password" id="login-password" name="password"
                                         class="login-field__input" placeholder="Demo: admin"
                                         autocomplete="current-password" aria-required="true"
-                                        aria-describedby="login-password-error">
+                                        maxlength="128" aria-describedby="login-password-error">
                                     <button type="button" class="login-field__eye" id="login-toggle-pw"
                                         aria-label="Mostrar u ocultar contraseña" onclick="app.login.togglePassword()">
                                         <i class="fa-regular fa-eye" id="login-eye-icon" aria-hidden="true"></i>

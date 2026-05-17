@@ -64,6 +64,45 @@ const app = {
     intervaloCarrusel: null,
     tiempoCarrusel: 7000, // 7 segundos exigidos por reglas de usabilidad (IHC)
 
+    // ------------------------------------------------------------------
+    // TR-48: Auto-Scroll y Auto-Focus al primer campo inválido (WCAG 2.2 / H1)
+    // Uso: app.enfocarPrimerError(contenedorId?) — pasa el id del paso/panel
+    //      opcional para limitar la búsqueda a ese contenedor.
+    // ------------------------------------------------------------------
+    enfocarPrimerError(contenedorId = null) {
+        const raiz = contenedorId
+            ? (document.getElementById(contenedorId) ?? document)
+            : document;
+
+        // 1. Buscar el primer span de error que esté actualmente visible
+        const primerSpanError = raiz.querySelector(
+            '.login-field__error[style*="block"], ' +
+            '.citas-error-msg[style*="block"], '     +
+            '[id$="-error"][style*="block"]'
+        );
+
+        if (!primerSpanError) return;
+
+        // 2. Subir al padre .login-field (o contenedor hermano) y buscar el input
+        const contenedorCampo = primerSpanError.closest(
+            '.login-field, .reg-select-wrap, .citas-form-group, .widget-invitado__field'
+        ) ?? primerSpanError.parentElement;
+
+        const campo = contenedorCampo?.querySelector(
+            'input:not([type="radio"]):not([type="checkbox"]), select, textarea'
+        ) ?? document.getElementById(
+            primerSpanError.id?.replace(/-error$/, '') ?? ''
+        );
+
+        if (!campo) return;
+
+        // 3. Scroll suave al centro de la pantalla + foco inmediato
+        campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // El foco llega justo después del scroll (requestAnimationFrame evita
+        // que el navegador ignore el foco por el scroll en progreso)
+        requestAnimationFrame(() => campo.focus({ preventScroll: true }));
+    },
+
     init: async function () {
         try {
             if (carteraEspecialistasCacheValida()) {
@@ -414,9 +453,22 @@ const app = {
                 e.preventDefault();
                 const yaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
                 if (yaLogueado) {
-                    app.perfil.abrirModal();
+                    // Si hay modal de perfil en el DOM, abrirlo; si no, redirigir
+                    if (typeof app.perfil?.abrirModal === 'function' &&
+                        document.getElementById('modal-perfil')) {
+                        app.perfil.abrirModal();
+                    } else {
+                        window.location.href = 'login.html';
+                    }
                 } else {
-                    app.navegar('login');
+                    // TR-43: enrutamiento absoluto — funciona en cualquier página del MPA
+                    if (typeof app.navegar === 'function' &&
+                        document.getElementById('login-form')) {
+                        // Estamos en login.html: solo actualizar estado
+                        app.navegar('login');
+                    } else {
+                        window.location.href = 'login.html';
+                    }
                 }
             });
         }
@@ -1176,9 +1228,27 @@ const app = {
         inicializar() {
             const inputCedula = document.getElementById('login-cedula');
             if (inputCedula) {
-                // Solo dígitos, sin convertir a mayúsculas
+                // TR-42: whitelist alfanumérca — permite cédulas (dígitos) y pasaportes (letras+dígitos).
+                // Bloquea espacios, <, >, ', ", ; y cualquier carácter XSS/SQLi.
                 inputCedula.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                    const antes = e.target.value;
+                    const despues = antes.replace(/[^a-zA-Z0-9]/g, '');
+                    if (antes !== despues) {
+                        const pos = e.target.selectionStart;
+                        e.target.value = despues;
+                        try { e.target.setSelectionRange(pos - 1, pos - 1); } catch (_) {}
+                    }
+                });
+
+                // TR-46 §1: Validación de formato en blur (H5 – feedback inmediato al salir del campo)
+                inputCedula.addEventListener('blur', () => {
+                    const val = inputCedula.value.trim();
+                    if (val.length === 0) return; // campo vacío: se valida en submit, no aquí
+                    if (val.length < 6 || val.length > 13) {
+                        this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
+                    } else {
+                        this._limpiarError('login-cedula');
+                    }
                 });
             }
 
@@ -1272,21 +1342,20 @@ const app = {
             this._limpiarError('login-cedula');
             this._limpiarError('login-password');
 
-            const esCorreoLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identificacion);
-            if (esCorreoLogin) {
-                // acceso por columna `correo` en Supabase
-            } else if (identificacion.length === 10 || identificacion.length === 13) {
+            // TR-42 §1: Solo cédula/pasaporte. Correo queda prohibido en el login.
+            if (identificacion.length === 0) {
+                this._mostrarError('login-cedula', 'Ingresa tu número de identificación.');
+                valido = false;
+            } else if (identificacion.length === 10) {
+                // Cédula ecuatoriana: validar dígito verificador
                 if (!utilidades.validarCedulaEcuatoriana(identificacion)) {
                     this._mostrarError('login-cedula', 'La cédula ingresada no es válida.');
                     valido = false;
                 }
             } else if (identificacion.length >= 6 && identificacion.length <= 13) {
-                // pasaporte u otras longitudes
-            } else if (identificacion.length > 0) {
-                this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
-                valido = false;
+                // Pasaporte u otros documentos — longitud válida, no hay algoritmo de suma
             } else {
-                this._mostrarError('login-cedula', 'Ingresa una identificación o correo.');
+                this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
                 valido = false;
             }
 
@@ -1295,7 +1364,11 @@ const app = {
                 valido = false;
             }
 
-            if (!valido) return;
+            if (!valido) {
+                // TR-48: Scroll suave + foco al primer campo inválido del login
+                app.enfocarPrimerError('login-form');
+                return;
+            }
 
             let fila = null;
             try {
@@ -1310,7 +1383,20 @@ const app = {
             }
 
             if (!fila) {
-                this._mostrarError('login-password', 'Usuario o contraseña incorrectos.');
+                // TR-42 §2: Anti-Enumeración OWASP
+                // Ambos inputs reciben borde rojo al mismo tiempo.
+                // Un solo mensaje genérico: no revela si falló usuario o contraseña.
+                const inputCed = document.getElementById('login-cedula');
+                const inputPwd = document.getElementById('login-password');
+                const spanPwd  = document.getElementById('login-password-error');
+
+                if (inputCed) inputCed.style.borderColor = '#c0392b';
+                if (inputPwd) inputPwd.style.borderColor = '#c0392b';
+                if (spanPwd)  {
+                    spanPwd.textContent = 'Número de identificación o contraseña incorrectos.';
+                    spanPwd.style.display = 'block';
+                }
+
                 return;
             }
 
@@ -1367,28 +1453,13 @@ const app = {
             // app._aplicarLimitesFechaGlobal() que se ejecuta en app.inicializar().
             // No es necesario establecer atributos de fecha aquí.
 
-            const docSelect = document.getElementById('reg-tipo-doc-select');
+            const docInput = document.getElementById('reg-tipo-doc');
             const identInput = document.getElementById('reg-identificacion');
             if (identInput) {
-                identInput.disabled = !docSelect?.value;
-                if (!docSelect?.value) identInput.value = '';
+                identInput.disabled = !this._tipoDoc;
+                if (!this._tipoDoc) identInput.value = '';
             }
-            if (docSelect) {
-                docSelect.removeEventListener('change', docSelect._tipoDocChange);
-                docSelect._tipoDocChange = () => {
-                    this._tipoDoc = docSelect.value;
-                    if (identInput) {
-                        identInput.disabled = !this._tipoDoc;
-                        if (!this._tipoDoc) identInput.value = '';
-                        else {
-                            identInput.placeholder = this._tipoDoc === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
-                            identInput.maxLength = this._tipoDoc === 'Cédula' ? 10 : 13;
-                        }
-                    }
-                    this._limpiarError('reg-tipo-doc-select');
-                };
-                docSelect.addEventListener('change', docSelect._tipoDocChange);
-            }
+            // El input readonly se actualiza vía seleccionarDoc(); no se necesita listener de 'change'.
 
             // ── Sanitización en tiempo real + ON-BLUR (valida) ──
             // Reglas OWASP por tipo de campo:
@@ -1517,7 +1588,7 @@ const app = {
         // Guarda todos los campos visibles y ocultos del registro en sessionStorage
         _guardarBorrador() {
             const campos = [
-                'reg-tipo-doc-select', 'reg-identificacion',
+                'reg-tipo-doc', 'reg-identificacion',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha-nac',
@@ -1533,7 +1604,7 @@ const app = {
             });
             borrador._tipoDoc = this._tipoDoc;
             borrador._sexo = this._sexo;
-            borrador.timestamp = Date.now();   // ← AÑADE ESTA LÍNEA
+            borrador.timestamp = Date.now();
             sessionStorage.setItem('sanitas_borrador_registro', JSON.stringify(borrador));
         },
 
@@ -1554,21 +1625,21 @@ const app = {
             if (borrador._tipoDoc) this._tipoDoc = borrador._tipoDoc;
             if (borrador._sexo) this._sexo = borrador._sexo;
 
-            const docSel = document.getElementById('reg-tipo-doc-select');
-            if (docSel && borrador['reg-tipo-doc-select']) docSel.value = borrador['reg-tipo-doc-select'];
-            if (docSel && this._tipoDoc) docSel.value = this._tipoDoc;
-            if (docSel?.value) this._tipoDoc = docSel.value;
+            // Restaurar el input visible de tipo de documento
+            const docInput = document.getElementById('reg-tipo-doc');
+            if (docInput && this._tipoDoc) docInput.value = this._tipoDoc;
 
             // Si ya hay un tipo de documento, habilitar el input y ajustar placeholder/maxlength
-            if (this._tipoDoc || docSel?.value) {
-                const tipo = this._tipoDoc || docSel.value;
-                this._tipoDoc = tipo;
+            if (this._tipoDoc) {
                 const identInput = document.getElementById('reg-identificacion');
                 if (identInput) {
                     identInput.disabled = false;
-                    identInput.placeholder = tipo === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
-                    identInput.maxLength = tipo === 'Cédula' ? 10 : 13;
+                    identInput.placeholder = this._tipoDoc === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
+                    identInput.maxLength = this._tipoDoc === 'Cédula' ? 10 : 13;
                 }
+                // Marcar el radio correspondiente en el modal
+                const radio = document.querySelector(`#modal-tipo-doc input[type="radio"][value="${this._tipoDoc}"]`);
+                if (radio) radio.checked = true;
             }
         },
 
@@ -1585,7 +1656,7 @@ const app = {
 
                 // Limpiar todos los campos de texto y desmarcar radios
                 const campos = [
-                    'reg-tipo-doc-select', 'reg-identificacion',
+                    'reg-tipo-doc', 'reg-identificacion',
                     'reg-nombre1', 'reg-nombre2',
                     'reg-apellido1', 'reg-apellido2',
                     'reg-fecha-nac',
@@ -1689,13 +1760,18 @@ const app = {
             modal.setAttribute('aria-labelledby', 'reg-modal-cuenta-existente-title');
             modal.style.display = 'flex';
             modal.innerHTML =
-                '<div class="modal-content modal-colision-content" style="max-width:440px;">' +
-                `<h2 id="reg-modal-cuenta-existente-title" class="modal-colision-title">${titulo}</h2>` +
-                `<p class="modal-colision-text" style="margin-bottom:20px;">${mensaje}</p>` +
-                '<div class="modal-colision-actions" style="flex-direction:column;gap:12px;align-items:stretch;">' +
+                '<div class="modal-content">' +
+                '<div class="modal-header">' +
+                `<h2 id="reg-modal-cuenta-existente-title" class="modal-header__title">${titulo}</h2>` +
+                '</div>' +
+                '<div class="modal-body">' +
+                `<p>${mensaje}</p>` +
+                '</div>' +
+                '<div class="modal-actions">' +
                 '<button type="button" class="btn btn--primario" onclick="app.navegar(\'login\')">Ir a Iniciar Sesión</button>' +
-                '<button type="button" class="btn btn--secundario" data-reg-cerrar-modal style="border:none;background:transparent;text-decoration:underline;">Cerrar</button>' +
-                '</div></div>';
+                '<button type="button" class="btn btn--secundario" data-reg-cerrar-modal>Cerrar</button>' +
+                '</div>' +
+                '</div>';
             const cerrar = modal.querySelector('[data-reg-cerrar-modal]');
             if (cerrar) cerrar.onclick = () => this._cerrarModalCuentaExistenteRegistro();
             modal.addEventListener('click', (e) => {
@@ -1713,7 +1789,11 @@ const app = {
         },
 
         async siguientePaso(pasoActual) {
-            if (!this._validarPaso(pasoActual)) return;
+            if (!this._validarPaso(pasoActual)) {
+                // TR-48: Scroll suave + foco al primer campo inválido del paso actual
+                app.enfocarPrimerError(`reg-step-${pasoActual}`);
+                return;
+            }
 
             if (pasoActual === 1) {
                 const ident = (document.getElementById('reg-identificacion')?.value || '').trim();
@@ -1984,11 +2064,10 @@ const app = {
             let ok = true;
 
             if (paso === 1) {
-                const docSelect = document.getElementById('reg-tipo-doc-select');
-                this._tipoDoc = docSelect?.value || this._tipoDoc;
-                this._limpiarError('reg-tipo-doc-select');
+                this._tipoDoc = this._tipoDoc || '';
+                this._limpiarError('reg-tipo-doc');
                 if (!this._tipoDoc) {
-                    this._mostrarError('reg-tipo-doc-select',
+                    this._mostrarError('reg-tipo-doc',
                         'Por favor, selecciona el tipo de documento antes de continuar.');
                     ok = false;
                 }
@@ -2166,7 +2245,7 @@ const app = {
             app.iniciarSesionUsuario();
             sessionStorage.removeItem('sanitas_borrador_registro');
             const campos = [
-                'reg-tipo-doc-select', 'reg-identificacion',
+                'reg-tipo-doc', 'reg-identificacion',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha-nac',
@@ -2206,15 +2285,39 @@ const app = {
         },
 
         abrirModalDoc() {
-            document.getElementById('reg-tipo-doc-select')?.focus();
+            const m = document.getElementById('modal-tipo-doc');
+            if (m) m.style.display = 'flex';
+            // Foco al primer radio para accesibilidad
+            setTimeout(() => m?.querySelector('input[type="radio"]')?.focus(), 50);
         },
-        cerrarModalDoc() {},
+        cerrarModalDoc() {
+            const m = document.getElementById('modal-tipo-doc');
+            if (m) m.style.display = 'none';
+            // Devolver foco al input que abrió el modal
+            document.getElementById('reg-tipo-doc')?.focus();
+        },
         seleccionarDoc(tipo) {
-            const docSelect = document.getElementById('reg-tipo-doc-select');
-            if (docSelect) {
-                docSelect.value = tipo;
-                docSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            this._tipoDoc = tipo;
+
+            // Actualizar input visible
+            const input = document.getElementById('reg-tipo-doc');
+            if (input) input.value = tipo;
+
+            // Forzar checked en el radio del modal (reactividad aunque repita opción)
+            const radio = document.querySelector(`#modal-tipo-doc input[type="radio"][value="${tipo}"]`);
+            if (radio) radio.checked = true;
+
+            // Habilitar y ajustar el campo de identificación
+            const identInput = document.getElementById('reg-identificacion');
+            if (identInput) {
+                identInput.disabled = false;
+                identInput.placeholder = tipo === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
+                identInput.maxLength = tipo === 'Cédula' ? 10 : 13;
+                identInput.value = '';
             }
+
+            this.cerrarModalDoc();
+            this._limpiarError('reg-tipo-doc');
         },
 
         _renovarOTP() {
@@ -2275,7 +2378,7 @@ const app = {
             this._cerrarModalCuentaExistenteRegistro();
             // 1. Vaciar todos los inputs de texto del formulario
             const camposTexto = [
-                'reg-tipo-doc-select', 'reg-identificacion',
+                'reg-tipo-doc', 'reg-identificacion',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha-nac',
@@ -2299,7 +2402,7 @@ const app = {
 
             // 3. Limpiar todos los spans de error
             const errores = [
-                'reg-tipo-doc-select', 'reg-ident',
+                'reg-tipo-doc', 'reg-ident',
                 'reg-nombre1', 'reg-nombre2',
                 'reg-apellido1', 'reg-apellido2',
                 'reg-fecha', 'reg-sexo',
@@ -2553,7 +2656,11 @@ const app = {
         // Patrón de Edición Continua Asíncrona — golden-rules §3 / active-design v2
         // ------------------------------------------------------------------
         guardarCambios() {
-            if (!this._validarCamposEdit()) return;
+            if (!this._validarCamposEdit()) {
+                // TR-48: Scroll suave + foco al primer campo inválido del perfil
+                app.enfocarPrimerError('view-editar-perfil');
+                return;
+            }
 
             const raw = localStorage.getItem('usuarioActivo');
             if (!raw) { app.navegar('login'); return; }
@@ -2700,6 +2807,186 @@ const app = {
                     }
                 })();
             }, 800);
+        },
+
+        // ------------------------------------------------------------------
+        // 11.7 TR-49: Gestión del Modal de Cambio de Contraseña
+        // Progressive Disclosure: separado del formulario de datos personales.
+        // ------------------------------------------------------------------
+        abrirModalPassword() {
+            const modal = document.getElementById('modal-password');
+            if (!modal) return;
+            // Limpiar campos y errores al abrir (privacidad + estado limpio)
+            this._limpiarModalPassword();
+            modal.style.display = 'flex';
+            // Foco inicial accesible al primer input
+            setTimeout(() => {
+                document.getElementById('pass-actual')?.focus();
+            }, 80);
+        },
+
+        cerrarModalPassword() {
+            const modal = document.getElementById('modal-password');
+            if (!modal) return;
+            modal.style.display = 'none';
+            // TR-49: Limpiar SIEMPRE los inputs al cerrar (privacidad del usuario)
+            this._limpiarModalPassword();
+        },
+
+        _limpiarModalPassword() {
+            ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.value = ''; el.style.borderColor = ''; el.type = 'password'; }
+                const sp = document.getElementById(`${id}-error`);
+                if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
+            });
+            // Ocultar mensaje de éxito interno si quedó visible
+            const ok = document.getElementById('pass-success-msg');
+            if (ok) ok.style.display = 'none';
+            // Restaurar iconos de ojo
+            document.querySelectorAll('#modal-password .login-field__eye i').forEach(i => {
+                i.className = 'fa-regular fa-eye';
+            });
+            // Restaurar botón Confirmar
+            const btn = document.getElementById('btn-confirmar-password');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Confirmar Cambio';
+            }
+        },
+
+        // Helper: mostrar/ocultar error en los campos del modal de password
+        _mostrarErrorPass(campoId, msg) {
+            const span = document.getElementById(`${campoId}-error`);
+            const input = document.getElementById(campoId);
+            if (span) { span.textContent = msg; span.style.display = 'block'; }
+            if (input) {
+                input.style.borderColor = '#c0392b';
+                // TR-48: scroll + foco al campo erróneo
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                requestAnimationFrame(() => input.focus({ preventScroll: true }));
+            }
+        },
+
+        _limpiarErrorPass(campoId) {
+            const span = document.getElementById(`${campoId}-error`);
+            const input = document.getElementById(campoId);
+            if (span) { span.textContent = ''; span.style.display = 'none'; }
+            if (input) input.style.borderColor = '';
+        },
+
+        // Helper: toggle visibilidad de los inputs de contraseña del modal
+        _togglePassVis(campoId, btn) {
+            const input = document.getElementById(campoId);
+            if (!input) return;
+            const icon = btn?.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon?.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon?.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        },
+
+        // ------------------------------------------------------------------
+        // 11.8 TR-49: Validar y Ejecutar Cambio de Contraseña
+        // Orden estricto: vacíos → coincidencia → verificar actual en Supabase → UPDATE
+        // ------------------------------------------------------------------
+        async cambiarPasswordUsuario() {
+            // 0. Limpiar errores previos
+            ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => this._limpiarErrorPass(id));
+
+            const actual   = document.getElementById('pass-actual')?.value   || '';
+            const nueva    = document.getElementById('pass-nueva')?.value    || '';
+            const repetir  = document.getElementById('pass-repetir')?.value  || '';
+
+            // 1. Verificar que ningún campo esté vacío
+            if (!actual) {
+                this._mostrarErrorPass('pass-actual', 'Ingresa tu contraseña actual.');
+                return;
+            }
+            if (!nueva) {
+                this._mostrarErrorPass('pass-nueva', 'Ingresa la nueva contraseña.');
+                return;
+            }
+            if (nueva.length < 6) {
+                this._mostrarErrorPass('pass-nueva', 'La contraseña debe tener al menos 6 caracteres.');
+                return;
+            }
+            if (!repetir) {
+                this._mostrarErrorPass('pass-repetir', 'Por favor, repite la nueva contraseña.');
+                return;
+            }
+
+            // 2. Verificar que las contraseñas nuevas coincidan (TR-49 §3)
+            if (nueva !== repetir) {
+                this._mostrarErrorPass('pass-repetir', 'Las contraseñas no coinciden. Verifica e inténtalo de nuevo.');
+                return;
+            }
+
+            // 3. Obtener cédula del usuario activo
+            const rawUser = localStorage.getItem('usuarioActivo');
+            if (!rawUser) { app.navegar('login'); return; }
+            const u = JSON.parse(rawUser);
+            const cedula = u.identificacion || u.cedula;
+            if (!cedula) {
+                this._mostrarErrorPass('pass-actual', 'No se pudo identificar la sesión. Reinicia sesión.');
+                return;
+            }
+
+            // 4. Bloquear botón (anti-doble clic, H5)
+            const btn = document.getElementById('btn-confirmar-password');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Verificando…';
+            }
+
+            try {
+                // 5. Verificar contraseña actual contra Supabase (TR-49 §4)
+                //    Se usa loginPacientePorIdentificadorYPassword que ya existe,
+                //    pasando la cédula + contraseña actual. Retorna null si no coincide.
+                const filaActual = await conCargaGlobal(
+                    () => loginPacientePorIdentificadorYPassword(cedula, actual),
+                    'Verificando contraseña…'
+                );
+
+                if (!filaActual) {
+                    this._mostrarErrorPass('pass-actual', 'La contraseña actual no es correcta. Inténtalo de nuevo.');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Confirmar Cambio';
+                    }
+                    return;
+                }
+
+                // 6. Contraseña actual verificada → UPDATE en Supabase (TR-49 §4)
+                await conCargaGlobal(
+                    () => updatePacientePorCedula(cedula, { password: nueva }),
+                    'Actualizando contraseña…'
+                );
+
+                // 7. Actualizar también el localStorage para coherencia (H1)
+                u.password = nueva;
+                localStorage.setItem('usuarioActivo', JSON.stringify(u));
+
+                // 8. Mostrar mensaje de éxito y cerrar modal tras 2 s (H1 §2)
+                const okMsg = document.getElementById('pass-success-msg');
+                if (okMsg) okMsg.style.display = 'flex';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> ¡Actualizada!';
+                }
+                setTimeout(() => this.cerrarModalPassword(), 2000);
+
+            } catch (err) {
+                console.error('[TR-49] Error al cambiar contraseña:', err);
+                this._mostrarErrorPass('pass-actual', 'Error de conexión. Intenta de nuevo más tarde.');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Confirmar Cambio';
+                }
+            }
         }
     },
 

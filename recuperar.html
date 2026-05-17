@@ -29,7 +29,8 @@
             <div class="header__top-container">
                 <div class="header__top-links"></div>
                 <div class="header__top-buttons">
-                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
+                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión"
+                        onclick="window.location.href='login.html'">
                         <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
                     </button>
                 </div>
@@ -84,14 +85,14 @@
                         <div id="rec-fase-1">
                             <h2 id="recuperar-heading" class="login-title">Recuperar contraseña</h2>
                             <p style="color:var(--text-secondary,#666);margin-bottom:20px;font-size:0.95rem;">
-                                Ingresa tu cédula o correo registrado y te enviaremos un código de verificación.
+                                Ingresa el correo electrónico con el que te registraste y te enviaremos un código de verificación.
                             </p>
 
                             <div class="login-field">
-                                <label for="rec-identificador" class="login-field__label">Cédula o correo</label>
-                                <input type="text" id="rec-identificador" name="rec-identificador"
-                                    class="login-field__input" placeholder="Cédula o correo registrado"
-                                    autocomplete="off" inputmode="text" maxlength="80"
+                                <label for="rec-identificador" class="login-field__label">Correo electrónico</label>
+                                <input type="email" id="rec-identificador" name="rec-identificador"
+                                    class="login-field__input" placeholder="Ej: tu-correo@email.com"
+                                    autocomplete="email" inputmode="email" maxlength="80"
                                     aria-required="true" aria-describedby="rec-ident-error">
                                 <span id="rec-ident-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -137,7 +138,7 @@
                                     <input type="password" id="rec-new-password" name="rec-new-password"
                                         class="login-field__input" placeholder="Mínimo 6 caracteres"
                                         autocomplete="new-password" aria-required="true"
-                                        aria-describedby="rec-pass-error">
+                                        maxlength="128" aria-describedby="rec-pass-error">
                                     <button type="button" class="login-field__eye" id="rec-toggle-pw"
                                         aria-label="Mostrar u ocultar contraseña"
                                         onclick="recuperacion._togglePassword()">
@@ -273,6 +274,50 @@
             <span>Entrar</span>
         </a>
     </nav>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         TR-44 §3: MODAL DE RESCATE — Correo no registrado
+         Oculto por defecto; recuperacion.js lo activa/desactiva.
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div id="modal-rescate-overlay" class="perfil-overlay"
+         style="display:none; z-index:9000;"
+         role="dialog" aria-modal="true"
+         aria-labelledby="modal-rescate-titulo">
+        <div class="perfil-modal" style="max-width:420px; text-align:center; padding:40px 32px;">
+
+            <div style="font-size:2.8rem; margin-bottom:16px;">📭</div>
+
+            <h2 id="modal-rescate-titulo"
+                style="font-family:'Montserrat',sans-serif; font-size:1.15rem;
+                       font-weight:700; color:var(--text-main); margin-bottom:12px;">
+                Correo no encontrado
+            </h2>
+
+            <p style="font-size:0.9rem; color:var(--gray-text,#666);
+                      font-family:'Roboto',sans-serif; margin-bottom:28px; line-height:1.5;">
+                El correo ingresado no se encuentra registrado en el sistema.
+                ¿Deseas crear una cuenta nueva?
+            </p>
+
+            <button type="button" id="modal-rescate-btn-registro"
+                class="btn btn--accion login-submit"
+                style="margin-top:0; margin-bottom:12px;"
+                onclick="window.location.href='registro.html'">
+                <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+                Crear cuenta
+            </button>
+
+            <button type="button" id="modal-rescate-btn-cancelar"
+                class="btn" onclick="recuperacion.cerrarModalRescate()"
+                style="width:100%; padding:12px; border:1.5px solid #c8d0e0;
+                       border-radius:8px; background:transparent;
+                       font-family:'Roboto',sans-serif; font-size:0.9rem;
+                       cursor:pointer; color:var(--gray-text,#666);
+                       transition:background 0.2s;">
+                Cancelar
+            </button>
+        </div>
+    </div>
 
     <script src="js/data.js"></script>
     <!-- recuperacion.js es un módulo ES independiente (no necesita main.js completo) -->

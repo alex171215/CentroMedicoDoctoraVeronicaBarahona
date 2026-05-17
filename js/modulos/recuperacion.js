@@ -49,7 +49,12 @@ function _mostrarError(idCampo, msg) {
     const span = document.getElementById(`${idCampo}-error`);
     const input = document.getElementById(idCampo);
     if (span) { span.textContent = msg; span.style.display = 'block'; }
-    if (input) { input.style.borderColor = '#c0392b'; }
+    if (input) {
+        input.style.borderColor = '#c0392b';
+        // TR-48: Scroll suave + foco al campo erróneo (WCAG 2.2 / H1)
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        requestAnimationFrame(() => input.focus({ preventScroll: true }));
+    }
 }
 
 function _limpiarError(idCampo) {
@@ -129,43 +134,42 @@ async function _enviarOTP(correo, nombrePaciente, codigo) {
     }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// FASE 1: Buscar usuario por cédula o correo
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// FASE 1: Buscar usuario por correo electrónico (TR-44 §1: canal exclusivo)
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function buscarUsuario() {
     _limpiarError('rec-ident');
-    const identificador = (document.getElementById('rec-identificador')?.value || '').trim();
+    const correo = (document.getElementById('rec-identificador')?.value || '').trim();
 
-    if (!identificador) {
-        _mostrarError('rec-ident', 'Por favor, ingresa tu cédula o correo registrado.');
+    // Campo vacío
+    if (!correo) {
+        _mostrarError('rec-ident', 'Por favor, ingresa tu correo electrónico.');
+        return;
+    }
+
+    // TR-44 §2: Validación de formato de correo antes de consultar Supabase
+    const esEmailValido = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo);
+    if (!esEmailValido) {
+        _mostrarError('rec-ident', 'Ingresa un correo válido (ej: nombre@dominio.com).');
         return;
     }
 
     _setBtnLoading('rec-btn-fase1', true);
 
     try {
-        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identificador);
-
-        let query = supabase
+        const { data, error } = await supabase
             .from('pacientes')
-            .select('cedula, nombres, apellidos, correo');
-
-        if (isEmail) {
-            query = query.eq('correo', identificador);
-        } else {
-            query = query.eq('cedula', identificador);
-        }
-
-        const { data, error } = await query.maybeSingle();
+            .select('cedula, nombres, apellidos, correo')
+            .eq('correo', correo)
+            .maybeSingle();
 
         if (error) throw error;
 
         if (!data) {
-            _mostrarError('rec-ident',
-                isEmail
-                    ? 'No encontramos ninguna cuenta con ese correo. Verifica que lo hayas escrito bien.'
-                    : 'No encontramos ninguna cuenta con esa cédula. Verifica el número.');
+            // TR-44 §3: Modal de Rescate — el correo no existe en el sistema
+            _setBtnLoading('rec-btn-fase1', false);
+            abrirModalRescate();
             return;
         }
 
@@ -295,16 +299,98 @@ function _togglePassword() {
     }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// TR-44 §3: MODAL DE RESCATE — abrir y cerrar
+// ─────────────────────────────────────────────────────────────────────────────
+
+function abrirModalRescate() {
+    const overlay = document.getElementById('modal-rescate-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    // Foco inicial en el primer botón para accesibilidad (WCAG 2.4.3)
+    const primerBtn = overlay.querySelector('button');
+    if (primerBtn) primerBtn.focus();
+    // H3: cierre por clic en el overlay (fuera del cuadro blanco)
+    overlay.addEventListener('click', _onOverlayClick);
+}
+
+function cerrarModalRescate() {
+    const overlay = document.getElementById('modal-rescate-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'none';
+    overlay.removeEventListener('click', _onOverlayClick);
+    // Devolver foco al input de correo (H3)
+    document.getElementById('rec-identificador')?.focus();
+}
+
+function _onOverlayClick(e) {
+    // Solo cerrar si el clic fue directamente en el overlay, no en el modal hijo
+    if (e.target === e.currentTarget) cerrarModalRescate();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORTAR API GLOBAL (accesible desde atributos onclick en el HTML)
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
 window.recuperacion = {
     buscarUsuario,
     validarYActualizar,
     reenviarCodigo,
-    _togglePassword
+    _togglePassword,
+    cerrarModalRescate
 };
+
+// ────────────────────────────────────────────────────────────────────────────
+// TR-42 §1: SANITIZACIÓN EN TIEMPO REAL — Evento input sobre #rec-identificador
+// Lista blanca: alfanumérico + @ . _ -
+// Bloquea: espacios, <, >, ', ", ; y cualquier otro caracter XSS/SQLi
+// ────────────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // ── #rec-identificador: sanitización + blur de formato ──────────────────
+    const inputIdent = document.getElementById('rec-identificador');
+    if (inputIdent) {
+        // TR-44 §1: Sanitización en tiempo real — whitelist de caracteres válidos para correo
+        // Bloquea: espacios, <, >, ', ", ;, y cualquier caracter XSS/SQLi.
+        inputIdent.addEventListener('input', (e) => {
+            const antes = e.target.value;
+            const despues = antes.replace(/[^a-zA-Z0-9@._+-]/g, '');
+            if (antes !== despues) {
+                const pos = e.target.selectionStart;
+                e.target.value = despues;
+                e.target.classList.add('input-rechazado');
+                try { e.target.setSelectionRange(pos - 1, pos - 1); } catch (_) {}
+                setTimeout(() => e.target.classList.remove('input-rechazado'), 400);
+            }
+        });
+
+        // TR-46 §1: Validación de formato de correo en blur (H5 – feedback inmediato)
+        inputIdent.addEventListener('blur', (e) => {
+            const val = e.target.value.trim();
+            e.target.value = val; // sanitizar espacios residuales
+            if (val.length === 0) return; // campo vacío: el submit lo captura
+            const esEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(val);
+            if (!esEmail) {
+                _mostrarError('rec-ident', 'Ingresa un correo válido (ej: nombre@dominio.com).');
+            } else {
+                _limpiarError('rec-ident');
+            }
+        });
+    }
+
+    // ── #rec-codigo: sanitización física — solo dígitos (TR-46 §2) ──────────
+    const inputCodigo = document.getElementById('rec-codigo');
+    if (inputCodigo) {
+        inputCodigo.addEventListener('input', (e) => {
+            const antes = e.target.value;
+            const despues = antes.replace(/[^0-9]/g, '');
+            if (antes !== despues) {
+                e.target.value = despues;
+            }
+        });
+    }
+});
 
 // Inicializar: mostrar solo Fase 1
 _mostrarFase(1);
