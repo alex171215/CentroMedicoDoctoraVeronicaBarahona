@@ -108,6 +108,11 @@ export function createCitas() {
             this.historialPasos = [];
             this.resumenTicketConfirmado = null;
 
+            // TR-53: Establecer el ancla base del formulario en el historial del navegador.
+            // Se usa replaceState (no pushState) para no añadir una entrada extra:
+            // garantiza que el popstate siempre reciba {tipo:'formulario-citas'} al retroceder.
+            history.replaceState({ tipo: 'formulario-citas', paso: 0 }, '', '');
+
             this.renderizarPasoEspecialidades();
 
             const citaDesdeLogin = sessionStorage.getItem('cita_desde_login');
@@ -544,7 +549,8 @@ export function createCitas() {
             // TR-53: Registrar paso en el historial del navegador para que el botón
             // "Atrás" del móvil retroceda entre pasos en vez de expulsar al usuario.
             // _suppressHistorialPush ya existe en TR-18 y cubre el mismo anti-bucle.
-            if (!this._suppressHistorialPush && nuevoPaso >= 1) {
+            // Cubre todos los pasos >= 0 (paso 0 incluido para smart-jumps al inicio).
+            if (!this._suppressHistorialPush && nuevoPaso >= 0) {
                 history.pushState(
                     { tipo: 'formulario-citas', paso: nuevoPaso },
                     '',
