@@ -1280,6 +1280,8 @@ const app = {
             }
 
             const modal = document.getElementById('modal-especialista');
+            // TR-53: ancla en historial para que Atrás nativo cierre este modal
+            history.pushState({ vista: 'modal', id: 'modal-especialista' }, '', '');
             modal.style.display = 'flex';
 
             // Trap focus simple
@@ -1290,6 +1292,8 @@ const app = {
             const modal = document.getElementById('modal-especialista');
             if (modal) {
                 modal.style.display = 'none';
+                // TR-53: limpiar ancla del historial al cerrar con botón visual
+                if (history.state && history.state.id === 'modal-especialista') history.back();
             }
         }
     },
@@ -1843,6 +1847,8 @@ const app = {
             modal.setAttribute('role', 'alertdialog');
             modal.setAttribute('aria-modal', 'true');
             modal.setAttribute('aria-labelledby', 'reg-modal-cuenta-existente-title');
+            // TR-53: ancla en historial para que Atrás nativo cierre este modal
+            history.pushState({ vista: 'modal', id: 'reg-modal-cuenta-existente' }, '', '');
             modal.style.display = 'flex';
             modal.innerHTML =
                 '<div class="modal-content">' +
@@ -2569,7 +2575,11 @@ const app = {
 
             // Mostrar overlay
             const modal = document.getElementById('modal-perfil');
-            if (modal) modal.style.display = 'flex';
+            if (modal) {
+                // TR-53: ancla en historial para que Atrás nativo cierre este modal
+                history.pushState({ vista: 'modal', id: 'modal-perfil' }, '', '');
+                modal.style.display = 'flex';
+            }
         },
 
         // ------------------------------------------------------------------
@@ -2577,7 +2587,11 @@ const app = {
         // ------------------------------------------------------------------
         cerrarModal() {
             const modal = document.getElementById('modal-perfil');
-            if (modal) modal.style.display = 'none';
+            if (modal) {
+                modal.style.display = 'none';
+                // TR-53: limpiar ancla del historial al cerrar con botón visual
+                if (history.state && history.state.id === 'modal-perfil') history.back();
+            }
         },
 
         // ------------------------------------------------------------------
@@ -3313,7 +3327,11 @@ const app = {
                             <p>No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.</p>
                         </div>`;
                     const modal = document.getElementById('modal-consulta-cita');
-                    if (modal) modal.style.display = 'flex';
+                    if (modal) {
+                        // TR-53: ancla en historial — caso error Supabase
+                        history.pushState({ vista: 'widget-invitado' }, '', '');
+                        modal.style.display = 'flex';
+                    }
                     return;
                 }
 
@@ -3334,7 +3352,11 @@ const app = {
                         </div>
                     `;
                     const modal = document.getElementById('modal-consulta-cita');
-                    if (modal) modal.style.display = 'flex';
+                    if (modal) {
+                        // TR-53: ancla en historial — caso sin resultados
+                        history.pushState({ vista: 'widget-invitado' }, '', '');
+                        modal.style.display = 'flex';
+                    }
                     return;
                 }
 
@@ -3350,7 +3372,11 @@ const app = {
                 }
 
                 const modal = document.getElementById('modal-consulta-cita');
-                if (modal) modal.style.display = 'flex';
+                if (modal) {
+                    // TR-53: ancla en historial (caso éxito con resultados) para Atrás nativo
+                    history.pushState({ vista: 'widget-invitado' }, '', '');
+                    modal.style.display = 'flex';
+                }
 
                 // Deep link desde colisión
                 if (this._pendingDetailId) {
@@ -3493,6 +3519,8 @@ const app = {
             if (modal) modal.style.display = 'none';
             // Limpiar estado interno
             this._resultadosActuales = [];
+            // TR-53: limpiar ancla del historial al cerrar con botón visual
+            if (history.state && history.state.vista === 'widget-invitado') history.back();
         },
 
         // ── Bloque A: Cancelar cita desde modal de invitado ──
