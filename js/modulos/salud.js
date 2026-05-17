@@ -287,15 +287,47 @@ export const salud = {
                 }
                 await conCargaGlobal(
                     async () => {
+                        // TR-50: SELECT directo a Supabase — SSOT
                         estado.citas = await fetchCitasMiSaludPorCedula(cedula);
+
+                        // TR-51: Crosswalk UI — resolver id_especialista → nombre legible
+                        // mapCitaDesdeDb ya intenta esto con buscarEspecialistaEnCacheLocal,
+                        // pero si la cartera aún no está en cache, la columna medico queda vacía.
+                        // Este bloque cubre ese escenario sin requerir un JOIN en la BD.
+                        const citasSinMedico = estado.citas.filter(c => !c.medico);
+                        if (citasSinMedico.length > 0) {
+                            let cartera = [];
+                            try {
+                                const db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+                                cartera = db.cartera_especialistas || [];
+                            } catch (_) { cartera = []; }
+
+                            estado.citas = estado.citas.map(c => {
+                                if (c.medico) return c;
+                                const idEsp = c.id_especialista;
+                                const esp = cartera.find(e =>
+                                    e.id_especialista === idEsp ||
+                                    e.id_especialista === String(idEsp) ||
+                                    e.id_especialista === Number(idEsp) ||
+                                    e.id === idEsp
+                                );
+                                return {
+                                    ...c,
+                                    medico: (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) ||
+                                            (idEsp ? '(Especialista #' + idEsp + ')' : 'No especificado'),
+                                    especialidad: c.especialidad || (esp && esp.especialidad) || ''
+                                };
+                            });
+                        }
                     },
-                    'Cargando citas…'
+                    'Sincronizando datos...'
                 );
             } catch (e) {
                 console.error('[Mi Salud] citas Supabase:', e);
                 contenedor.innerHTML = '<p class="salud-empty">No se pudieron cargar las citas. Intenta de nuevo.</p>';
                 return;
             }
+
 
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);

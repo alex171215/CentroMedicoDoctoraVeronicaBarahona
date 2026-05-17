@@ -1,24 +1,22 @@
-# Sesión de Diseño Activa: Modal de Cambio de Contraseña en Perfil
+# Sesión de Diseño Activa: Sincronización Global de Citas con Supabase
 
 ## 1. Objetivo
-Implementar un modal seguro para el cambio de contraseña dentro del área del Perfil del usuario, utilizando el patrón de divulgación progresiva y garantizando la validación estricta de las credenciales antiguas y nuevas.
+Refactorizar los mecanismos de lectura de citas médicas en el Widget de Invitados y en el módulo de "Mi Salud" para que realicen consultas asíncronas directas a Supabase, eliminando la dependencia del almacenamiento local y permitiendo la persistencia cruzada entre dispositivos móviles y de escritorio.
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Modificaciones UI (`perfil.html` o donde esté la vista de edición)
-* **Trigger:** Añade un enlace o botón con el texto "Cambiar Contraseña" cerca de los botones de edición de perfil.
-* **Modal de Contraseña:** Crea un nuevo bloque HTML al final del documento para este modal. DEBE usar las clases globales de tu UI Kit (`.modal-overlay`, `.modal-content`, `.modal-header`, `.modal-body`).
-* **Estructura del Formulario:**
-  - Input 1: "Contraseña actual" (`id="pass-actual"`).
-  - Input 2: "Nueva contraseña" (`id="pass-nueva"`).
-  - Input 3: "Repetir nueva contraseña" (`id="pass-repetir"`).
-  - *UX Requisito:* Los tres inputs deben ser `type="password"`, tener un `maxlength="128"`, y estar acompañados de sus respectivos `span` para errores. 
+### A. Refactorización del Widget de Consulta de Invitados (`js/main.js`)
+* **Localización:** Función encargada de buscar y renderizar una cita cuando un usuario sin cuenta ingresa su cédula y código/fecha en la pantalla principal.
+* **Lógica asíncrona:** 1. Interceptar el evento de búsqueda y disparar el spinner visual de carga mediante `conCargaGlobal('Sincronizando datos...')`.
+  2. Implementar un bloque `try/catch` para ejecutar una consulta directa a la tabla `citas`:
+     `await supabase.from('citas').select('*').eq('cedula_paciente', inputCedula)...` (añadir filtros correspondientes según tu lógica de búsqueda).
+  3. Si la base de datos devuelve la cita, procesar y pintar la información en el DOM. Si no existen registros, limpiar el contenedor e inyectar el estado vacío correspondiente.
 
-### B. Lógica JavaScript (Módulo Perfil / `main.js`)
-* **Gestión del Modal:** Crea las funciones `abrirModalPassword()` y `cerrarModalPassword()`. Al cerrar, asegúrate de limpiar los values de los 3 inputs.
-* **Validación y Guardado (`cambiarPasswordUsuario()`):**
-  1. Verifica que ningún campo esté vacío.
-  2. Verifica que `pass-nueva` sea igual a `pass-repetir`. Si no, lanza error en el campo de repetir.
-  3. Consulta a Supabase (o al estado global si almacenas el password hasheado/plano) para verificar que `pass-actual` sea correcto.
-  4. Si todo es correcto, ejecuta el `UPDATE` en la tabla `pacientes` de Supabase para actualizar la columna `password`.
-  5. Muestra un mensaje de éxito ("Contraseña actualizada correctamente") y cierra el modal.
+### B. Refactorización del Panel "Mi Salud" (`js/modulos/salud.js` o `js/main.js`)
+* **Localización:** Función encargada de inicializar y listar el historial de citas del usuario registrado (ej. `inicializarHistorial()`, `renderizarCitas()`).
+* **Lógica asíncrona:**
+  1. Al cargar la vista de "Mi Salud", extraer la cédula del `usuarioActivo` autenticado.
+  2. Realizar un `SELECT` directo a Supabase filtrando por la clave foránea correspondiente:
+     `await supabase.from('citas').select('*').eq('cedula_paciente', usuarioActivo.cedula);`
+  3. **Cruces de Información (JOIN UI):** Tomar el `id_especialista` de cada cita recuperada y buscar su equivalente en el listado estático o dinámico de especialistas de la aplicación para extraer e inyectar el nombre del médico en la tarjeta HTML.
+  4. Actualizar la interfaz renderizando las tarjetas dinámicamente en sus respectivas secciones ("Próximas" / "Pasadas") según el valor de la columna `estado`.
