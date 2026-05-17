@@ -247,8 +247,28 @@ const app = {
                 return;
             }
 
-            // ── FALLBACK: Ninguna vista dinámica activa ──
-            // El navegador navega normalmente entre páginas.
+            // ── FALLBACK: Verificar si el usuario está en el formulario de citas ──
+            // Cuando retrocede al estado base (replaceState del init), ev.state tiene
+            // {tipo:'formulario-citas', paso:0}. Si por cualquier razón st es null pero
+            // el DOM muestra el formulario de citas activo, también interceptamos.
+            const pasoVisible = [0, 1, 2, 3, 4, 5].find(n => {
+                const el = document.getElementById(`citas-step-${n}`);
+                return el && el.style.display === 'block';
+            });
+            if (pasoVisible !== undefined && pasoVisible > 0) {
+                // El usuario está dentro del formulario multi-paso de citas
+                if (app.citas && typeof app.citas.irAtras === 'function') {
+                    app.citas._suppressHistorialPush = true;
+                    try {
+                        app.citas.irAtras();
+                    } finally {
+                        app.citas._suppressHistorialPush = false;
+                    }
+                }
+                return;
+            }
+
+            // Ninguna vista dinámica activa — el navegador navega entre páginas.
         });
 
         console.log("Sistema del Centro Médico inicializado correctamente.");
