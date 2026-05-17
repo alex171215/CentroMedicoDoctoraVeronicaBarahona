@@ -549,3 +549,11 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
    - Repetir Nueva Contraseña (para prevenir errores tipográficos).
 3. **Validación Lógica:** Antes de consultar a Supabase, el sistema debe verificar en el Front-End que la 'Nueva Contraseña' y 'Repetir Nueva Contraseña' coincidan exactamente. Si no coinciden, aplicar el Auto-Scroll/Foco (TR-48) y mostrar error.
 4. **Actualización Segura:** Si coinciden, se verifica que la 'Contraseña Actual' ingresada coincida con la de la base de datos antes de permitir el `UPDATE`.
+
+## TR-50: Single Source of Truth (SSOT) para Citas Multi-dispositivo
+1. **Prioridad Supabase:** Todas las funciones del sistema encargadas de renderizar, listar o consultar historiales de citas médicas (tanto el Panel de "Mi Salud" para usuarios registrados, como el Widget de consulta para pacientes Invitados) DEBEN realizar un `SELECT` asíncrono directo a la base de datos de Supabase en tiempo de ejecución.
+2. **Prohibición de Fallbacks Locales Obsoletos:** Queda estrictamente prohibido que la UI dependa del `localStorage` o de variables en memoria local como fuente primaria de lectura para citas existentes. El estado local solo podrá actualizarse como consecuencia de una respuesta exitosa del backend en la nube, garantizando que una cita agendada en un dispositivo móvil sea visible inmediatamente en un computador de escritorio.
+
+## TR-51: Consistencia de Esquema de Datos UI-DB
+1. **Mapeo de Atributos:** Al realizar la lectura de datos desde Supabase, el payload recibido debe mapearse respetando fielmente el esquema relacional estricto de la base de datos (`cedula_paciente`, `id_especialista`, `fecha`, `hora`, `estado`, `motivo`, `tipo_consulta`).
+2. **Resolución de Dependencias Visuales:** La interfaz debe cruzar el `id_especialista` obtenido con la cartera de médicos del sistema para inyectar dinámicamente el campo `nombre_completo` de la doctora o especialista en el DOM, garantizando que el usuario visualice información legible y no identificadores crípticos.

@@ -3155,66 +3155,116 @@ const app = {
 
             if (!valido) return;
 
-            // ── Paso 1: Obtener TODOS los registros que coincidan (Cédula + Fecha) ──
-            const citasGuardadas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            // TR-50: Single Source of Truth — leer directo de Supabase (no localStorage)
+            // Envolver en conCargaGlobal para Heurística 1 (visibilidad del estado)
+            void (async () => {
+                let resultados = [];
+                try {
+                    await conCargaGlobal(async () => {
+                        // SELECT filtrando por cédula + fecha
+                        const { data, error } = await supabase
+                            .from('citas')
+                            .select('*')
+                            .eq('cedula_paciente', cedula)
+                            .eq('fecha', fecha);
+                        if (error) throw error;
+                        if (!data || data.length === 0) { resultados = []; return; }
 
-            // Normalizar la fecha del input (YYYY-MM-DD) para comparación exacta
-            const fechaNorm = fecha.trim();
+                        // TR-51: Resolver id_especialista → nombre legible usando cache local
+                        let cartera = [];
+                        try {
+                            const db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+                            cartera = db.cartera_especialistas || [];
+                        } catch (_) { cartera = []; }
 
-            const resultados = citasGuardadas.filter(c => {
-                const cedulaMatch = (c.cedula || '').trim() === cedula;
-                const fechaMatch = (c.fecha || '').trim() === fechaNorm;
-                return cedulaMatch && fechaMatch;
-            });
+                        resultados = data.map(row => {
+                            // Buscar especialista por id
+                            const idEsp = row.id_especialista;
+                            const esp = cartera.find(e =>
+                                e.id_especialista === idEsp ||
+                                e.id_especialista === String(idEsp) ||
+                                e.id_especialista === Number(idEsp) ||
+                                e.id === idEsp
+                            );
+                            return {
+                                id_cita:       row.id_cita,
+                                cedula:        row.cedula_paciente || row.cedula,
+                                cedula_paciente: row.cedula_paciente,
+                                fecha:         row.fecha,
+                                hora:          row.hora,
+                                estado:        row.estado || 'Próxima',
+                                motivo:        row.motivo || '',
+                                tipo:          row.tipo_consulta || '',
+                                tipo_consulta: row.tipo_consulta || '',
+                                // TR-51: JOIN UI — inyectar nombre legible
+                                medico:        row.medico ||
+                                               (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) ||
+                                               '(Especialista #' + idEsp + ')',
+                                especialidad:  row.especialidad ||
+                                               (esp && esp.especialidad) || '',
+                                paciente:      row.paciente || row.nombres || '',
+                                id_especialista: idEsp
+                            };
+                        });
+                    }, 'Sincronizando datos...');
+                } catch (err) {
+                    console.error('[TR-50] widgetInvitado.consultar Supabase:', err);
+                    const body = document.getElementById('modal-consulta-body');
+                    const titulo = document.getElementById('modal-consulta-title');
+                    if (titulo) titulo.textContent = 'Error de conexión';
+                    if (body) body.innerHTML = `
+                        <div style="text-align:center;padding:20px;">
+                            <i class="fa-solid fa-triangle-exclamation fa-2x" style="color:#c0392b;margin-bottom:12px;"></i>
+                            <p>No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.</p>
+                        </div>`;
+                    const modal = document.getElementById('modal-consulta-cita');
+                    if (modal) modal.style.display = 'flex';
+                    return;
+                }
 
-            // ── Paso 2: Lógica de visualización según cantidad de resultados ──
-            const body = document.getElementById('modal-consulta-body');
-            const titulo = document.getElementById('modal-consulta-title');
+                // ── Paso 2: Lógica de visualización según cantidad de resultados ──
+                const body = document.getElementById('modal-consulta-body');
+                const titulo = document.getElementById('modal-consulta-title');
+                if (!body || !titulo) return;
 
-            // Limpiar contenedor dinámico
-            body.innerHTML = '';
+                body.innerHTML = '';
 
-            if (resultados.length === 0) {
-                // 0 resultados → Abrir modal con Empty State
-                titulo.textContent = 'No se encontraron citas';
-                body.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <i class="fa-regular fa-calendar-xmark fa-3x" style="color: var(--gray-text); margin-bottom: 15px;"></i>
-                        <h4 style="margin-bottom: 10px;">No se encontraron citas</h4>
-                        <p style="color: var(--gray-text); font-size: 0.9rem;">No hay citas registradas para la cédula y fecha seleccionadas.</p>
-                    </div>
-                `;
+                if (resultados.length === 0) {
+                    titulo.textContent = 'No se encontraron citas';
+                    body.innerHTML = `
+                        <div style="text-align: center; padding: 20px;">
+                            <i class="fa-regular fa-calendar-xmark fa-3x" style="color: var(--gray-text); margin-bottom: 15px;"></i>
+                            <h4 style="margin-bottom: 10px;">No se encontraron citas</h4>
+                            <p style="color: var(--gray-text); font-size: 0.9rem;">No hay citas registradas para la cédula y fecha seleccionadas.</p>
+                        </div>
+                    `;
+                    const modal = document.getElementById('modal-consulta-cita');
+                    if (modal) modal.style.display = 'flex';
+                    return;
+                }
+
+                // Guardar resultados en memoria para navegación interna
+                this._resultadosActuales = resultados;
+
+                if (resultados.length === 1) {
+                    titulo.textContent = 'Detalle de tu Cita';
+                    body.innerHTML = this._renderDetalle(resultados[0]);
+                } else {
+                    titulo.textContent = `Se encontraron ${resultados.length} citas`;
+                    body.innerHTML = this._renderListaMaestro(resultados);
+                }
+
                 const modal = document.getElementById('modal-consulta-cita');
                 if (modal) modal.style.display = 'flex';
-                return;
-            }
 
-            // Guardar resultados en memoria para navegación interna
-            this._resultadosActuales = resultados;
-
-            if (resultados.length === 1) {
-                // 1 resultado → Inyectar vista Detalle directamente
-                titulo.textContent = 'Detalle de tu Cita';
-                body.innerHTML = this._renderDetalle(resultados[0]);
-            } else {
-                // >1 resultados → Inyectar vista Maestro (lista clickeable)
-                titulo.textContent = `Se encontraron ${resultados.length} citas`;
-                body.innerHTML = this._renderListaMaestro(resultados);
-            }
-
-            // Abrir modal
-            const modal = document.getElementById('modal-consulta-cita');
-            if (modal) modal.style.display = 'flex';
-
-            // Deep link desde colisión: abrir automáticamente el detalle de la cita conflictiva
-            if (this._pendingDetailId) {
-                const idCita = this._pendingDetailId;
-                this._pendingDetailId = null; // se consume una sola vez
-                const index = this._resultadosActuales.findIndex(c => c.id_cita === idCita);
-                if (index !== -1) {
-                    this.verDetalle(index);
+                // Deep link desde colisión
+                if (this._pendingDetailId) {
+                    const idCita = this._pendingDetailId;
+                    this._pendingDetailId = null;
+                    const index = this._resultadosActuales.findIndex(c => c.id_cita === idCita);
+                    if (index !== -1) this.verDetalle(index);
                 }
-            }
+            })();
         },
 
         // ── Render: Vista Detalle de una cita ──
@@ -3223,11 +3273,8 @@ const app = {
                 ? cita.fecha.split('-').reverse().join('/')
                 : cita.fecha;
 
-            // Determinar el índice de esta cita en sanitas_citas para poder referenciarlo
-            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            const indexEnPublicas = citasPublicas.findIndex(cp =>
-                cp.cedula === cita.cedula && cp.fecha === cita.fecha && cp.hora === cita.hora && cp.medico === cita.medico);
-
+            // TR-50: Usar id_cita de Supabase como identificador estable (no índice de localStorage)
+            const idCitaEstable = cita.id_cita || '';
             const esCancelada = cita.estado === 'Cancelada';
             const estadoBadge = esCancelada
                 ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
@@ -3259,16 +3306,16 @@ const app = {
                     <span class="modal-consulta__val">${escapeHtmlWidget(cita.paciente || cita.nombres || 'No especificado')}</span>
                 </div>`;
 
-            // Botones CRUD solo si la cita NO está cancelada y se encontró en el store
-            if (!esCancelada && indexEnPublicas !== -1) {
+            // Botones CRUD solo si la cita NO está cancelada e id_cita disponible
+            if (!esCancelada && idCitaEstable) {
                 html += `
                 <div class="cita-acciones" role="group" aria-label="Acciones de cita">
                     <button type="button" class="cita-acciones__btn cita-acciones__btn--modificar"
-                        onclick="app.widgetInvitado.prepararModificacion('${cita.id_cita || indexEnPublicas}')">
+                        onclick="app.widgetInvitado.prepararModificacion('${idCitaEstable}')">
                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Cambiar Fecha/Hora
                     </button>
                     <button type="button" class="cita-acciones__btn cita-acciones__btn--cancelar"
-                        onclick="app.widgetInvitado.cancelarCita('${cita.id_cita || indexEnPublicas}')">
+                        onclick="app.widgetInvitado.cancelarCita('${idCitaEstable}')">
                         <i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar Cita
                     </button>
                 </div>`;
@@ -3279,11 +3326,11 @@ const app = {
                 html += `
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
                     <button class="btn btn--documento"
-                        onclick="app.widgetInvitado.imprimirCitaInvitado('${cita.id_cita || indexEnPublicas}')">
+                        onclick="app.widgetInvitado.imprimirCitaInvitado('${idCitaEstable}')">
                         <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
                     </button>
                     <button class="btn btn--documento"
-                        onclick="app.widgetInvitado.descargarPDFCitaInvitado('${cita.id_cita || indexEnPublicas}')">
+                        onclick="app.widgetInvitado.descargarPDFCitaInvitado('${idCitaEstable}')">
                         <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
                     </button>
                 </div>`;
