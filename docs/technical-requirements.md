@@ -511,3 +511,41 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Prohibición de Anonimato:** Queda estrictamente prohibido el uso del fallback 'Usuario' en los correos electrónicos si el dato existe en la base de datos o en el formulario.
 2. **Carga Obligatoria:** Toda consulta a la tabla `pacientes` realizada para enviar un OTP DEBE incluir la columna `nombres` en el `select` de Supabase para personalizar el saludo.
 3. **Sincronía de EmailJS:** El envío del correo de registro debe esperar a que el DOM esté completamente listo y las credenciales cargadas.
+
+## TR-42: Estándares de Autenticación y Anti-Enumeración (OWASP / H5)
+1. **Identificadores Únicos:** El inicio de sesión (Login) utilizará EXCLUSIVAMENTE el Documento de Identificación (Cédula o Pasaporte). La recuperación de contraseña utilizará EXCLUSIVAMENTE el Correo Electrónico.
+2. **Anti-Enumeración (Seguridad):** En el formulario de Login, si las credenciales son incorrectas, el sistema tiene estrictamente PROHIBIDO indicar si el fallo fue en el usuario o en la contraseña. El mensaje de error debe ser genérico (ej. "Credenciales incorrectas") y **AMBOS campos (input de cédula y de password) deben resaltarse en rojo (clase `.input-rechazado` o `.error`) simultáneamente**, protegiendo la privacidad del sistema.
+
+## TR-43: Enrutamiento Absoluto (H3 - Control y Libertad)
+1. El botón principal de "Iniciar Sesión" en el Header (`#btn-auth`) debe funcionar contextualmente. Si el usuario no está en la página principal (`index.html` o `login.html`), el botón debe ejecutar un `window.location.href = 'login.html'` en lugar de intentar manipular el DOM local.
+
+## TR-44: Canal Exclusivo de Recuperación y Flujo de Rescate (H3, H5, H9)
+1. **Exclusividad de Input:** El proceso de recuperación de contraseña utilizará únicamente el Correo Electrónico como identificador legítimo en `#rec-identificador`. Queda descartado el uso de la cédula en este flujo.
+2. **Validación de Existencia:** Antes de enviar cualquier código OTP, el sistema debe consultar en Supabase si el correo ingresado existe en la tabla `pacientes`.
+3. **Modal de Rescate:** Si el correo NO existe, se bloqueará el avance y se desplegará un modal emergente con un mensaje claro (H9: "Este correo electrónico no está registrado"). El modal debe incluir dos opciones: un botón principal que redirija al formulario de registro y un botón de cancelar. El modal debe cerrarse limpiamente al dar clic en cancelar o fuera del contenedor (overlay).
+
+## TR-45: Espaciado y Ley de Proximidad de Gestalt (H8)
+1. **Respiración de la Interfaz:** Para evitar la fatiga visual y mejorar la legibilidad, la separación vertical entre elementos del formulario (`.login-field`) debe ser espaciosa (mínimo `24px`).
+2. **Separación de Bloques de Acción:** Los botones de envío o gestión principal deben estar separados de los campos de texto por un espacio en blanco de seguridad de mínimo `32px`, separando claramente la entrada de datos de la ejecución de comandos.
+
+## TR-46: Micro-Interacciones y Sanitización Física (H5, OWASP)
+1. **Validación de Formato vs Existencia:** Los errores de formato (ej. cédula incompleta, correo sin '@') deben mostrarse al usuario en el evento `blur` (H5). Los errores de existencia (credenciales incorrectas) deben ser genéricos (Anti-Enumeración).
+2. **Sanitización Estricta de OTP:** Los campos de códigos de verificación deben usar `e.target.value.replace(/[^0-9]/g, '')` en el evento `input` para garantizar que solo se procesen números.
+3. **Límites de Contraseña:** Todo input de `password` debe tener un `maxlength="128"` por seguridad. No se deben bloquear caracteres especiales (NIST standard), pero sí se deben ignorar espacios al inicio y al final en el payload.
+
+## TR-47: Consistencia de Componentes UI (Heurística 4 y 8)
+1. **Estándar de Selectores (Dropdowns):** Queda prohibido el uso de la etiqueta nativa `<select>` en los formularios principales si ya existe un patrón personalizado. Todos los campos de selección deben usar el patrón de `<input readonly>` con un ícono de flecha (`fa-chevron-down`) que dispare un Modal inferior para elegir la opción.
+2. **Estándar de Modales:** Todos los modales generados dinámicamente mediante JavaScript DEBEN utilizar estrictamente las clases CSS globales del sistema (ej. `.modal-overlay`, `.modal-content`, `.modal-header`, `.modal-body`) para heredar la estética de esquinas redondeadas, sombras y botones. Queda prohibido el uso de estilos en línea (`style="..."`) para la maquetación principal.
+
+## TR-48: Gestión de Foco y Scroll en Errores (WCAG 2.2 / H1)
+1. **Auto-Focus y Smooth Scroll:** En cualquier formulario (Registro, Perfil, Citas, Recuperación), cuando el usuario intente avanzar/enviar y exista un error de validación, el sistema DEBE interceptar la acción y hacer un scroll suave (`behavior: 'smooth'`) hacia el primer elemento inválido.
+2. Además del scroll, el sistema debe aplicar `.focus()` al input correspondiente para que el usuario pueda empezar a corregir el error inmediatamente sin tener que hacer clic en él.
+
+## TR-49: Flujo Seguro de Cambio de Contraseña (H5, Progressive Disclosure)
+1. **Separación de Contextos:** La edición de la contraseña NO debe estar visible por defecto en el formulario de datos personales. Debe aislarse mediante "Divulgación Progresiva", accesible a través de un botón/enlace específico ("Cambiar contraseña") que abra un Modal dedicado.
+2. **Campos de Validación (H5):** El modal debe exigir 3 campos estrictos:
+   - Contraseña Actual (para validar la identidad y prevenir secuestros de sesión).
+   - Nueva Contraseña.
+   - Repetir Nueva Contraseña (para prevenir errores tipográficos).
+3. **Validación Lógica:** Antes de consultar a Supabase, el sistema debe verificar en el Front-End que la 'Nueva Contraseña' y 'Repetir Nueva Contraseña' coincidan exactamente. Si no coinciden, aplicar el Auto-Scroll/Foco (TR-48) y mostrar error.
+4. **Actualización Segura:** Si coinciden, se verifica que la 'Contraseña Actual' ingresada coincida con la de la base de datos antes de permitir el `UPDATE`.
