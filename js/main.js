@@ -176,11 +176,72 @@ const app = {
         this._mpaEnfocarPaginaActual();
         this.currentView = this._mpaVistaDesdePathname();
 
-        // TR-52: Listener global de History API — botón Atrás en móvil/navegador.
-        // Detecta cuándo se retrocede desde una vista dinámica abierta con pushState
-        // y la cierra suavemente sin expulsar al usuario de la aplicación (H3).
-        window.addEventListener('popstate', (eventoHistorial) => {
-            // ── Caso 1: regresando desde el detalle de cita en Mi Salud ──
+        // TR-52/TR-53: Router global History API — botón "Atrás" en móvil y navegador.
+        // El router evalúa el estado del historial y cierra vistas/modales en orden de
+        // prioridad, evitando expulsar al usuario de la aplicación (Heurística H3).
+        window.addEventListener('popstate', (ev) => {
+            const st = ev.state; // Estado registrado con pushState (puede ser null)
+
+            // ── PRIORIDAD 1: Modal overlay visible (cualquier modal, sin importar estado) ──
+            // Buscar cualquier .modal-overlay con display flex/block activo.
+            // Si hay uno abierto, cerrarlo es la acción correcta sin importar el state.
+            const modalAbierto = Array.from(
+                document.querySelectorAll('.modal-overlay')
+            ).find(el => {
+                const d = el.style.display;
+                return d === 'flex' || d === 'block';
+            });
+            if (modalAbierto) {
+                modalAbierto.style.display = 'none';
+                // Si es el modal de consulta de invitado, limpiar también su estado interno
+                if (modalAbierto.id === 'modal-consulta-cita') {
+                    if (app.widgetInvitado && typeof app.widgetInvitado.cerrarModal === 'function') {
+                        app.widgetInvitado.cerrarModal();
+                    }
+                }
+                return;
+            }
+
+            // ── PRIORIDAD 2: Formulario multi-paso de CITAS ──
+            if (st && st.tipo === 'formulario-citas') {
+                if (app.citas && typeof app.citas._prepararRetornoA === 'function') {
+                    const pasoAnterior = st.paso - 1;
+                    // _suppressHistorialPush ya existe en citas.js (TR-18) para evitar bucles
+                    app.citas._suppressHistorialPush = true;
+                    try {
+                        if (pasoAnterior <= 0) {
+                            app.citas.renderizarPasoEspecialidades();
+                            app.citas.mostrarPaso(0);
+                        } else {
+                            app.citas._prepararRetornoA(pasoAnterior);
+                        }
+                    } finally {
+                        app.citas._suppressHistorialPush = false;
+                    }
+                }
+                return;
+            }
+
+            // ── PRIORIDAD 3: Formulario multi-paso de REGISTRO ──
+            if (st && st.tipo === 'formulario-reg') {
+                if (app.registro && typeof app.registro._irAPaso === 'function') {
+                    const pasoAnterior = st.paso - 1;
+                    // _suppressPushState evita que _irAPaso haga otro pushState (bucle)
+                    app.registro._suppressPushState = true;
+                    try {
+                        if (pasoAnterior >= 1) {
+                            app.registro._irAPaso(pasoAnterior);
+                        }
+                        // Si pasoAnterior < 1: estamos en el inicio del registro,
+                        // dejar que el navegador navege normalmente (salir del registro).
+                    } finally {
+                        app.registro._suppressPushState = false;
+                    }
+                }
+                return;
+            }
+
+            // ── PRIORIDAD 4: Detalle de cita en Mi Salud (TR-52) ──
             const detalleEl = document.getElementById('salud-cita-detalle');
             if (detalleEl && detalleEl.style.display === 'block') {
                 if (app.salud && typeof app.salud._ocultarDetalleCitas === 'function') {
@@ -189,15 +250,8 @@ const app = {
                 return;
             }
 
-            // ── Caso 2: modal del widget de invitado abierto ──
-            const modalConsultaEl = document.getElementById('modal-consulta-cita');
-            if (modalConsultaEl && modalConsultaEl.style.display === 'flex') {
-                if (app.widgetInvitado && typeof app.widgetInvitado.cerrarModal === 'function') {
-                    app.widgetInvitado.cerrarModal();
-                }
-                return;
-            }
-            // Si ninguna vista dinámica está activa, el navegador maneja el retroceso.
+            // ── FALLBACK: Ninguna vista dinámica activa ──
+            // El navegador maneja el retroceso normalmente (navega entre páginas).
         });
 
         console.log("Sistema del Centro Médico inicializado correctamente.");
@@ -1760,6 +1814,16 @@ const app = {
             }
             // TR-29 / TR-12: scroll al inicio al cambiar de paso en el registro.
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // TR-53: Registrar paso en historial SOLO si no venimos del popstate
+            // (_suppressPushState evita el bucle pushState → popstate → pushState).
+            if (!this._suppressPushState) {
+                history.pushState(
+                    { tipo: 'formulario-reg', paso: n },
+                    '',
+                    `#reg-paso-${n}`
+                );
+            }
         },
 
         /** TR-30: cierra el modal de cuenta duplicada si está abierto. */
@@ -2310,7 +2374,11 @@ const app = {
 
         abrirModalDoc() {
             const m = document.getElementById('modal-tipo-doc');
-            if (m) m.style.display = 'flex';
+            if (m) {
+                m.style.display = 'flex';
+                // TR-53: ancla en historial para que Atrás nativo cierre el modal
+                history.pushState({ tipo: 'modal', id: 'modal-tipo-doc' }, '', '#modal');
+            }
             // Foco al primer radio para accesibilidad
             setTimeout(() => m?.querySelector('input[type="radio"]')?.focus(), 50);
         },
@@ -2358,7 +2426,11 @@ const app = {
         // ------------------------------------------------------------------
         abrirModalSexo() {
             const m = document.getElementById('modal-sexo');
-            if (m) m.style.display = 'flex';
+            if (m) {
+                m.style.display = 'flex';
+                // TR-53: ancla en historial para que Atrás nativo cierre el modal
+                history.pushState({ tipo: 'modal', id: 'modal-sexo' }, '', '#modal');
+            }
         },
         cerrarModalSexo() {
             const m = document.getElementById('modal-sexo');
@@ -2843,6 +2915,8 @@ const app = {
             // Limpiar campos y errores al abrir (privacidad + estado limpio)
             this._limpiarModalPassword();
             modal.style.display = 'flex';
+            // TR-53: ancla en historial para que Atrás nativo cierre el modal
+            history.pushState({ tipo: 'modal', id: 'modal-password' }, '', '#modal');
             // Foco inicial accesible al primer input
             setTimeout(() => {
                 document.getElementById('pass-actual')?.focus();
