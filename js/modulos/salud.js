@@ -501,6 +501,15 @@ export const salud = {
             if (h) h.style.display = 'none';
             if (lista) lista.style.display = 'none';
             if (det) det.style.display = 'block';
+
+            // TR-52: Registrar ancla en el historial del navegador para que el botón
+            // "Atrás" del móvil devuelva al usuario a la lista en vez de expulsarlo.
+            // El listener popstate en main.js intercepta este estado.
+            history.pushState(
+                { vista: 'detalleCita', citaId: idCita },
+                '',
+                '#detalle-cita'
+            );
         },
 
         /**
@@ -650,16 +659,19 @@ export const salud = {
 
         // ------------------------------------------------------------------
         // 12.8 Volver a la lista
+        // TR-52: Si hay un estado de detalleCita en el historial, delegar a
+        // history.back() para que el evento popstate global maneje el cierre.
+        // Esto mantiene el historial limpio y evita entradas duplicadas.
         // ------------------------------------------------------------------
         async volverALista(tipo) {
             if (tipo === 'citas') {
-                const d1 = document.getElementById('salud-cita-detalle');
-                const h1 = document.getElementById('salud-citas-header');
-                const l1 = document.getElementById('salud-citas-lista');
-                if (d1) d1.style.display = 'none';
-                if (h1) h1.style.display = 'block';
-                if (l1) l1.style.display = 'block';
-                await this.renderizarCitas(this._filtroActual);
+                // TR-52: Delegar al popstate si venimos de una entrada push
+                if (history.state && history.state.vista === 'detalleCita') {
+                    history.back();
+                    return;
+                }
+                // Fallback: cierre directo (llegado por deeplink / sin pushState previo)
+                await this._ocultarDetalleCitas();
             } else {
                 const d2 = document.getElementById('salud-receta-detalle');
                 const h2 = document.getElementById('salud-recetas-header');
@@ -668,6 +680,18 @@ export const salud = {
                 if (h2) h2.style.display = 'block';
                 if (l2) l2.style.display = 'block';
             }
+        },
+
+        // TR-52: Lógica real de ocultación del detalle de citas (sin tocar el historial).
+        // Invocada tanto por el popstate como por el fallback de volverALista.
+        async _ocultarDetalleCitas() {
+            const d1 = document.getElementById('salud-cita-detalle');
+            const h1 = document.getElementById('salud-citas-header');
+            const l1 = document.getElementById('salud-citas-lista');
+            if (d1) d1.style.display = 'none';
+            if (h1) h1.style.display = 'block';
+            if (l1) l1.style.display = 'block';
+            await this.renderizarCitas(this._filtroActual);
         },
 
         // ------------------------------------------------------------------

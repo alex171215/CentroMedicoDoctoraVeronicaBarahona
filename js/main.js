@@ -176,6 +176,30 @@ const app = {
         this._mpaEnfocarPaginaActual();
         this.currentView = this._mpaVistaDesdePathname();
 
+        // TR-52: Listener global de History API — botón Atrás en móvil/navegador.
+        // Detecta cuándo se retrocede desde una vista dinámica abierta con pushState
+        // y la cierra suavemente sin expulsar al usuario de la aplicación (H3).
+        window.addEventListener('popstate', (eventoHistorial) => {
+            // ── Caso 1: regresando desde el detalle de cita en Mi Salud ──
+            const detalleEl = document.getElementById('salud-cita-detalle');
+            if (detalleEl && detalleEl.style.display === 'block') {
+                if (app.salud && typeof app.salud._ocultarDetalleCitas === 'function') {
+                    void app.salud._ocultarDetalleCitas();
+                }
+                return;
+            }
+
+            // ── Caso 2: modal del widget de invitado abierto ──
+            const modalConsultaEl = document.getElementById('modal-consulta-cita');
+            if (modalConsultaEl && modalConsultaEl.style.display === 'flex') {
+                if (app.widgetInvitado && typeof app.widgetInvitado.cerrarModal === 'function') {
+                    app.widgetInvitado.cerrarModal();
+                }
+                return;
+            }
+            // Si ninguna vista dinámica está activa, el navegador maneja el retroceso.
+        });
+
         console.log("Sistema del Centro Médico inicializado correctamente.");
     },
 

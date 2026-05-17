@@ -557,3 +557,7 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-51: Consistencia de Esquema de Datos UI-DB
 1. **Mapeo de Atributos:** Al realizar la lectura de datos desde Supabase, el payload recibido debe mapearse respetando fielmente el esquema relacional estricto de la base de datos (`cedula_paciente`, `id_especialista`, `fecha`, `hora`, `estado`, `motivo`, `tipo_consulta`).
 2. **Resolución de Dependencias Visuales:** La interfaz debe cruzar el `id_especialista` obtenido con la cartera de médicos del sistema para inyectar dinámicamente el campo `nombre_completo` de la doctora o especialista en el DOM, garantizando que el usuario visualice información legible y no identificadores crípticos.
+
+## TR-52: Gestión de Historial Nativo para Vistas Dinámicas (History API / H3)
+1. **Soporte para Botón "Atrás" Móvil:** Toda vista dinámica que sobreponga contenido a la pantalla principal sin cambiar de página física (como el "Detalle de Cita" en Mi Salud, o transiciones entre pasos en formularios largos) DEBE registrar un estado en el historial del navegador utilizando `history.pushState()`.
+2. **Interceptación de Retroceso (Popstate):** El sistema debe implementar un listener global para el evento `window.addEventListener('popstate')`. Si el usuario presiona el botón físico "Atrás" del celular o el botón de retroceso del navegador, el sistema atrapará este evento y cerrará la vista dinámica o regresará al paso anterior de forma controlada, evitando expulsar al usuario de la aplicación.

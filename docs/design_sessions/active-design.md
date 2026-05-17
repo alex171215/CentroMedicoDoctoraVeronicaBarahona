@@ -1,22 +1,26 @@
-# Sesión de Diseño Activa: Sincronización Global de Citas con Supabase
+# Sesión de Diseño Activa: Implementación de History API para Navegación Móvil
 
 ## 1. Objetivo
-Refactorizar los mecanismos de lectura de citas médicas en el Widget de Invitados y en el módulo de "Mi Salud" para que realicen consultas asíncronas directas a Supabase, eliminando la dependencia del almacenamiento local y permitiendo la persistencia cruzada entre dispositivos móviles y de escritorio.
+Resolver el "secuestro" del botón Atrás en dispositivos móviles. Al abrir un modal o un detalle de cita (ej. en "Mi Salud"), si el usuario presiona "Atrás" en su celular, debe regresar a la lista de citas, no salir de la página ni perder su progreso (Heurística 3).
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Refactorización del Widget de Consulta de Invitados (`js/main.js`)
-* **Localización:** Función encargada de buscar y renderizar una cita cuando un usuario sin cuenta ingresa su cédula y código/fecha en la pantalla principal.
-* **Lógica asíncrona:** 1. Interceptar el evento de búsqueda y disparar el spinner visual de carga mediante `conCargaGlobal('Sincronizando datos...')`.
-  2. Implementar un bloque `try/catch` para ejecutar una consulta directa a la tabla `citas`:
-     `await supabase.from('citas').select('*').eq('cedula_paciente', inputCedula)...` (añadir filtros correspondientes según tu lógica de búsqueda).
-  3. Si la base de datos devuelve la cita, procesar y pintar la información en el DOM. Si no existen registros, limpiar el contenedor e inyectar el estado vacío correspondiente.
+### A. Registro de Estado en Vistas Dinámicas (`js/modulos/salud.js` o similar)
+* **Localización:** Función encargada de abrir la vista de "Detalle de Cita" (ej. `verDetalleCita(id)`).
+* **Acción 1:** Justo después de mostrar el div del detalle en pantalla, inyecta un estado en el historial del navegador:
+  `history.pushState({ vista: 'detalleCita', citaId: id }, '', '#detalle');`
+* **Acción 2:** Modifica el botón visual de "Cerrar" o "Volver" propio de esa vista de detalle. En lugar de simplemente ocultar el div, debe ejecutar `history.back();` (lo cual disparará el evento popstate para mantener el historial limpio).
 
-### B. Refactorización del Panel "Mi Salud" (`js/modulos/salud.js` o `js/main.js`)
-* **Localización:** Función encargada de inicializar y listar el historial de citas del usuario registrado (ej. `inicializarHistorial()`, `renderizarCitas()`).
-* **Lógica asíncrona:**
-  1. Al cargar la vista de "Mi Salud", extraer la cédula del `usuarioActivo` autenticado.
-  2. Realizar un `SELECT` directo a Supabase filtrando por la clave foránea correspondiente:
-     `await supabase.from('citas').select('*').eq('cedula_paciente', usuarioActivo.cedula);`
-  3. **Cruces de Información (JOIN UI):** Tomar el `id_especialista` de cada cita recuperada y buscar su equivalente en el listado estático o dinámico de especialistas de la aplicación para extraer e inyectar el nombre del médico en la tarjeta HTML.
-  4. Actualizar la interfaz renderizando las tarjetas dinámicamente en sus respectivas secciones ("Próximas" / "Pasadas") según el valor de la columna `estado`.
+### B. Interceptación Global de Retroceso (`js/main.js` o `js/app.js`)
+* **Localización:** Inicialización global de la aplicación.
+* **Acción:** Añade un Event Listener para `popstate`:
+  ```javascript
+  window.addEventListener('popstate', (evento) => {
+      // Lógica para detectar si hay un detalle de cita abierto y cerrarlo.
+      // Si el estado del evento es nulo o no es 'detalleCita', asegurar que
+      // los modales o vistas superpuestas se oculten para volver a la vista principal.
+  });
+  ```
+
+### C. (Opcional/Recomendado) Aplicación a Pasos de Formulario
+* Si es viable sin romper código, aplica el mismo patrón `pushState` a la función que cambia de pasos en formularios (ej. `_irAPaso(paso)`), para que el botón "Atrás" del celular sirva para retroceder de paso.
