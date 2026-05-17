@@ -1,23 +1,52 @@
-# Sesión de Diseño Activa: Router Global History API (Atrás Nativo)
+# Sesión de Diseño Activa: Corrección de History API y Botón "Atrás" Móvil
 
 ## 1. Objetivo
-Lograr que el botón físico "Atrás" del celular permita retroceder entre pasos de un formulario y cerrar modales sin expulsar al usuario a la vista inicial, garantizando el Control y Libertad del Usuario (Heurística 3).
+Unificar la History API con las funciones de cierre/retroceso existentes del sistema, solucionando el bug donde el botón "Atrás" del celular rompe el flujo dinámico de los formularios o expulsa al usuario de la página.
 
 ## 2. Instrucciones Técnicas para Antigravity
 
-### A. Modales Globales (Cierre con Atrás)
-* **Localización:** Funciones de apertura de modales (ej. `abrirModalDoc`, `abrirModalSexo`, `abrirModalPassword`, y alertas personalizadas).
-* **Acción 1:** Al abrir el modal, añade: `history.pushState({ tipo: 'modal', id: 'id-del-modal' }, '', '#modal');`
-* **Acción 2:** Modifica tu evento global `popstate` en `main.js`. Si el evento se dispara, lo PRIMERO que debe hacer es cerrar cualquier modal o overlay que esté visible (`display: flex` o `block`).
+### A. Refactorización de la Escucha Global (`js/main.js` o `app.js`)
+* **Acción:** Reemplaza el EventListener actual de `popstate` por este patrón de delegación segura:
+  ```javascript
+  window.addEventListener('popstate', (ev) => {
+      const st = ev.state;
+      
+      // 1. Prioridad: Cerrar Modales Abiertos
+      const modalAbierto = document.querySelector('.modal-overlay[style*="display: flex"], .modal-overlay[style*="display: block"]');
+      if (modalAbierto) {
+          const btnCerrar = modalAbierto.querySelector('.modal-cerrar, .btn-secondary, .reg-cancel-link span');
+          if(btnCerrar) btnCerrar.click(); 
+          else modalAbierto.style.display = 'none';
+          return;
+      }
 
-### B. Formularios Multi-paso (Registro y Citas)
-* **Localización:** Función encargada de avanzar pasos (ej. `siguientePaso(paso)` o `_irAPaso(paso)`).
-* **Acción 1:** Al avanzar a un nuevo paso, añade: `history.pushState({ tipo: 'formulario', paso: pasoDestino }, '', '#paso-' + pasoDestino);`
-* **Acción 2:** En el evento global `popstate`, añade la lógica:
-  `if (e.state && e.state.tipo === 'formulario') {`
-  `    invocarFuncionVisualDelPaso(e.state.paso); // Retrocede visualmente sin hacer pushState`
-  `}`
-* **Fallback:** Si `e.state` es nulo (retrocedió hasta el paso 1 original), forzar visualmente el Paso 1.
+      // 2. Prioridad: Cerrar Detalle de Cita en "Mi Salud"
+      const detalleEl = document.getElementById('salud-cita-detalle');
+      if (detalleEl?.style.display === 'block') {
+          if (typeof app.salud._ocultarDetalleCitas === 'function') app.salud._ocultarDetalleCitas();
+          return;
+      }
 
-### C. Refactorización Segura
-* Mantén intacta la lógica de `detalleCita` que ya funciona. Solo añade los casos 'modal' y 'formulario' al mismo listener `popstate`.
+      // 3. Retroceso Inteligente en Citas (Respeta Smart Jumps)
+      if (st && st.tipo === 'formulario-citas') {
+          app.citas._suppressHistorialPush = true;
+          app.citas.irAtras(); 
+          app.citas._suppressHistorialPush = false;
+          return;
+      }
+
+      // 4. Retroceso Inteligente en Registro
+      if (st && st.tipo === 'formulario-reg') {
+          app.registro._suppressPushState = true;
+          if (typeof app.registro.pasoAnterior === 'function') app.registro.pasoAnterior(st.paso + 1); // o la función equivalente
+          app.registro._suppressPushState = false;
+          return;
+      }
+  });
+  ```
+
+### B. Garantizar los pushState en Aperturas
+* **Acción:** Revisa TODAS las funciones que abren modales (ej. `abrirModalDoc`, `abrirModalSexo`, `abrirModalPassword`, modales de error/éxito) y asegúrate de que inyecten `history.pushState({ modal: true }, '', '');` inmediatamente antes de poner `display: flex/block`.
+
+### C. Actualizar Funciones de Retroceso (`citas.js`, `main.js`)
+* **Acción:** Verifica que las funciones como `app.citas.irAtras()` NO ejecuten internamente `history.back()` ni `history.pushState()` si la bandera `_suppressHistorialPush` está en `true`, para evitar bucles infinitos de enrutamiento.
