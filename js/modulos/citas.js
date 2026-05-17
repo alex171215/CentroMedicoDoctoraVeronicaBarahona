@@ -541,6 +541,17 @@ export function createCitas() {
             // TR-29: scroll al inicio tras estabilizar el DOM del paso (incl. éxito cita / revisión).
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
+            // TR-53: Registrar paso en el historial del navegador para que el botón
+            // "Atrás" del móvil retroceda entre pasos en vez de expulsar al usuario.
+            // _suppressHistorialPush ya existe en TR-18 y cubre el mismo anti-bucle.
+            if (!this._suppressHistorialPush && nuevoPaso >= 1) {
+                history.pushState(
+                    { tipo: 'formulario-citas', paso: nuevoPaso },
+                    '',
+                    `#citas-paso-${nuevoPaso}`
+                );
+            }
+
             if (!this._enRecuperacion) {
                 this._persistirProgresoCita();
             }
