@@ -197,17 +197,62 @@ export async function updatePacientePorCedula(cedula, patch) {
 
 
 /**
- * Inserta o actualiza por cedula antes de enlazar citas (FK).
+ * TR-55: Patrón Read-Before-Write — protege integridad de credenciales.
+ * Nunca sobrescribe correo, password ni es_invitado de un paciente que ya tiene cuenta.
+ *
+ * @param {object} row - Datos del paciente provenientes del formulario de invitado.
+ * @returns {object} - Fila resultante del paciente (select tras write).
  */
 export async function upsertPacienteParaAgenda(row) {
     if (!row || !row.cedula) throw new Error('upsertPacienteParaAgenda: falta cedula');
-    const { data, error } = await supabase
+
+    // ── PASO 1: Leer si el paciente ya existe en BD ──────────────────────────
+    const { data: existente, error: errorLectura } = await supabase
         .from('pacientes')
-        .upsert([row], { onConflict: 'cedula' })
+        .select(SELECT_PACIENTE)
+        .eq('cedula', row.cedula)
+        .maybeSingle();
+
+    if (errorLectura) throw errorLectura;
+
+    if (existente) {
+        // ── PASO 2A: Paciente EXISTE → UPDATE solo de campos seguros ──────────
+        // CAMPOS PROTEGIDOS (nunca se tocan): correo, password, es_invitado.
+        // Solo actualizamos datos de contacto básico que el usuario pudo haber
+        // escrito en el formulario de citas (nombres, apellidos, celular).
+        const camposActualizables = {};
+        if (row.nombres)   camposActualizables.nombres   = row.nombres;
+        if (row.apellidos) camposActualizables.apellidos = row.apellidos;
+        if (row.celular)   camposActualizables.celular   = row.celular;
+
+        if (Object.keys(camposActualizables).length === 0) {
+            // Nada seguro que actualizar — devolver datos existentes sin write.
+            return existente;
+        }
+
+        const { data: actualizado, error: errorUpdate } = await supabase
+            .from('pacientes')
+            .update(camposActualizables)
+            .eq('cedula', row.cedula)
+            .select(SELECT_PACIENTE)
+            .maybeSingle();
+
+        if (errorUpdate) throw errorUpdate;
+        return actualizado ?? existente;
+    }
+
+    // ── PASO 2B: Paciente NO EXISTE → INSERT como invitado ───────────────────
+    // es_invitado: true garantiza que la cuenta quede marcada correctamente.
+    const filaInsertar = { ...row, es_invitado: true };
+
+    const { data: insertado, error: errorInsert } = await supabase
+        .from('pacientes')
+        .insert([filaInsertar])
         .select(SELECT_PACIENTE)
         .maybeSingle();
-    if (error) throw error;
-    return data;
+
+    if (errorInsert) throw errorInsert;
+    return insertado;
 }
 export async function upsertPacienteInvitadoSiNoExiste(cedula, nombresPaciente) {
     const { data: existente, error: e0 } = await supabase.from('pacientes').select('cedula').eq('cedula', cedula).maybeSingle();
