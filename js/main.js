@@ -125,6 +125,107 @@ const app = {
 
         this.iniciarMenuMovil();
 
+        // TR-72: Sanitizador Global con Floating Tooltips (OWASP / H1 / H4)
+        document.addEventListener('input', (e) => {
+            if (!e.target || !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+            const inputEl = e.target;
+            let val = inputEl.value;
+            let valorOriginal = val;
+            const id = (inputEl.id || '').toLowerCase();
+            const type = inputEl.type;
+
+            // 1. Anti-espacios iniciales
+            if (val.startsWith(' ')) { val = val.trimStart(); }
+
+            // 2. Mapeo Estricto por ID
+            if (id === 'login-cedula') {
+                val = val.replace(/[^a-zA-Z0-9]/g, ''); 
+            } 
+            else if (id === 'widget-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
+                val = val.replace(/[^0-9]/g, ''); 
+            }
+            else if (id === 'buscador-especialistas' || id.includes('nombre') || id.includes('apellido')) {
+                val = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, ''); 
+            }
+            else if (type === 'email' || id.includes('correo') || id.includes('identificador')) {
+                val = val.replace(/[^a-zA-Z0-9@._-]/g, ''); 
+            }
+            else if (type === 'password' || id.includes('password')) {
+                val = val.replace(/[<>"'; ]/g, ''); 
+            } 
+            else {
+                val = val.replace(/[<>"';]/g, ''); 
+            }
+
+            // 3. Feedback Visual y Textual Cero-Impacto
+            if (valorOriginal !== val) {
+                inputEl.value = val;
+
+                // Flash Animation (Nativa)
+                try {
+                    inputEl.animate([
+                        { backgroundColor: '#ffebee', borderColor: '#d32f2f' },
+                        { backgroundColor: 'transparent', borderColor: inputEl.style.borderColor || 'transparent' }
+                    ], { duration: 400, easing: 'ease-out' });
+                } catch(err) {}
+
+                // TR-73: Prevención de Overlap — Oculta el error nativo mientras el tooltip flota
+                let errorNativo = null;
+                const ariaId = inputEl.getAttribute('aria-describedby');
+                if (ariaId) errorNativo = document.getElementById(ariaId);
+                if (!errorNativo) errorNativo = inputEl.parentNode.querySelector('span[id$="-error"], .error-text:not(.temp-error-span)');
+                if (errorNativo) errorNativo.style.setProperty('opacity', '0', 'important');
+
+                // Inyección de Tooltip Flotante (Evita romper Layouts como la Lupa)
+                let tooltipWrapper = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
+                if (!tooltipWrapper) {
+                    tooltipWrapper = document.createElement('div');
+                    tooltipWrapper.className = 'sanitizer-wrapper-zero';
+                    // Contenedor fantasma: no ocupa espacio, pero sirve de ancla
+                    tooltipWrapper.style.cssText = 'position: relative; width: 100%; height: 0; overflow: visible; pointer-events: none; z-index: 9999; display: block !important;';
+                    
+                    const msgSpan = document.createElement('span');
+                    // Tooltip físico absoluto
+                    msgSpan.style.cssText = 'position: absolute; left: 0; top: 4px; color: #d32f2f; font-size: 0.875rem; font-weight: 500; font-family: inherit; white-space: nowrap; background: transparent; padding: 0; box-shadow: none;';
+                    msgSpan.textContent = 'Carácter no permitido';
+                    
+                    tooltipWrapper.appendChild(msgSpan);
+                    inputEl.insertAdjacentElement('afterend', tooltipWrapper);
+                }
+
+                // Temporizador 2.5s — restaura opacidad del nativo al expirar
+                if (!window.sanitizerTimers) window.sanitizerTimers = {};
+                if (window.sanitizerTimers[inputEl.id]) clearTimeout(window.sanitizerTimers[inputEl.id]);
+
+                window.sanitizerTimers[inputEl.id] = setTimeout(() => {
+                    const wrapperToRemove = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
+                    if (wrapperToRemove) wrapperToRemove.remove();
+                    // TR-73: Restaura el error nativo
+                    if (errorNativo) errorNativo.style.setProperty('opacity', '1', 'important');
+                }, 2500);
+            }
+        }, { capture: true });
+
+        // TR-73: Limpiaparabrisas — destruye el Tooltip al perder el foco
+        document.addEventListener('blur', (e) => {
+            if (!e.target || !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            const inputEl = e.target;
+
+            if (window.sanitizerTimers && window.sanitizerTimers[inputEl.id]) {
+                clearTimeout(window.sanitizerTimers[inputEl.id]);
+                delete window.sanitizerTimers[inputEl.id];
+
+                const wrapperToRemove = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
+                if (wrapperToRemove) wrapperToRemove.remove();
+
+                let errorNativo = null;
+                const ariaId = inputEl.getAttribute('aria-describedby');
+                if (ariaId) errorNativo = document.getElementById(ariaId);
+                if (!errorNativo) errorNativo = inputEl.parentNode.querySelector('span[id$="-error"], .error-text:not(.temp-error-span)');
+                if (errorNativo) errorNativo.style.setProperty('opacity', '1', 'important');
+            }
+        }, { capture: true });
         if (document.querySelector('.hero__carousel')) {
             this.iniciarCarrusel();
         }

@@ -631,7 +631,28 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 2. **Priorización de Información Crítica:** En el Slide de "Políticas" (Slide 4/5), la prioridad se invierte: El título informativo (`.hero__title`) DEBE permanecer siempre visible (`display: block`), mientras que los íconos ilustrativos (`.hero__features`) pueden ocultarse en móvil.
 3. **Liberación de Ancho en Desktop:** El contenedor de texto del carrusel (`.hero__content`) debe expandir su `max-width` en resoluciones Desktop (`>= 1024px`) para evitar forzar saltos de línea prematuros que empujen el contenido hacia abajo (eliminación del efecto "pared invisible").
 
-## TR-66: Especificidad CSS y Prevención de Desbordamiento (H8)
+## TR-68: Especificidad CSS y Prevención de Desbordamiento (H8)
 1. **Prohibición de Pseudo-clases de Posición:** Queda estrictamente prohibido usar `:nth-child` para aplicar estilos críticos de layout a las diapositivas del carrusel, debido a su fragilidad en el DOM dinámico. Toda diapositiva con requerimientos de diseño únicos DEBE tener una clase modificadora explícita (ej. `.hero__slide--policy`, `.hero__slide--wide`).
 2. **Control de Carga Cognitiva (Slide 1):** En dispositivos móviles (`max-width: 767px`), la primera diapositiva debe mostrar estrictamente DOS características (features) para evitar que el botón principal colisione con la navegación inferior.
 3. **Erradicación de "Paredes Invisibles":** El contenedor principal `.hero__content` debe liberar su restricción de `max-width` en vistas de escritorio (`min-width: 1024px`) mediante el uso de anchos escalables (ej. `900px` o `80%`) para las diapositivas que requieran texto horizontal extenso.
+
+## TR-69: Layout Asimétrico en Carrusel (H8)
+1. **Alineación de Bloques vs. Contenido:** En pantallas de escritorio, el bloque de contenido de la Política de 24h debe estar posicionado en el extremo derecho de la pantalla (`margin-left: auto`), con su texto alineado a la derecha para respetar el margen. El bloque que contiene el ícono y su texto destacable DEBE estar centrado independientemente de la alineación del resto del texto.
+
+## TR-70: Zonas Seguras de Interacción en Móviles (Ley de Fitts / H8)
+1. **Prevención de Toques Accidentales:** Ningún botón de acción principal (CTA) en dispositivos móviles (`max-width: 767px`) debe estar posicionado a menos de `40px` de distancia de controles de navegación (como los puntos del carrusel o barras nativas del SO).
+2. **Aplicación:** Se debe inyectar un `margin-bottom` de seguridad a los botones del carrusel en resoluciones pequeñas para elevarlos a la zona de confort del pulgar.
+
+## TR-71: Alineación Vertical y Flujo de Lectura (H8 y Ley de Fitts)
+1. **Flujo de Lectura Natural:** Los contenedores de texto en el carrusel (`.hero__content`) no deben anclarse al límite inferior de la pantalla en la vista de escritorio. Deben elevarse mediante márgenes inferiores (`margin-bottom` o `padding-bottom`) para respetar el flujo de lectura humano (arriba hacia abajo).
+2. **Desanclaje Móvil:** En dispositivos móviles, la separación de seguridad (40px-60px) para evitar colisiones con los puntos de navegación debe aplicarse al contenedor padre completo (`.hero__content`), no solo a los elementos internos, garantizando que todo el bloque se eleve.
+
+## TR-72: Sanitización Absoluta y Feedback Flotante (OWASP / H1 / H4)
+1. **Fase de Captura (Event Capturing):** El sanitizador global DEBE registrarse en el `document` usando la fase de captura (`{ capture: true }`) para ejecutarse antes que los scripts de validación locales.
+2. **Independencia del DOM (Floating Tooltip):** Queda estrictamente PROHIBIDO reutilizar los spans de error nativos (`aria-describedby`) para mostrar rechazos de caracteres en tiempo real, ya que colisionan con las lógicas de limpieza `oninput` del sistema. 
+3. **Inyección Cero-Impacto y Coherencia Visual (H4):** El script debe inyectar dinámicamente un `<div height="0" position="relative">`. Dentro de este, el mensaje de error "Carácter no permitido" debe posicionarse de forma absoluta (`position: absolute; left: 0;`), pero **DEBE imitar visualmente a los errores nativos** (texto rojo `#d32f2f`, sin fondo, alineado a la izquierda), garantizando la coherencia interna sin desplazar elementos hermanos como íconos.
+4. **Animación Nativa:** Todo rechazo de carácter dispara la Web Animations API (`element.animate()`).
+
+## TR-73: Prevención de Colisión Visual de Errores (UI Overlap / H8)
+1. **Supresión Temporal:** Cuando el sanitizador global inyecta el Tooltip Flotante de "Carácter no permitido", DEBE ocultar temporalmente cualquier error nativo subyacente manipulando su opacidad (`opacity: 0 !important`) para evitar la superposición de textos.
+2. **Limpieza en Evento Blur (Garbage Collection):** Se debe implementar un listener global en la fase de captura para el evento `blur`. Al perder el foco, el sistema DEBE destruir instantáneamente cualquier Tooltip Flotante activo en ese input, limpiar su temporizador y restaurar la opacidad del error nativo a `1`. Esto garantiza que las validaciones nativas de campos vacíos tengan el espacio visual despejado.
