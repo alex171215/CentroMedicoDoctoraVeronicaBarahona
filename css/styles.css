@@ -1,4 +1,4 @@
-/* Variables y reseteo */
+﻿/* Variables y reseteo */
 :root {
     --bg-main: #FAFCFE;
     /* Fondo principal */
@@ -78,7 +78,7 @@ ul {
     border-width: 0;
 }
 
-/* ── Skip Link (Bypass Block) ── */
+/* â”€â”€ Skip Link (Bypass Block) â”€â”€ */
 .skip-link {
     position: absolute;
     top: -100%;
@@ -100,24 +100,24 @@ ul {
     outline-offset: 2px;
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   WCAG 2.2 — :focus-visible Global System
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   WCAG 2.2 â€” :focus-visible Global System
    Alto contraste: outline blanco + box-shadow corporativo en botones
    Inputs: glow respetando border-radius, sin outline por defecto
-   ══════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /* 1. Quitar outline nativo del navegador de forma selectiva */
 *:focus:not(:focus-visible) {
     outline: none;
 }
 
-/* Foco programático (WCAG skip / encabezado de página): sin anillo visual */
+/* Foco programÃ¡tico (WCAG skip / encabezado de pÃ¡gina): sin anillo visual */
 [tabindex="-1"]:focus-visible {
     outline: none !important;
     box-shadow: none !important;
 }
 
-/* 2. Botones primarios (fondo sólido oscuro/verde) — anillo blanco + sombra corporativa */
+/* 2. Botones primarios (fondo sÃ³lido oscuro/verde) â€” anillo blanco + sombra corporativa */
 .btn--primario:focus-visible,
 .btn--accion:focus-visible {
     outline: 3px solid var(--white);
@@ -125,7 +125,7 @@ ul {
     box-shadow: 0 0 0 5px var(--action-color);
 }
 
-/* 3. Botones secundarios y de documento (fondo claro) — anillo corporativo directo */
+/* 3. Botones secundarios y de documento (fondo claro) â€” anillo corporativo directo */
 .btn--secundario:focus-visible,
 .btn--white:focus-visible,
 .btn--peligro:focus-visible {
@@ -134,7 +134,7 @@ ul {
     box-shadow: 0 0 0 5px rgba(13, 169, 159, 0.25);
 }
 
-/* 4. Links y navegación — anillo corporativo */
+/* 4. Links y navegaciÃ³n â€” anillo corporativo */
 a:focus-visible,
 .header__nav-link:focus-visible,
 .footer__link:focus-visible,
@@ -145,14 +145,14 @@ a:focus-visible,
     border-radius: 3px;
 }
 
-/* 5. Botones genéricos (modal-close, calendar-nav, etc.) */
+/* 5. Botones genÃ©ricos (modal-close, calendar-nav, etc.) */
 button:focus-visible {
     outline: 2px solid var(--action-color);
     outline-offset: 3px;
     border-radius: 4px;
 }
 
-/* 6. Inputs con glow — respeta border-radius del elemento */
+/* 6. Inputs con glow â€” respeta border-radius del elemento */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
@@ -168,7 +168,7 @@ textarea:focus-visible {
     border-radius: 8px;
 }
 
-/* 8. Tabs Próximas/Anteriores */
+/* 8. Tabs PrÃ³ximas/Anteriores */
 .salud-tab:focus-visible {
     outline: 2px solid var(--action-color);
     outline-offset: 2px;
@@ -231,13 +231,13 @@ textarea:focus-visible {
 }
 
 .btn--peligro {
-    background-color: #dc3545; /* Rojo sólido intenso */
-    color: #ffffff; /* Texto blanco para máximo contraste */
+    background-color: #dc3545; /* Rojo sÃ³lido intenso */
+    color: #ffffff; /* Texto blanco para mÃ¡ximo contraste */
     border: none;
 }
 
 .btn--peligro:hover {
-    background-color: #c82333; /* Rojo más oscuro al hacer hover */
+    background-color: #c82333; /* Rojo mÃ¡s oscuro al hacer hover */
 }
 
 .enlace-accion {
@@ -306,7 +306,7 @@ textarea:focus-visible {
     background-color: #f0f0f0;
 }
 
-/* Alerta de Colisión */
+/* Alerta de ColisiÃ³n */
 .alert-colision-icon {
     color: #f39c12;
     margin-top: 10px;
@@ -441,7 +441,7 @@ textarea:focus-visible {
     }
 }
 
-/* TR-65: Menú móvil abierto — activado por JS con clase .active */
+/* TR-65: MenÃº mÃ³vil abierto â€” activado por JS con clase .active */
 @media (max-width: 767px) {
     .header__nav-wrapper.active {
         display: flex;
@@ -613,7 +613,7 @@ textarea:focus-visible {
 
 @media (max-width: 767px) {
 
-    /* Altura fija más compacta */
+    /* Altura fija mÃ¡s compacta */
     .hero__carousel {
         height: 420px;
         overflow: hidden;
@@ -631,24 +631,24 @@ textarea:focus-visible {
         max-width: 100%;
     }
 
-    /* Subtítulo — TR-66: ocultar en mobile (Divulgación Progresiva) */
+    /* SubtÃ­tulo â€” TR-66: ocultar en mobile (DivulgaciÃ³n Progresiva) */
     .hero__subtitle {
         display: none;
     }
 
-    /* Título principal más pequeño */
+    /* TÃ­tulo principal mÃ¡s pequeÃ±o */
     .hero__title {
         font-size: 1.4rem;
         margin-bottom: 10px;
     }
 
-    /* Features — TR-66/TR-67: ocultar en mobile para reducir carga cognitiva */
+    /* Features â€” TR-66/TR-67: ocultar en mobile para reducir carga cognitiva */
     .hero__features {
         display: none;
     }
 
-    /* TR-67 §2: La slide de Política 24h invierte la prioridad:
-       - .hero__features (icón de reloj): oculto en mobile (cubierto por regla anterior)
+    /* TR-67 Â§2: La slide de PolÃ­tica 24h invierte la prioridad:
+       - .hero__features (icÃ³n de reloj): oculto en mobile (cubierto por regla anterior)
        - .hero__subtitle (texto de advertencia): SIEMPRE visible, nunca oculto */
     .hero__slide--policy .hero__subtitle {
         display: block !important;
@@ -660,13 +660,13 @@ textarea:focus-visible {
         margin-top: 8px;
     }
 
-    /* Botón con espacio suficiente respecto a los puntos */
+    /* BotÃ³n con espacio suficiente respecto a los puntos */
     .hero__btn {
         margin-top: 2px;
         margin-bottom: 55px;
     }
 
-    /* Puntos más abajo y ligeramente más pequeños */
+    /* Puntos mÃ¡s abajo y ligeramente mÃ¡s pequeÃ±os */
     .hero__carousel-indicators {
         bottom: 8px;
     }
@@ -675,6 +675,38 @@ textarea:focus-visible {
         width: 10px;
         height: 10px;
     }
+
+    /* TR-68: Fuerza Bruta Mobile */
+    /* Slide 1: Ocultar el 3er y 4to Ã­cono para dejar solo 2 y salvar el botÃ³n */
+    .hero__slide--inicio .hero__feature:nth-child(n+3) {
+        display: none !important;
+    }
+    
+    /* Restaurar contenedor de features para slide 1 para que se vean los 2 iconos */
+    .hero__slide--inicio .hero__features {
+        display: grid !important;
+    }
+
+    /* Slide 5 (PolÃ­tica): Ocultar el Ã­cono de 'Cancela o modifica' */
+    .hero__slide--policy .hero__features {
+        display: none !important;
+    }
+
+    /* Slide 5 (PolÃ­tica): Centrar el contenido que estaba muy a la izquierda */
+    .hero__slide--policy .hero__content {
+        margin: 0 auto !important;
+        text-align: center !important;
+        padding: 0 15px !important;
+    }
+
+    /* Elevar TODO el contenedor para despegarlo de los puntos de navegaciÃ³n */
+    .hero__slide--registro .hero__content {
+        padding-bottom: 70px !important; 
+    }
+
+    .hero__slide--registro .hero__btn {
+        margin-bottom: 10px !important; /* PequeÃ±o respiro extra */
+    }
 }
 
 @media (min-width: 768px) {
@@ -682,12 +714,12 @@ textarea:focus-visible {
     /* Estilos base para todas las diapositivas */
     .hero__content {
         max-width: 60%;
-        /* Aumentamos el ancho máximo */
+        /* Aumentamos el ancho mÃ¡ximo */
         padding: 60px 40px 60px 130px;
         margin: 0;
     }
 
-    /* Diapositiva 1: más amplia y con features en una sola línea */
+    /* Diapositiva 1: mÃ¡s amplia y con features en una sola lÃ­nea */
     .hero__slide:nth-child(1) .hero__content {
         padding-left: 350px;
         padding-top: 40px;
@@ -697,7 +729,7 @@ textarea:focus-visible {
 
     .hero__slide:nth-child(1) .hero__features {
         grid-template-columns: repeat(4, 1fr);
-        /* una sola línea horizontal */
+        /* una sola lÃ­nea horizontal */
         gap: 15px;
         margin-bottom: 20px;
     }
@@ -709,7 +741,7 @@ textarea:focus-visible {
         /* Valor original */
     }
 
-    /* Diapositiva 4 (Historial Digital): más abajo y también más ancha */
+    /* Diapositiva 4 (Historial Digital): mÃ¡s abajo y tambiÃ©n mÃ¡s ancha */
     .hero__slide:nth-child(3) .hero__content {
         padding-top: 120px;
         padding-left: 180px;
@@ -717,19 +749,42 @@ textarea:focus-visible {
     }
 }
 
-/* TR-67 §3: Desktop — Destruir la "pared invisible" en Slide 3
-   El texto largo de especialidades fuerza saltos de línea prematuros
-   cuando max-width es 50%. Se expande a 800px en pantallas grandes. */
+/* TR-68: Desktop â€” ErradicaciÃ³n de "Paredes Invisibles" con selectores robustos */
 @media (min-width: 1024px) {
-    .hero__slide:nth-child(2) .hero__content {
-        max-width: 800px;
-        padding-left: 180px;
+    /* Slide 3 (Especialidades): Destruir la pared invisible */
+    .hero__slide--wide .hero__content {
+        max-width: 900px !important;
+        width: 90% !important;
     }
 
-    /* El Slide 4 (historial) y Slide 5 (política) también se benefician */
-    .hero__slide:nth-child(3) .hero__content,
+    /* 1. Mueve la caja a la derecha y alinea el texto a la derecha */
     .hero__slide--policy .hero__content {
-        max-width: 700px;
+        margin-left: auto !important;
+        margin-right: 5% !important;
+        text-align: right !important; 
+        max-width: 550px !important;
+    }
+
+    /* 2. Centra EXCLUSIVAMENTE el contenedor del Ã­cono del reloj */
+    .hero__slide--policy .hero__features {
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+        margin-top: 20px !important;
+        margin-bottom: 20px !important;
+    }
+
+    /* Destruir la pared invisible y ELEVAR forzosamente el bloque */
+    .hero__slide--registro .hero__content {
+        max-width: 800px !important;
+        width: 90% !important;
+        position: relative !important;
+        top: -100px !important; /* ESTO FUERZA LA CAJA HACIA ARRIBA FÃSICAMENTE */
+    }
+
+    /* Opcional: Asegurar que las features (Ã­conos) se mantengan alineadas */
+    .hero__slide--registro .hero__features {
+        max-width: 100% !important;
     }
 }
 
@@ -758,7 +813,7 @@ textarea:focus-visible {
         display: grid;
     }
 
-    /* La excepción de la slide de política ya no necesita !important
+    /* La excepciÃ³n de la slide de polÃ­tica ya no necesita !important
        porque la regla de display:none solo aplica en max-width:767px */
 
     .hero__title {
@@ -953,7 +1008,7 @@ textarea:focus-visible {
 
 .doctors__nav-btn {
     display: none;
-    /* ocultos por defecto en móviles */
+    /* ocultos por defecto en mÃ³viles */
     align-items: center;
     /* centrar el icono siempre */
     justify-content: center;
@@ -961,7 +1016,7 @@ textarea:focus-visible {
     top: 50%;
     transform: translateY(-50%);
     width: 44px;
-    /* más pequeño en móvil */
+    /* mÃ¡s pequeÃ±o en mÃ³vil */
     height: 44px;
     background-color: var(--white);
     border: 1px solid var(--border-color);
@@ -969,7 +1024,7 @@ textarea:focus-visible {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     color: var(--text-main);
     font-size: 1.2rem;
-    /* icono más chico */
+    /* icono mÃ¡s chico */
     cursor: pointer;
     z-index: 10;
     transition: all 0.3s ease;
@@ -978,7 +1033,7 @@ textarea:focus-visible {
 @media (min-width: 768px) {
     .doctors__nav-btn {
         width: 60px;
-        /* tamaño original en escritorio */
+        /* tamaÃ±o original en escritorio */
         height: 60px;
         font-size: 1.5rem;
     }
@@ -1543,7 +1598,7 @@ textarea:focus-visible {
 }
 
 .modal-activities-list li::before {
-    content: "•";
+    content: "â€¢";
     color: #0DA99F;
     font-weight: bold;
     display: inline-block;
@@ -1679,7 +1734,7 @@ textarea:focus-visible {
     color: #0DA99F;
 }
 
-/* IHC PARCHE DEFINITIVO: Arreglar tarjetas aplastadas y fotos gigantes en Ginecología */
+/* IHC PARCHE DEFINITIVO: Arreglar tarjetas aplastadas y fotos gigantes en GinecologÃ­a */
 #citas-step-1 .specialists-directory-grid {
     display: flex;
     justify-content: center;
@@ -1715,10 +1770,10 @@ textarea:focus-visible {
 }
 
 /* =========================================
-   IHC PARCHES ESTÉTICOS (Botones y Tarjetas)
+   IHC PARCHES ESTÃ‰TICOS (Botones y Tarjetas)
    ========================================= */
 
-/* 1. Botón Volver Minimalista e Inteligente */
+/* 1. BotÃ³n Volver Minimalista e Inteligente */
 .btn-back-minimalist {
     background: transparent;
     border: none;
@@ -1739,7 +1794,7 @@ textarea:focus-visible {
     color: var(--white);
 }
 
-/* 2. Alineación y contención de botones en Tarjetas de Médicos */
+/* 2. AlineaciÃ³n y contenciÃ³n de botones en Tarjetas de MÃ©dicos */
 #citas-step-1 .doctor-card-dir {
     display: flex;
     flex-direction: column;
@@ -1751,12 +1806,12 @@ textarea:focus-visible {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    /* Obliga al cuerpo a estirarse llenando el espacio vacío */
+    /* Obliga al cuerpo a estirarse llenando el espacio vacÃ­o */
 }
 
 #citas-step-1 .doctor-card-dir__actions {
     margin-top: auto;
-    /* Empuja el botón siempre al fondo, alineándolos perfectamente */
+    /* Empuja el botÃ³n siempre al fondo, alineÃ¡ndolos perfectamente */
 }
 
 #citas-step-1 .directory-card__btn {
@@ -1835,7 +1890,7 @@ textarea:focus-visible {
     transition: all 0.2s ease;
     min-height: 44px;
     white-space: nowrap;
-    /* evita que el texto se divida en varias líneas */
+    /* evita que el texto se divida en varias lÃ­neas */
 }
 
 .time-slot:hover {
@@ -1860,7 +1915,7 @@ textarea:focus-visible {
     font-size: 0.7rem;
 }
 
-/* Botones de navegación prev/next del calendario */
+/* Botones de navegaciÃ³n prev/next del calendario */
 .calendar-nav-btn {
     background: transparent;
     border: none;
@@ -1879,7 +1934,7 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   MÓDULO FARMACIA — Vitrina Digital
+   MÃ“DULO FARMACIA â€” Vitrina Digital
    ========================================================================== */
 
 /* --- Encabezado --- */
@@ -1963,12 +2018,12 @@ textarea:focus-visible {
     color: var(--action-color);
 }
 
-/* Ocultar botón nativo del tipo search */
+/* Ocultar botÃ³n nativo del tipo search */
 .farmacia-search__input::-webkit-search-cancel-button {
     -webkit-appearance: none;
 }
 
-/* --- Chips de Categorías --- */
+/* --- Chips de CategorÃ­as --- */
 .farmacia-categories {
     display: flex;
     flex-wrap: wrap;
@@ -2059,7 +2114,7 @@ textarea:focus-visible {
     box-shadow: 0 14px 36px rgba(59, 73, 163, 0.14);
 }
 
-/* Área de imagen */
+/* Ãrea de imagen */
 .medicine-card__img-wrap {
     position: relative;
     background: linear-gradient(135deg, #eef4fb 0%, #f5faff 100%);
@@ -2087,7 +2142,7 @@ textarea:focus-visible {
     color: #c8d8e8;
 }
 
-/* Badge de Categoría (flotante) */
+/* Badge de CategorÃ­a (flotante) */
 .medicine-card__cat-badge {
     position: absolute;
     top: 10px;
@@ -2197,7 +2252,7 @@ textarea:focus-visible {
     display: none;
 }
 
-/* --- Estado Vacío --- */
+/* --- Estado VacÃ­o --- */
 .farmacia-empty {
     text-align: center;
     padding: 70px 20px;
@@ -2252,10 +2307,10 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   MÓDULO LOGIN — Dos Columnas
+   MÃ“DULO LOGIN â€” Dos Columnas
    ========================================================================== */
 
-/* Sección: ocupa toda la altura de la ventana */
+/* SecciÃ³n: ocupa toda la altura de la ventana */
 .login-view {
     min-height: 100vh;
     display: flex;
@@ -2304,7 +2359,7 @@ textarea:focus-visible {
     object-fit: contain;
 }
 
-/* Título (visible en la página para accesibilidad) */
+/* TÃ­tulo (visible en la pÃ¡gina para accesibilidad) */
 .login-title {
     font-family: 'Montserrat', sans-serif;
     font-size: 1.6rem;
@@ -2323,7 +2378,7 @@ textarea:focus-visible {
 }
 
 /* Campo de texto (label flotante tipo Material) */
-/* TR-43: Espaciado vertical mínimo de 24px entre grupos de inputs (H8) */
+/* TR-43: Espaciado vertical mÃ­nimo de 24px entre grupos de inputs (H8) */
 .login-field {
     position: relative;
     display: flex;
@@ -2375,9 +2430,9 @@ textarea:focus-visible {
     color: var(--action-color);
 }
 
-/* ── Sanitización en tiempo real: feedback de carácter rechazado (H1 + H9) ──
-   Se añade/retira via JS con un setTimeout de 300ms.
-   La animación inputRejectedFlash genera el efecto "parpadeo" de alerta sutil.
+/* â”€â”€ SanitizaciÃ³n en tiempo real: feedback de carÃ¡cter rechazado (H1 + H9) â”€â”€
+   Se aÃ±ade/retira via JS con un setTimeout de 300ms.
+   La animaciÃ³n inputRejectedFlash genera el efecto "parpadeo" de alerta sutil.
    !important para sobrescribir :focus y otros estados activos. */
 @keyframes inputRejectedFlash {
     0%   { border-color: #e74c3c; box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25); }
@@ -2393,7 +2448,7 @@ textarea:focus-visible {
     animation: inputRejectedFlash 0.3s ease-in-out;
 }
 
-/* Wrapper de contraseña (input + ojo) */
+/* Wrapper de contraseÃ±a (input + ojo) */
 .login-field__password-wrap {
     position: relative;
 }
@@ -2402,7 +2457,7 @@ textarea:focus-visible {
     padding-right: 48px;
 }
 
-/* Botón ojo */
+/* BotÃ³n ojo */
 .login-field__eye {
     position: absolute;
     right: 14px;
@@ -2431,7 +2486,7 @@ textarea:focus-visible {
     font-family: 'Roboto', sans-serif;
 }
 
-/* Enlace "¿Olvidaste tu contraseña?" */
+/* Enlace "Â¿Olvidaste tu contraseÃ±a?" */
 .login-forgot {
     text-align: right;
     margin-top: -8px;
@@ -2449,8 +2504,8 @@ textarea:focus-visible {
     color: var(--action-color);
 }
 
-/* Botón Iniciar Sesión */
-/* TR-43: Separación mínima de 32px entre el último input y el botón primario (H8) */
+/* BotÃ³n Iniciar SesiÃ³n */
+/* TR-43: SeparaciÃ³n mÃ­nima de 32px entre el Ãºltimo input y el botÃ³n primario (H8) */
 .login-submit {
     width: 100%;
     padding: 15px;
@@ -2494,7 +2549,7 @@ textarea:focus-visible {
     color: var(--text-main);
 }
 
-/* --- Responsive: en móvil solo se muestra la columna del formulario --- */
+/* --- Responsive: en mÃ³vil solo se muestra la columna del formulario --- */
 @media (max-width: 767px) {
     .login-layout {
         grid-template-columns: 1fr;
@@ -2502,7 +2557,7 @@ textarea:focus-visible {
 
     .login-panel--image {
         display: none;
-        /* Ocultar imagen en móvil */
+        /* Ocultar imagen en mÃ³vil */
     }
 
     .login-panel--form {
@@ -2512,10 +2567,10 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   MÓDULO REGISTRO — Step Manager
+   MÃ“DULO REGISTRO â€” Step Manager
    ========================================================================== */
 
-/* Wrapper ligeramente más ancho para los 8 campos del paso 1 */
+/* Wrapper ligeramente mÃ¡s ancho para los 8 campos del paso 1 */
 .reg-wrapper {
     max-width: 440px;
 }
@@ -2530,7 +2585,7 @@ textarea:focus-visible {
     margin-bottom: 4px;
 }
 
-/* Botón "Volver" con flecha */
+/* BotÃ³n "Volver" con flecha */
 .reg-back-btn {
     display: inline-flex;
     align-items: center;
@@ -2594,7 +2649,7 @@ textarea:focus-visible {
     }
 }
 
-/* --- Icono verificación (sobre) --- */
+/* --- Icono verificaciÃ³n (sobre) --- */
 .reg-verify-icon {
     text-align: center;
     font-size: 3.5rem;
@@ -2614,7 +2669,7 @@ textarea:focus-visible {
     color: var(--text-main);
 }
 
-/* Texto contador reenvío */
+/* Texto contador reenvÃ­o */
 .reg-resend {
     font-size: 0.8rem;
     color: var(--gray-text);
@@ -2760,7 +2815,7 @@ textarea:focus-visible {
     /* Sobreescribe el 100vh del login */
 }
 
-/* Enlace de cancelación de registro */
+/* Enlace de cancelaciÃ³n de registro */
 .reg-cancel-link {
     margin-top: 15px;
     text-align: center;
@@ -2779,7 +2834,7 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   MÓDULO PERFIL — Modal de Usuario Autenticado
+   MÃ“DULO PERFIL â€” Modal de Usuario Autenticado
    ========================================================================== */
 
 /* Overlay de fondo */
@@ -2888,7 +2943,7 @@ textarea:focus-visible {
     margin-bottom: 8px;
 }
 
-/* Teléfono */
+/* TelÃ©fono */
 .perfil-telefono {
     display: flex;
     align-items: center;
@@ -2904,7 +2959,7 @@ textarea:focus-visible {
     color: var(--action-color);
 }
 
-/* Menú de opciones */
+/* MenÃº de opciones */
 .perfil-menu {
     list-style: none;
     padding: 0;
@@ -2956,7 +3011,7 @@ textarea:focus-visible {
     color: var(--gray-text);
 }
 
-/* Botón Cerrar Sesión */
+/* BotÃ³n Cerrar SesiÃ³n */
 .perfil-logout-btn {
     width: 100%;
     padding: 12px;
@@ -2985,7 +3040,7 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   VISTA EDITAR PERFIL — Mensaje de éxito
+   VISTA EDITAR PERFIL â€” Mensaje de Ã©xito
    ========================================================================== */
 .edit-success-msg {
     display: flex;
@@ -3020,7 +3075,7 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   MÓDULO MI SALUD — Dashboard Sidenav + Maestro-Detalle
+   MÃ“DULO MI SALUD â€” Dashboard Sidenav + Maestro-Detalle
    ========================================================================== */
 
 /* Layout principal */
@@ -3035,7 +3090,7 @@ textarea:focus-visible {
     box-sizing: border-box;
 }
 
-/* ── Sidenav — Edge-to-Edge ─── */
+/* â”€â”€ Sidenav â€” Edge-to-Edge â”€â”€â”€ */
 .salud-sidenav {
     width: 220px;
     flex-shrink: 0;
@@ -3101,7 +3156,7 @@ textarea:focus-visible {
     background: #e4eeff;
 }
 
-/* ── Panel de contenido ──────── */
+/* â”€â”€ Panel de contenido â”€â”€â”€â”€â”€â”€â”€â”€ */
 .salud-panel {
     flex: 1;
     min-width: 0;
@@ -3110,7 +3165,7 @@ textarea:focus-visible {
 }
 
 .salud-sec {
-    /* muestra / oculta vía JS */
+    /* muestra / oculta vÃ­a JS */
 }
 
 /* Tarjeta blanca principal */
@@ -3132,7 +3187,7 @@ textarea:focus-visible {
     margin: 0 0 20px;
 }
 
-/* ── Tabs ────────────────────── */
+/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .salud-tabs {
     display: flex;
     border-bottom: 2px solid #e8eaf0;
@@ -3164,7 +3219,7 @@ textarea:focus-visible {
     border-bottom-color: var(--text-main, #1a1a2e);
 }
 
-/* ── Lista de ítems — Grid 2 columnas ─ */
+/* â”€â”€ Lista de Ã­tems â€” Grid 2 columnas â”€ */
 .salud-lista {
     margin-top: 8px;
     display: flex;
@@ -3230,7 +3285,7 @@ textarea:focus-visible {
     color: #bbb;
 }
 
-/* ── Badges de estado ────────── */
+/* â”€â”€ Badges de estado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .salud-badge {
     font-size: 0.72rem;
     font-weight: 600;
@@ -3264,7 +3319,7 @@ textarea:focus-visible {
     background: #f5f5f5;
 }
 
-/* ── Mensaje vacío ───────────── */
+/* â”€â”€ Mensaje vacÃ­o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .salud-empty {
     text-align: center;
     color: var(--gray-text, #aaa);
@@ -3272,7 +3327,7 @@ textarea:focus-visible {
     font-size: 0.9rem;
 }
 
-/* ── Detalle (Maestro → Detalle) ─ */
+/* â”€â”€ Detalle (Maestro â†’ Detalle) â”€ */
 .salud-detalle {
     padding-top: 4px;
     max-width: 800px;
@@ -3358,7 +3413,7 @@ textarea:focus-visible {
     margin: 14px 0;
 }
 
-/* ── Medicamentos en receta ──── */
+/* â”€â”€ Medicamentos en receta â”€â”€â”€â”€ */
 .salud-med {
     margin-bottom: 12px;
     padding-bottom: 6px;
@@ -3377,7 +3432,7 @@ textarea:focus-visible {
     text-transform: uppercase;
 }
 
-/* ── Medicamentos en receta + inventario farmacia ──── */
+/* â”€â”€ Medicamentos en receta + inventario farmacia â”€â”€â”€â”€ */
 .salud-med__nombre--con-badge {
     display: flex;
     flex-wrap: wrap;
@@ -3432,7 +3487,7 @@ textarea:focus-visible {
     box-shadow: 0 2px 10px rgba(59, 73, 163, 0.05);
 }
 
-/* ── Responsive ──────────────── */
+/* â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @media (max-width: 640px) {
     .salud-container {
         flex-direction: column;
@@ -3491,7 +3546,7 @@ textarea:focus-visible {
 }
 
 /* =========================================
-   AJUSTES MÓVIL GENERALES Y CALENDARIO
+   AJUSTES MÃ“VIL GENERALES Y CALENDARIO
    ========================================= */
 @media (max-width: 480px) {
     .medicine-card__stock {
@@ -3503,10 +3558,10 @@ textarea:focus-visible {
     }
 }
 
-/* Ajustes móviles para el calendario de citas */
+/* Ajustes mÃ³viles para el calendario de citas */
 @media (max-width: 767px) {
 
-    /* Tarjeta del médico más compacta */
+    /* Tarjeta del mÃ©dico mÃ¡s compacta */
     .citas-doctor-summary {
         display: flex;
         flex-wrap: wrap;
@@ -3533,7 +3588,7 @@ textarea:focus-visible {
 
     .citas-doctor-summary>div:last-child {
         display: none;
-        /* ocultamos dirección y precio en móvil */
+        /* ocultamos direcciÃ³n y precio en mÃ³vil */
     }
 
     /* Mostrar solo una columna y centrarla */
@@ -3552,13 +3607,13 @@ textarea:focus-visible {
         border-right: none !important;
     }
 
-    /* Ocultar cabecera del día en móvil: la fecha ya se muestra en
+    /* Ocultar cabecera del dÃ­a en mÃ³vil: la fecha ya se muestra en
        el label dedicado (#citas-day-label-mobile), evitando duplicados. */
     .calendar-day-header {
         display: none;
     }
 
-    /* Botones de hora más grandes */
+    /* Botones de hora mÃ¡s grandes */
     .time-slot {
         font-size: 1rem;
         padding: 14px 10px;
@@ -3567,7 +3622,7 @@ textarea:focus-visible {
         border-radius: 8px;
     }
 
-    /* Ocultar navegación de semana (ya que mostramos un solo día) */
+    /* Ocultar navegaciÃ³n de semana (ya que mostramos un solo dÃ­a) */
     .citas-calendar-header {
         justify-content: center;
     }
@@ -3576,7 +3631,7 @@ textarea:focus-visible {
         display: flex !important;
     }
 
-    /* Ocultar los botones de cambiar semana (ya usamos los de día) */
+    /* Ocultar los botones de cambiar semana (ya usamos los de dÃ­a) */
     .citas-calendar-header button {
         display: none;
     }
@@ -3593,7 +3648,7 @@ textarea:focus-visible {
 
 
 /* ==========================================================================
-   SECCIÓN CONTACTO (Mejora visual)
+   SECCIÃ“N CONTACTO (Mejora visual)
    ========================================================================== */
 .contacto-grid {
     display: grid;
@@ -3702,7 +3757,7 @@ textarea:focus-visible {
     border: none;
 }
 
-/* Footer – Ajustes para 4 columnas */
+/* Footer â€“ Ajustes para 4 columnas */
 .footer__grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -3758,18 +3813,18 @@ textarea:focus-visible {
     opacity: 0.7;
 }
 
-/* Evitar salto de línea en horario del footer */
+/* Evitar salto de lÃ­nea en horario del footer */
 .footer__horario {
     white-space: nowrap;
 }
 
 .footer__address-list li {
     white-space: nowrap;
-    /* evita cortes en dirección y teléfono también */
+    /* evita cortes en direcciÃ³n y telÃ©fono tambiÃ©n */
 }
 
 /* ==========================================================================
-   FARMACIA – Layout con panel lateral de categorías
+   FARMACIA â€“ Layout con panel lateral de categorÃ­as
    ========================================================================== */
 .farmacia-layout {
     display: grid;
@@ -3783,15 +3838,15 @@ textarea:focus-visible {
 @media (max-width: 768px) {
     .farmacia-layout {
         grid-template-columns: 1fr;
-        /* En móvil, sidebar arriba */
+        /* En mÃ³vil, sidebar arriba */
     }
 
     .farmacia-sidebar {
         display: none;
-        /* Oculto por defecto en móvil */
+        /* Oculto por defecto en mÃ³vil */
     }
 
-    /* Se podría añadir un botón de filtros para mostrar/ocultar */
+    /* Se podrÃ­a aÃ±adir un botÃ³n de filtros para mostrar/ocultar */
 }
 
 /* Panel lateral */
@@ -3850,7 +3905,7 @@ textarea:focus-visible {
     font-weight: 600;
 }
 
-/* Botón de filtros para móvil (oculto en escritorio) */
+/* BotÃ³n de filtros para mÃ³vil (oculto en escritorio) */
 .btn-filtros-mobile {
     display: none;
     white-space: nowrap;
@@ -3878,7 +3933,7 @@ textarea:focus-visible {
     }
 }
 
-/* Panel inferior para filtros en móvil */
+/* Panel inferior para filtros en mÃ³vil */
 .filtros-bottom-sheet {
     position: fixed;
     left: 0;
@@ -3930,7 +3985,7 @@ textarea:focus-visible {
 .filtros-bottom-sheet__body .farmacia-sidebar__group-title,
 .filtros-bottom-sheet__body .farmacia-sidebar__item {
     font-size: 0.95rem;
-    /* un poco más grande para dedos */
+    /* un poco mÃ¡s grande para dedos */
 }
 
 .filtros-bottom-sheet__footer {
@@ -4155,12 +4210,12 @@ textarea:focus-visible {
     border-radius: 10px;
 }
 
-/* ── Maestro-Detalle: Lista de múltiples citas ── */
+/* â”€â”€ Maestro-Detalle: Lista de mÃºltiples citas â”€â”€ */
 
 /* Cada elemento clickeable de la lista Maestro dentro del modal */
 .modal-consulta__item-lista {
     min-height: 44px;
-    /* Ley de Fitts: área táctil mínima */
+    /* Ley de Fitts: Ã¡rea tÃ¡ctil mÃ­nima */
     padding: 15px;
     cursor: pointer;
     border-bottom: 1px solid var(--border-color);
@@ -4180,19 +4235,19 @@ textarea:focus-visible {
     box-shadow: 0 2px 8px rgba(13, 169, 159, 0.1);
 }
 
-/* Feedback táctil al pulsar (mobile & desktop) */
+/* Feedback tÃ¡ctil al pulsar (mobile & desktop) */
 .modal-consulta__item-lista:active {
     background-color: rgba(13, 169, 159, 0.12);
     transform: scale(0.99);
 }
 
-/* Focus visible para navegación por teclado (accesibilidad) */
+/* Focus visible para navegaciÃ³n por teclado (accesibilidad) */
 .modal-consulta__item-lista:focus-visible {
     outline: 2px solid var(--action-color);
     outline-offset: 2px;
 }
 
-/* Botón "Volver al listado": estilo de enlace discreto, alineado a izquierda */
+/* BotÃ³n "Volver al listado": estilo de enlace discreto, alineado a izquierda */
 .modal-consulta__btn-volver {
     display: inline-flex;
     align-items: center;
@@ -4212,7 +4267,7 @@ textarea:focus-visible {
     transition: background-color 0.2s ease, color 0.2s ease;
     text-align: left;
     align-self: flex-start;
-    /* Alineación izquierda dentro de flex */
+    /* AlineaciÃ³n izquierda dentro de flex */
 }
 
 .modal-consulta__btn-volver:hover {
@@ -4229,12 +4284,12 @@ textarea:focus-visible {
     font-size: 0.82rem;
 }
 
-/* Responsive: en móvil el botón volver ocupa full-width para mayor ergonomía */
+/* Responsive: en mÃ³vil el botÃ³n volver ocupa full-width para mayor ergonomÃ­a */
 @media (max-width: 480px) {
     .modal-consulta__item-lista {
         padding: 16px 12px;
         min-height: 52px;
-        /* Target táctil más generoso en móvil */
+        /* Target tÃ¡ctil mÃ¡s generoso en mÃ³vil */
     }
 
     .modal-consulta__btn-volver {
@@ -4245,7 +4300,7 @@ textarea:focus-visible {
 
 
 /* ==========================================================================
-   BOTONES COMPROBANTE – Paso Confirmación
+   BOTONES COMPROBANTE â€“ Paso ConfirmaciÃ³n
    ========================================================================== */
 .btn-comprobante {
     display: inline-flex;
@@ -4253,7 +4308,7 @@ textarea:focus-visible {
     justify-content: center;
     gap: 8px;
     padding: 13px 28px;
-    /* holgura táctil */
+    /* holgura tÃ¡ctil */
     min-height: 48px;
     min-width: 48px;
     /* Ley de Fitts */
@@ -4310,7 +4365,7 @@ textarea:focus-visible {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-/* Ajuste para móvil: botones full-width si son pequeños */
+/* Ajuste para mÃ³vil: botones full-width si son pequeÃ±os */
 @media (max-width: 480px) {
     .btn-comprobante {
         flex: 1;
@@ -4329,10 +4384,10 @@ textarea:focus-visible {
 
 
 /* ==========================================================================
-   CRUD CITAS – Botones Cancelar / Modificar
+   CRUD CITAS â€“ Botones Cancelar / Modificar
    ========================================================================== */
 
-/* ── Contenedor de acciones ── */
+/* â”€â”€ Contenedor de acciones â”€â”€ */
 .cita-acciones {
     display: flex;
     gap: 10px;
@@ -4342,7 +4397,7 @@ textarea:focus-visible {
     border-top: 1px solid var(--border-color);
 }
 
-/* ── Base compartida ── */
+/* â”€â”€ Base compartida â”€â”€ */
 .cita-acciones__btn {
     display: inline-flex;
     align-items: center;
@@ -4366,7 +4421,7 @@ textarea:focus-visible {
     outline-offset: 2px;
 }
 
-/* ── Cancelar (advertencia sutil) ── */
+/* â”€â”€ Cancelar (advertencia sutil) â”€â”€ */
 .cita-acciones__btn--cancelar {
     background-color: #fff5f5;
     color: #c0392b;
@@ -4379,7 +4434,7 @@ textarea:focus-visible {
     box-shadow: 0 2px 8px rgba(231, 76, 60, 0.15);
 }
 
-/* ── Modificar (acción principal) ── */
+/* â”€â”€ Modificar (acciÃ³n principal) â”€â”€ */
 .cita-acciones__btn--modificar {
     background-color: rgba(13, 169, 159, 0.08);
     color: var(--action-color);
@@ -4392,7 +4447,7 @@ textarea:focus-visible {
     box-shadow: 0 2px 8px rgba(13, 169, 159, 0.2);
 }
 
-/* ── Badge de estado cancelada ── */
+/* â”€â”€ Badge de estado cancelada â”€â”€ */
 .cita-estado-badge {
     display: inline-block;
     padding: 4px 12px;
@@ -4413,7 +4468,7 @@ textarea:focus-visible {
     color: #0DA99F;
 }
 
-/* ── Responsive Mobile ── */
+/* â”€â”€ Responsive Mobile â”€â”€ */
 @media (max-width: 480px) {
     .cita-acciones {
         flex-direction: column;
@@ -4423,12 +4478,12 @@ textarea:focus-visible {
         width: 100%;
         justify-content: center;
         min-height: 48px;
-        /* Target táctil generoso en móvil */
+        /* Target tÃ¡ctil generoso en mÃ³vil */
     }
 }
 
 /* ==========================================================================
-   Mensaje de Prevención en Modificación de Cita
+   Mensaje de PrevenciÃ³n en ModificaciÃ³n de Cita
    ========================================================================== */
 .modificacion-alert {
     background-color: #fff3cd;
@@ -4454,8 +4509,8 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   DIRECTORIO DE ESPECIALISTAS – Buscador
-   Extraído de estilos inline para cumplir la prohibición de styles en HTML.
+   DIRECTORIO DE ESPECIALISTAS â€“ Buscador
+   ExtraÃ­do de estilos inline para cumplir la prohibiciÃ³n de styles en HTML.
    ========================================================================== */
 .directory-search {
     max-width: 600px;
@@ -4493,8 +4548,8 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   PASO 3 DE CITAS – Formulario de Identificación del Paciente
-   Extraído de estilos inline. Cumple Golden Rules (prohibición de style=).
+   PASO 3 DE CITAS â€“ Formulario de IdentificaciÃ³n del Paciente
+   ExtraÃ­do de estilos inline. Cumple Golden Rules (prohibiciÃ³n de style=).
    ========================================================================== */
 .citas-form-wrapper {
     max-width: 600px;
@@ -4526,12 +4581,12 @@ textarea:focus-visible {
     font-family: 'Montserrat', sans-serif;
 }
 
-/* Grupo de campo: margen inferior estándar */
+/* Grupo de campo: margen inferior estÃ¡ndar */
 .citas-form-group {
     margin-bottom: 20px;
 }
 
-/* Último grupo: más espacio antes del botón */
+/* Ãšltimo grupo: mÃ¡s espacio antes del botÃ³n */
 .citas-form-group--last {
     margin-bottom: 30px;
 }
@@ -4577,8 +4632,8 @@ textarea:focus-visible {
     font-weight: 500;
 }
 
-/* Botón Siguiente del Paso 3: inicia visualmente deshabilitado.
-   app.js lo habilita (opacity:1, pointer-events:auto) cuando el form es válido. */
+/* BotÃ³n Siguiente del Paso 3: inicia visualmente deshabilitado.
+   app.js lo habilita (opacity:1, pointer-events:auto) cuando el form es vÃ¡lido. */
 .citas-btn-submit {
     width: 100%;
     padding: 15px;
@@ -4596,7 +4651,7 @@ textarea:focus-visible {
     }
 }
 
-/* ── Pantalla de Éxito: Creación de Cuenta (H1 - Punto Final) ── */
+/* â”€â”€ Pantalla de Ã‰xito: CreaciÃ³n de Cuenta (H1 - Punto Final) â”€â”€ */
 .pantalla-exito-registro {
     display: flex;
     flex-direction: column;
@@ -4627,8 +4682,8 @@ textarea:focus-visible {
     margin-bottom: 4px;
 }
 
-/* ── Ícono de éxito dentro del modal de resolución (cancelación de cita) ── */
-/* Usa visibility del layout modal: margen inferior mayor para separar del título. */
+/* â”€â”€ Ãcono de Ã©xito dentro del modal de resoluciÃ³n (cancelaciÃ³n de cita) â”€â”€ */
+/* Usa visibility del layout modal: margen inferior mayor para separar del tÃ­tulo. */
 .icono-exito-modal {
     color: var(--action-color);
     font-size: 3.5rem;
@@ -4636,9 +4691,9 @@ textarea:focus-visible {
     display: block;
 }
 /* ======================================================================
-   BOTONES DE DOCUMENTO — Portabilidad (Imprimir / Descargar PDF)
+   BOTONES DE DOCUMENTO â€” Portabilidad (Imprimir / Descargar PDF)
    Golden Rule: fondo transparente, borde y texto en Turquesa (#0DA99F)
-   Icono representativo obligatorio (fa-file-pdf / fa-print) — H4
+   Icono representativo obligatorio (fa-file-pdf / fa-print) â€” H4
    ====================================================================== */
 .btn--documento {
     display: inline-flex;
@@ -4670,7 +4725,7 @@ textarea:focus-visible {
 }
 
 /* ======================================================================
-   Supabase / IHC — Visibilidad del estado del sistema (carga en la nube)
+   Supabase / IHC â€” Visibilidad del estado del sistema (carga en la nube)
    ====================================================================== */
 .app-supabase-loading {
     position: fixed;
@@ -4735,7 +4790,7 @@ textarea:focus-visible {
 }
 
 /* ======================================================================
-   MEDIA PRINT — Ocultar elementos de navegación y acción al imprimir
+   MEDIA PRINT â€” Ocultar elementos de navegaciÃ³n y acciÃ³n al imprimir
    ====================================================================== */
 @media print {
     header,
@@ -4764,8 +4819,8 @@ textarea:focus-visible {
 }
 
 /* ==========================================================================
-   UI KIT — Modales globales (TR-47 §2)
-   Clases base para modales generados dinámicamente por JS.
+   UI KIT â€” Modales globales (TR-47 Â§2)
+   Clases base para modales generados dinÃ¡micamente por JS.
    Todos los modales del sistema deben usar esta estructura en lugar de estilos inline.
    ========================================================================== */
 
@@ -4846,3 +4901,4 @@ textarea:focus-visible {
         border-radius: 12px;
     }
 }
+/* TR-76: Animacion migrada a Web Animations API en main.js - CSS eliminado */

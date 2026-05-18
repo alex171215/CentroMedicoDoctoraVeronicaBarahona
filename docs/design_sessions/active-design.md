@@ -1,51 +1,64 @@
-# Sesión de Diseño Activa: Fuerza Bruta CSS para Carrusel
+# Sesión de Diseño Activa: Prevención de Overlap Visual en Errores
 
 ## 1. Objetivo
-Aplicar reglas de CSS inquebrantables para solucionar el desbordamiento en la Slide 1 (dejando solo 2 íconos en móvil), ocultar elementos no deseados en la Slide de Política y destruir la restricción de ancho (pared invisible) en la Slide 3.
+Evitar que el mensaje de "Carácter no permitido" (Tooltip Flotante) se superponga (overlap) con los mensajes de error de validación nativos del sistema al perder el foco, implementando una limpieza estricta en el evento `blur`.
 
-## 2. Instrucciones Técnicas para Antigravity
+## 2. Instrucciones Técnicas para Gemini (Agente)
 
-### A. Preparación del HTML (`index.html`)
-* Ve al slider principal.
-* Asegúrate de que el Slide 1 tenga la clase base: `<div class="hero__slide hero__slide--inicio">`.
-* Asegúrate de que el Slide 3 (Especialidades) tenga la clase explícita: `<div class="hero__slide hero__slide--wide">`.
-* Asegúrate de que el Slide 5 (Política 24h) tenga la clase explícita: `<div class="hero__slide hero__slide--policy">`.
+### A. Modificación del Sanitizador Actual (`js/main.js`)
+Busca el `document.addEventListener('input', ...)` que contiene la lógica de sanitización. En la sección 3 ("Feedback Visual y Textual Cero-Impacto"), añade la lógica para ocultar el error nativo temporalmente:
 
-### B. Ejecución de Media Queries (`styles.css`)
-Inyecta las siguientes reglas exactas. Tienes permitido usar `!important` para sobrescribir la cascada CSS actual.
+```javascript
+// ... dentro del if (valorOriginal !== val) { ...
 
-**Para Móviles (`@media (max-width: 767px)`):**
-```css
-/* Slide 1: Ocultar el 3er y 4to ícono para dejar solo 2 y salvar el botón */
-.hero__slide--inicio .hero__feature:nth-child(n+3) {
-    display: none !important;
-}
+        // --- NUEVO: PREVENCIÓN DE OVERLAP VISUAL (Oculta el nativo temporalmente) ---
+        let errorNativo = null;
+        const ariaId = inputEl.getAttribute('aria-describedby');
+        if (ariaId) errorNativo = document.getElementById(ariaId);
+        if (!errorNativo) errorNativo = inputEl.parentNode.querySelector('span[id$="-error"], .error-text:not(.temp-error-span)');
+        
+        if (errorNativo) {
+            errorNativo.style.setProperty('opacity', '0', 'important'); 
+        }
+        // -----------------------------------------------------------------------------
 
-/* Slide 5 (Política): Ocultar el ícono de 'Cancela o modifica' */
-.hero__slide--policy .hero__features {
-    display: none !important;
-}
+        // (Mantén la Inyección de Tooltip Flotante que ya existe aquí...)
+        // let tooltipWrapper = inputEl.parentNode...
 
-/* Slide 5 (Política): Centrar el contenido que estaba muy a la izquierda */
-.hero__slide--policy .hero__content {
-    margin: 0 auto !important;
-    text-align: center !important;
-    padding: 0 15px !important;
-}
+        // Modifica el bloque del temporizador para restaurar la opacidad:
+        if (!window.sanitizerTimers) window.sanitizerTimers = {};
+        if (window.sanitizerTimers[inputEl.id]) clearTimeout(window.sanitizerTimers[inputEl.id]);
+
+        window.sanitizerTimers[inputEl.id] = setTimeout(() => {
+            const wrapperToRemove = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
+            if (wrapperToRemove) wrapperToRemove.remove();
+            
+            // --- NUEVO: RESTAURA EL ERROR NATIVO ---
+            if (errorNativo) errorNativo.style.setProperty('opacity', '1', 'important');
+        }, 2500);
 ```
 
-**Para Escritorio (`@media (min-width: 1024px)`):**
-```css
-/* Slide 3 (Especialidades): Destruir la pared invisible */
-.hero__slide--wide .hero__content {
-    max-width: 900px !important;
-    width: 90% !important;
-}
+### B. Creación del "Limpiaparabrisas" Global (`js/main.js`)
+Añade este NUEVO listener global justo debajo del listener de `input`. Este código destruirá el mensaje flotante si el usuario da clic afuera del campo antes de que acaben los 2.5 segundos.
 
-/* Slide 5 (Política): Centrar correctamente el bloque de texto */
-.hero__slide--policy .hero__content {
-    margin: 0 auto !important;
-    text-align: center !important;
-    max-width: 800px !important;
-}
+```javascript
+// NUEVO: Destrucción del Tooltip al perder el foco para dejar espacio a la validación nativa
+document.addEventListener('blur', (e) => {
+    if (!e.target || !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    const inputEl = e.target;
+
+    if (window.sanitizerTimers && window.sanitizerTimers[inputEl.id]) {
+        clearTimeout(window.sanitizerTimers[inputEl.id]);
+        
+        const wrapperToRemove = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
+        if (wrapperToRemove) wrapperToRemove.remove();
+
+        let errorNativo = null;
+        const ariaId = inputEl.getAttribute('aria-describedby');
+        if (ariaId) errorNativo = document.getElementById(ariaId);
+        if (!errorNativo) errorNativo = inputEl.parentNode.querySelector('span[id$="-error"], .error-text:not(.temp-error-span)');
+        
+        if (errorNativo) errorNativo.style.setProperty('opacity', '1', 'important');
+    }
+}, { capture: true });
 ```
