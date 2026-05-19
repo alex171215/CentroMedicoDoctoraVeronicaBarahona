@@ -5095,3 +5095,8 @@ a[href^="mailto:"]:focus-visible,
     pointer-events: auto !important;
     position: relative !important;
 }
+
+.citas-error-msg {
+    display: block !important;
+    color: #e74c3c !important;
+}
