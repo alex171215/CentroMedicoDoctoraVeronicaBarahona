@@ -94,6 +94,7 @@ ul {
     text-decoration: none;
     transition: top 0.2s ease;
 }
+
 .skip-link:focus {
     top: 0;
     outline: 3px solid var(--accent-color);
@@ -231,13 +232,16 @@ textarea:focus-visible {
 }
 
 .btn--peligro {
-    background-color: #dc3545; /* Rojo sÃ³lido intenso */
-    color: #ffffff; /* Texto blanco para mÃ¡ximo contraste */
+    background-color: #dc3545;
+    /* Rojo sÃ³lido intenso */
+    color: #ffffff;
+    /* Texto blanco para mÃ¡ximo contraste */
     border: none;
 }
 
 .btn--peligro:hover {
-    background-color: #c82333; /* Rojo mÃ¡s oscuro al hacer hover */
+    background-color: #c82333;
+    /* Rojo mÃ¡s oscuro al hacer hover */
 }
 
 .enlace-accion {
@@ -479,8 +483,15 @@ textarea:focus-visible {
     }
 
     @keyframes slideDown {
-        from { opacity: 0; transform: translateY(-8px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 }
 
@@ -681,7 +692,7 @@ textarea:focus-visible {
     .hero__slide--inicio .hero__feature:nth-child(n+3) {
         display: none !important;
     }
-    
+
     /* Restaurar contenedor de features para slide 1 para que se vean los 2 iconos */
     .hero__slide--inicio .hero__features {
         display: grid !important;
@@ -701,11 +712,12 @@ textarea:focus-visible {
 
     /* Elevar TODO el contenedor para despegarlo de los puntos de navegaciÃ³n */
     .hero__slide--registro .hero__content {
-        padding-bottom: 70px !important; 
+        padding-bottom: 70px !important;
     }
 
     .hero__slide--registro .hero__btn {
-        margin-bottom: 10px !important; /* PequeÃ±o respiro extra */
+        margin-bottom: 10px !important;
+        /* PequeÃ±o respiro extra */
     }
 }
 
@@ -751,6 +763,7 @@ textarea:focus-visible {
 
 /* TR-68: Desktop â€” ErradicaciÃ³n de "Paredes Invisibles" con selectores robustos */
 @media (min-width: 1024px) {
+
     /* Slide 3 (Especialidades): Destruir la pared invisible */
     .hero__slide--wide .hero__content {
         max-width: 900px !important;
@@ -761,7 +774,7 @@ textarea:focus-visible {
     .hero__slide--policy .hero__content {
         margin-left: auto !important;
         margin-right: 5% !important;
-        text-align: right !important; 
+        text-align: right !important;
         max-width: 550px !important;
     }
 
@@ -779,7 +792,8 @@ textarea:focus-visible {
         max-width: 800px !important;
         width: 90% !important;
         position: relative !important;
-        top: -100px !important; /* ESTO FUERZA LA CAJA HACIA ARRIBA FÃSICAMENTE */
+        top: -100px !important;
+        /* ESTO FUERZA LA CAJA HACIA ARRIBA FÃSICAMENTE */
     }
 
     /* Opcional: Asegurar que las features (Ã­conos) se mantengan alineadas */
@@ -803,6 +817,7 @@ textarea:focus-visible {
 }
 
 @media (min-width: 768px) {
+
     /* TR-66/TR-67: Restaurar subtitle y features a partir de tablet */
     .hero__subtitle {
         display: block;
@@ -867,6 +882,17 @@ textarea:focus-visible {
 .hero__contact-phone i {
     margin-right: 5px;
 }
+
+.hero__contact-phone:focus-visible,
+a[href^="tel:"]:focus-visible,
+a[href^="mailto:"]:focus-visible,
+.contacto-telefono:focus-visible {
+    outline: 3px solid #FFD700 !important;
+    /* Oro brillante para máximo contraste */
+    outline-offset: 4px !important;
+    border-radius: 4px;
+}
+
 
 /* Carousel Controls */
 .hero__carousel-btn {
@@ -1595,21 +1621,26 @@ textarea:focus-visible {
 /* --- TR-75: REPARACIÓN RADICAL DE VIÑETAS --- */
 
 .modal-activities-list li {
-    font-family: inherit !important; /* Mantiene la tipografía del texto */
-    list-style: none !important;     /* Elimina viñeta por defecto del navegador */
+    font-family: inherit !important;
+    /* Mantiene la tipografía del texto */
+    list-style: none !important;
+    /* Elimina viñeta por defecto del navegador */
     position: relative;
     padding-left: 25px !important;
-    margin-bottom: 8px; /* Preserva margen original */
+    margin-bottom: 8px;
+    /* Preserva margen original */
 }
 
 .modal-activities-list li::before {
     /* Forzamos el ícono de FontAwesome */
-    content: "\f00c" !important; /* Unicode del Check de FontAwesome */
+    content: "\f00c" !important;
+    /* Unicode del Check de FontAwesome */
     font-family: "Font Awesome 6 Free" !important;
     font-weight: 900 !important;
     position: absolute;
     left: 0;
-    color: var(--action-color, #0da99f) !important; /* Mantiene tu color corporativo */
+    color: var(--action-color, #0da99f) !important;
+    /* Mantiene tu color corporativo */
     font-size: 0.9rem !important;
 }
 
@@ -2442,9 +2473,20 @@ textarea:focus-visible {
    La animaciÃ³n inputRejectedFlash genera el efecto "parpadeo" de alerta sutil.
    !important para sobrescribir :focus y otros estados activos. */
 @keyframes inputRejectedFlash {
-    0%   { border-color: #e74c3c; box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25); }
-    50%  { border-color: #c0392b; box-shadow: 0 0 0 5px rgba(231, 76, 60, 0.15); }
-    100% { border-color: #e74c3c; box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25); }
+    0% {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25);
+    }
+
+    50% {
+        border-color: #c0392b;
+        box-shadow: 0 0 0 5px rgba(231, 76, 60, 0.15);
+    }
+
+    100% {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25);
+    }
 }
 
 .input-rechazado,
@@ -4697,6 +4739,7 @@ textarea:focus-visible {
     margin-bottom: 16px;
     display: block;
 }
+
 /* ======================================================================
    BOTONES DE DOCUMENTO â€” Portabilidad (Imprimir / Descargar PDF)
    Golden Rule: fondo transparente, borde y texto en Turquesa (#0DA99F)
@@ -4716,7 +4759,8 @@ textarea:focus-visible {
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     text-decoration: none;
-    min-height: 44px; /* Fitts's Law */
+    min-height: 44px;
+    /* Fitts's Law */
     min-width: 44px;
 }
 
@@ -4800,6 +4844,7 @@ textarea:focus-visible {
    MEDIA PRINT â€” Ocultar elementos de navegaciÃ³n y acciÃ³n al imprimir
    ====================================================================== */
 @media print {
+
     header,
     footer,
     .bottom-nav,
@@ -4857,8 +4902,15 @@ textarea:focus-visible {
 }
 
 @keyframes modalSlideIn {
-    from { opacity: 0; transform: translateY(-18px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0)     scale(1);    }
+    from {
+        opacity: 0;
+        transform: translateY(-18px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* Cabecera del modal */
@@ -4908,6 +4960,7 @@ textarea:focus-visible {
         border-radius: 12px;
     }
 }
+
 /* TR-76: Animacion migrada a Web Animations API en main.js - CSS eliminado */
 
 
@@ -4977,10 +5030,12 @@ textarea:focus-visible {
 
 /* --- VISTA MÓVIL (Menor a 768px) --- */
 @media (max-width: 767px) {
+
     /* Ocultar botón de PC en celulares */
     #btn-auth {
         display: none !important;
     }
+
     /* Estilar la inicial "P" en círculo perfecto dentro del celular */
     #btn-auth-mobile {
         display: flex !important;
@@ -5004,14 +5059,39 @@ textarea:focus-visible {
 
 /* --- VISTA TABLET Y COMPUTADORA (768px o mayor) --- */
 @media (min-width: 768px) {
+
     /* Elimina por completo el botón de celular y lo saca del flujo de la tecla TAB */
     #btn-auth-mobile {
         display: none !important;
     }
+
     /* Restaura el hermoso óvalo original del botón de PC que te gustaba */
     #btn-auth.btn--accion {
         display: inline-flex !important;
-        border-radius: 100px !important; /* Forma de óvalo original restaurada */
+        border-radius: 100px !important;
+        /* Forma de óvalo original restaurada */
         padding: 10px 24px !important;
     }
+}
+
+/* Foco de alto contraste para evitar que se pierda con el color de fondo */
+:focus-visible {
+    outline: 3px solid #FFC107 !important;
+    /* Amarillo vibrante de alta visibilidad */
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px #ffffff !important;
+    /* Borde extra para separar del botón */
+}
+
+/* Blindaje de tabulación: Solo la diapositiva activa es interactiva */
+.hero__carousel .hero__slide:not(.hero__slide--active) {
+    visibility: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+}
+
+.hero__carousel .hero__slide.hero__slide--active {
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: relative !important;
 }

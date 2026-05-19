@@ -1159,7 +1159,26 @@ const app = {
         const grid = document.getElementById('doctors-carousel');
         const prevBtn = document.querySelector('.doctors__nav-btn--prev');
         const nextBtn = document.querySelector('.doctors__nav-btn--next');
-        if (!grid || !prevBtn || !nextBtn) return;
+        if (!grid) return;
+
+        // Accesibilidad (WCAG 2.4.3 Focus Order): Remover tabindex de tarjetas ocultas
+        const cards = grid.querySelectorAll('.doctor-card');
+        if (cards.length > 0) {
+            const gridRect = grid.getBoundingClientRect();
+            cards.forEach(card => {
+                const cardRect = card.getBoundingClientRect();
+                // Una tarjeta es visible si entra dentro del área horizontal del grid (con un margen de tolerancia de 10px)
+                const isVisible = (cardRect.right > gridRect.left + 10) && (cardRect.left < gridRect.right - 10);
+                
+                if (isVisible) {
+                    card.removeAttribute('tabindex'); // Habilitar foco (vuelve al valor por defecto)
+                } else {
+                    card.setAttribute('tabindex', '-1'); // Quitar del orden de foco del tabulador
+                }
+            });
+        }
+
+        if (!prevBtn || !nextBtn) return;
 
         const maxScroll = grid.scrollWidth - grid.clientWidth;
         const tolerance = 2;
@@ -1226,9 +1245,9 @@ const app = {
                     </div>
                     <div class="doctor-card__content">
                         <div class="doctor-card__actions" style="margin-top: 15px;">
-                            <span class="btn btn--secundario" aria-label="Ver especialistas en ${esp}">
+                            <button type="button" class="btn btn--secundario" aria-label="Ver especialistas en ${esp}">
                                 <i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Agendar Cita
-                            </span>
+                            </button>
                         </div>
                     </div>
                 </article>
