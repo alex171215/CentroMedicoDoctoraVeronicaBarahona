@@ -32,108 +32,108 @@ export const utilidades = {
     },
 
     validarCedulaEcuatoriana(cedula) {
-            if (!cedula) return false;
-            const digitos = cedula.replace(/\D/g, '');
-            if (digitos.length !== 10 && digitos.length !== 13) return false;
+        if (!cedula) return false;
+        const digitos = cedula.replace(/\D/g, '');
+        if (digitos.length !== 10 && digitos.length !== 13) return false;
 
-            // Si es RUC 13 dígitos, los últimos 3 deben ser 001 (persona natural)
-            if (digitos.length === 13 && digitos.substring(10) !== '001') return false;
+        // Si es RUC 13 dígitos, los últimos 3 deben ser 001 (persona natural)
+        if (digitos.length === 13 && digitos.substring(10) !== '001') return false;
 
-            const base = digitos.substring(0, 10);
-            const digitoRegion = parseInt(base.substring(0, 2), 10);
-            if (digitoRegion < 1 || digitoRegion > 24) return false;
+        const base = digitos.substring(0, 10);
+        const digitoRegion = parseInt(base.substring(0, 2), 10);
+        if (digitoRegion < 1 || digitoRegion > 24) return false;
 
-            const tercerDigito = parseInt(base.charAt(2), 10);
-            if (tercerDigito >= 6) return false;
+        const tercerDigito = parseInt(base.charAt(2), 10);
+        if (tercerDigito >= 6) return false;
 
-            const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
-            let suma = 0;
-            for (let i = 0; i < 9; i++) {
-                let valor = parseInt(base.charAt(i), 10) * coeficientes[i];
-                if (valor >= 10) valor -= 9;
-                suma += valor;
-            }
-            const digitoVerificador = suma % 10 === 0 ? 0 : 10 - (suma % 10);
-            return digitoVerificador === parseInt(base.charAt(9), 10);
-        },
+        const coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+        let suma = 0;
+        for (let i = 0; i < 9; i++) {
+            let valor = parseInt(base.charAt(i), 10) * coeficientes[i];
+            if (valor >= 10) valor -= 9;
+            suma += valor;
+        }
+        const digitoVerificador = suma % 10 === 0 ? 0 : 10 - (suma % 10);
+        return digitoVerificador === parseInt(base.charAt(9), 10);
+    },
 
-        /**
-         * Restringe un input type="date" a un rango de edad entre 18 y 60 años.
-         * @param {string} inputId - id del elemento <input type="date">
-         */
-        aplicarRestriccionEdad(inputId) {
-            const input = document.getElementById(inputId);
-            if (!input) return;
+    /**
+     * Restringe un input type="date" a un rango de edad entre 18 y 60 años.
+     * @param {string} inputId - id del elemento <input type="date">
+     */
+    aplicarRestriccionEdad(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
 
-            const hoy = new Date();
-            const maxDate = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
-            const minDate = new Date(hoy.getFullYear() - 60, hoy.getMonth(), hoy.getDate());
+        const hoy = new Date();
+        const maxDate = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
+        const minDate = new Date(hoy.getFullYear() - 60, hoy.getMonth(), hoy.getDate());
 
-            const format = d => d.toISOString().split('T')[0];
-            input.setAttribute('min', format(minDate));
-            input.setAttribute('max', format(maxDate));
-        },
+        const format = d => d.toISOString().split('T')[0];
+        input.setAttribute('min', format(minDate));
+        input.setAttribute('max', format(maxDate));
+    },
 
-        /**
-         * Imprime el área indicada usando el diálogo nativo del navegador.
-         * El @media print en styles.css se encarga de ocultar header, footer,
-         * .bottom-nav y botones de acción automáticamente.
-         * @param {string} idContenedor - ID del elemento a imprimir.
-         */
-        imprimirArea(idContenedor) {
-            const contenedor = document.getElementById(idContenedor);
-            if (!contenedor) {
-                console.warn(`[app.utilidades] imprimirArea: no se encontró el contenedor "${idContenedor}".`);
-                return;
-            }
-            window.print();
-        },
+    /**
+     * Imprime el área indicada usando el diálogo nativo del navegador.
+     * El @media print en styles.css se encarga de ocultar header, footer,
+     * .bottom-nav y botones de acción automáticamente.
+     * @param {string} idContenedor - ID del elemento a imprimir.
+     */
+    imprimirArea(idContenedor) {
+        const contenedor = document.getElementById(idContenedor);
+        if (!contenedor) {
+            console.warn(`[app.utilidades] imprimirArea: no se encontró el contenedor "${idContenedor}".`);
+            return;
+        }
+        window.print();
+    },
 
-        /**
-         * Genera y descarga un PDF del contenedor indicado usando html2pdf.js (CDN).
-         * Configuración: margen 10mm, formato A4, calidad de imagen óptima.
-         * @param {string} idContenedor  - ID del elemento a exportar.
-         * @param {string} nombreArchivo - Nombre del archivo descargado (sin extensión).
-         */
-        descargarPDF(idContenedor, nombreArchivo) {
-            const contenedor = document.getElementById(idContenedor);
-            if (!contenedor) {
-                console.warn(`[app.utilidades] descargarPDF: no se encontró el contenedor "${idContenedor}".`);
-                return;
-            }
+    /**
+     * Genera y descarga un PDF del contenedor indicado usando html2pdf.js (CDN).
+     * Configuración: margen 10mm, formato A4, calidad de imagen óptima.
+     * @param {string} idContenedor  - ID del elemento a exportar.
+     * @param {string} nombreArchivo - Nombre del archivo descargado (sin extensión).
+     */
+    descargarPDF(idContenedor, nombreArchivo) {
+        const contenedor = document.getElementById(idContenedor);
+        if (!contenedor) {
+            console.warn(`[app.utilidades] descargarPDF: no se encontró el contenedor "${idContenedor}".`);
+            return;
+        }
 
-            if (typeof html2pdf === 'undefined') {
-                console.error('[app.utilidades] descargarPDF: la librería html2pdf.js no está cargada.');
-                return;
-            }
+        if (typeof html2pdf === 'undefined') {
+            console.error('[app.utilidades] descargarPDF: la librería html2pdf.js no está cargada.');
+            return;
+        }
 
-            const opciones = {
-                margin:       10,
-                filename:     `${nombreArchivo || 'documento'}.pdf`,
-                image:        { type: 'jpeg', quality: 0.95 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+        const opciones = {
+            margin: 10,
+            filename: `${nombreArchivo || 'documento'}.pdf`,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
 
-            html2pdf().set(opciones).from(contenedor).save();
-        },
+        html2pdf().set(opciones).from(contenedor).save();
+    },
 
-        /**
-         * Genera HTML de ticket/comprobante a partir de un objeto cita.
-         * Adaptado de app.citas._generarTicketHTML para recibir un objeto cita
-         * en lugar de parámetros sueltos.
-         * @param {Object} cita - Objeto con {medico, especialidad, fecha, hora, paciente}
-         * @returns {string} HTML del ticket
-         */
-        _generarTicketHTML(cita) {
-            const medico = cita.medico || '—';
-            const especialidad = cita.especialidad || '—';
-            const fechaHora = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
-            const paciente = cita.paciente ||
-                ((cita.nombre_1 || '') + ' ' + (cita.apellido_1 || '')).trim() ||
-                cita.nombres || '—';
+    /**
+     * Genera HTML de ticket/comprobante a partir de un objeto cita.
+     * Adaptado de app.citas._generarTicketHTML para recibir un objeto cita
+     * en lugar de parámetros sueltos.
+     * @param {Object} cita - Objeto con {medico, especialidad, fecha, hora, paciente}
+     * @returns {string} HTML del ticket
+     */
+    _generarTicketHTML(cita) {
+        const medico = cita.medico || '—';
+        const especialidad = cita.especialidad || '—';
+        const fechaHora = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
+        const paciente = cita.paciente ||
+            ((cita.nombre_1 || '') + ' ' + (cita.apellido_1 || '')).trim() ||
+            cita.nombres || '—';
 
-            return `
+        return `
                 <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px; text-align: center; font-family: sans-serif; box-sizing: border-box;">
                     <div style="margin-bottom: 20px;">
                         <h1 style="font-size: 1.8rem; color: #3B49A3; margin: 0 0 5px 0;">Centro Médico Familiar</h1>
@@ -149,34 +149,33 @@ export const utilidades = {
                         <p style="margin: 0 0 10px 0;"><strong>Paciente:</strong> ${paciente}</p>
                     </div>
                     <div style="background: #fef9e7; border-left: 4px solid #FDAD34; padding: 15px; font-size: 0.9rem; color: #666; text-align: left; max-width: 600px; margin: 0 auto;">
-                        <strong style="color: #c47f0a;">Importante:</strong> Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.
-                    </div>
+                        <strong style="color: #c47f0a;">Importante:</strong> Recuerde que solo puede cancelar o reprogramar una cita 24 horas antes de la misma. Además, solo se permite una cita por paciente por especialidad al día.  </div>
                     <p style="font-size: 0.8rem; color: #aaa; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
                         Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}
                     </p>
                 </div>
             `;
-        },
+    },
 
-        /**
-         * Imprime un comprobante de cita usando window.open (sistema limpio, sin sidebar).
-         * Clona la lógica exacta de app.citas.imprimirComprobante.
-         * @param {Object} cita - Objeto cita con {medico, especialidad, fecha, hora, paciente}
-         */
-        imprimirCita(cita) {
-            const ticketHTML = this._generarTicketHTML(cita);
-            const iframeId = '__sanitas_print_cita__';
-            let iframe = document.getElementById(iframeId);
-            if (!iframe) {
-                iframe = document.createElement('iframe');
-                iframe.id = iframeId;
-                iframe.setAttribute('aria-hidden', 'true');
-                iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:-9999px;';
-                document.body.appendChild(iframe);
-            }
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write(`<!DOCTYPE html>
+    /**
+     * Imprime un comprobante de cita usando window.open (sistema limpio, sin sidebar).
+     * Clona la lógica exacta de app.citas.imprimirComprobante.
+     * @param {Object} cita - Objeto cita con {medico, especialidad, fecha, hora, paciente}
+     */
+    imprimirCita(cita) {
+        const ticketHTML = this._generarTicketHTML(cita);
+        const iframeId = '__sanitas_print_cita__';
+        let iframe = document.getElementById(iframeId);
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = iframeId;
+            iframe.setAttribute('aria-hidden', 'true');
+            iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:-9999px;';
+            document.body.appendChild(iframe);
+        }
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write(`<!DOCTYPE html>
                 <html>
                 <head>
                     <title>Imprimir Comprobante</title>
@@ -187,135 +186,135 @@ export const utilidades = {
                 </head>
                 <body>${ticketHTML}</body>
                 </html>`);
-            doc.close();
-            iframe.onload = function () {
-                setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 300);
-            };
-        },
+        doc.close();
+        iframe.onload = function () {
+            setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 300);
+        };
+    },
 
-        /**
-         * Descarga un PDF de comprobante de cita usando jsPDF nativo (sin html2canvas).
-         * Clona la lógica exacta de app.citas.descargarComprobantePDF.
-         * @param {Object} cita - Objeto cita con {medico, especialidad, fecha, hora, paciente}
-         */
-        descargarPDFCita(cita) {
-            const medico = cita.medico || '—';
-            const especialidad = cita.especialidad || '—';
-            const fechaHora = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
-            const paciente = cita.paciente ||
-                ((cita.nombre_1 || '') + ' ' + (cita.apellido_1 || '')).trim() ||
-                cita.nombres || '—';
+    /**
+     * Descarga un PDF de comprobante de cita usando jsPDF nativo (sin html2canvas).
+     * Clona la lógica exacta de app.citas.descargarComprobantePDF.
+     * @param {Object} cita - Objeto cita con {medico, especialidad, fecha, hora, paciente}
+     */
+    descargarPDFCita(cita) {
+        const medico = cita.medico || '—';
+        const especialidad = cita.especialidad || '—';
+        const fechaHora = (cita.fecha || '') + (cita.hora ? ', ' + cita.hora : '');
+        const paciente = cita.paciente ||
+            ((cita.nombre_1 || '') + ' ' + (cita.apellido_1 || '')).trim() ||
+            cita.nombres || '—';
 
-            try {
-                const { jsPDF } = window.jspdf || window;
-                const doc = new jsPDF('p', 'mm', 'letter');
+        try {
+            const { jsPDF } = window.jspdf || window;
+            const doc = new jsPDF('p', 'mm', 'letter');
 
-                const pageWidth = 215.9;
-                const margin = 25;
-                let y = margin;
+            const pageWidth = 215.9;
+            const margin = 25;
+            let y = margin;
 
-                // Encabezado
+            // Encabezado
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.setTextColor(59, 73, 163);
+            doc.text('Centro Médico Familiar', pageWidth / 2, y, { align: 'center' });
+            y += 10;
+
+            doc.setFontSize(13);
+            doc.setTextColor(13, 169, 159);
+            doc.text('Dra. Verónica Barahona', pageWidth / 2, y, { align: 'center' });
+            y += 7;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(85, 85, 85);
+            doc.text('Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador', pageWidth / 2, y, { align: 'center' });
+            y += 5;
+            doc.text('Tel: 099 890 8034', pageWidth / 2, y, { align: 'center' });
+            y += 12;
+
+            // Línea separadora
+            doc.setDrawColor(13, 169, 159);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 8;
+
+            // Título
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(59, 73, 163);
+            doc.text('COMPROBANTE DE CITA MÉDICA', pageWidth / 2, y, { align: 'center' });
+            y += 12;
+
+            // Detalles
+            const leftX = margin + 10;
+            const valueX = leftX + 45;
+            doc.setFontSize(12);
+            doc.setTextColor(33, 33, 33);
+
+            const campos = [
+                { label: 'Fecha y Hora:', value: fechaHora },
+                { label: 'Médico:', value: medico },
+                { label: 'Especialidad:', value: especialidad },
+                { label: 'Paciente:', value: paciente }
+            ];
+            campos.forEach(campo => {
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(18);
-                doc.setTextColor(59, 73, 163);
-                doc.text('Centro Médico Familiar', pageWidth / 2, y, { align: 'center' });
+                doc.text(campo.label, leftX, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text(campo.value, valueX, y);
                 y += 10;
+            });
 
-                doc.setFontSize(13);
-                doc.setTextColor(13, 169, 159);
-                doc.text('Dra. Verónica Barahona', pageWidth / 2, y, { align: 'center' });
-                y += 7;
+            y += 6;
 
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(10);
-                doc.setTextColor(85, 85, 85);
-                doc.text('Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador', pageWidth / 2, y, { align: 'center' });
-                y += 5;
-                doc.text('Tel: 099 890 8034', pageWidth / 2, y, { align: 'center' });
-                y += 12;
+            // Nota
+            doc.setFillColor(254, 249, 231);
+            doc.rect(margin, y, pageWidth - 2 * margin, 20, 'F');
+            doc.setDrawColor(253, 173, 52);
+            doc.setLineWidth(1.2);
+            doc.line(margin, y, margin, y + 20);
 
-                // Línea separadora
-                doc.setDrawColor(13, 169, 159);
-                doc.setLineWidth(0.5);
-                doc.line(margin, y, pageWidth - margin, y);
-                y += 8;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(196, 127, 10);
+            doc.text('Importante:', margin + 6, y + 6);
 
-                // Título
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.setTextColor(59, 73, 163);
-                doc.text('COMPROBANTE DE CITA MÉDICA', pageWidth / 2, y, { align: 'center' });
-                y += 12;
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(102, 102, 102);
+            const nota = doc.splitTextToSize(
+                'Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.',
+                pageWidth - 2 * margin - 12
+            );
+            doc.text(nota, margin + 6, y + 12);
+            y += 28;
 
-                // Detalles
-                const leftX = margin + 10;
-                const valueX = leftX + 45;
-                doc.setFontSize(12);
-                doc.setTextColor(33, 33, 33);
+            // Pie
+            doc.setFontSize(9);
+            doc.setTextColor(170);
+            doc.text(`Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}`, pageWidth / 2, y, { align: 'center' });
 
-                const campos = [
-                    { label: 'Fecha y Hora:', value: fechaHora },
-                    { label: 'Médico:', value: medico },
-                    { label: 'Especialidad:', value: especialidad },
-                    { label: 'Paciente:', value: paciente }
-                ];
-                campos.forEach(campo => {
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(campo.label, leftX, y);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(campo.value, valueX, y);
-                    y += 10;
-                });
+            doc.save('Cita_Medica.pdf');
+        } catch (e) {
+            console.error('Error al generar PDF:', e);
+            alert('Error al generar PDF. Asegúrate de que la librería jsPDF esté cargada.');
+        }
+    },
 
-                y += 6;
+    /**
+     * Genera HTML profesional de receta médica a partir de un objeto receta.
+     * Incluye membrete, info paciente, diagnóstico y tabla de medicamentos.
+     * @param {Object} receta - Objeto con {medico, fecha, diagnostico[], medicamentos[]}
+     * @returns {string} HTML de la receta
+     */
+    _generarRecetaHTML(receta) {
+        const medico = receta.medico || '—';
+        const fechaFmt = receta.fecha
+            ? receta.fecha.split('-').reverse().join('/')
+            : '—';
+        const diags = (receta.diagnostico || []).join(', ') || '—';
 
-                // Nota
-                doc.setFillColor(254, 249, 231);
-                doc.rect(margin, y, pageWidth - 2 * margin, 20, 'F');
-                doc.setDrawColor(253, 173, 52);
-                doc.setLineWidth(1.2);
-                doc.line(margin, y, margin, y + 20);
-
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(10);
-                doc.setTextColor(196, 127, 10);
-                doc.text('Importante:', margin + 6, y + 6);
-
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(102, 102, 102);
-                const nota = doc.splitTextToSize(
-                    'Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.',
-                    pageWidth - 2 * margin - 12
-                );
-                doc.text(nota, margin + 6, y + 12);
-                y += 28;
-
-                // Pie
-                doc.setFontSize(9);
-                doc.setTextColor(170);
-                doc.text(`Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}`, pageWidth / 2, y, { align: 'center' });
-
-                doc.save('Cita_Medica.pdf');
-            } catch (e) {
-                console.error('Error al generar PDF:', e);
-                alert('Error al generar PDF. Asegúrate de que la librería jsPDF esté cargada.');
-            }
-        },
-
-        /**
-         * Genera HTML profesional de receta médica a partir de un objeto receta.
-         * Incluye membrete, info paciente, diagnóstico y tabla de medicamentos.
-         * @param {Object} receta - Objeto con {medico, fecha, diagnostico[], medicamentos[]}
-         * @returns {string} HTML de la receta
-         */
-        _generarRecetaHTML(receta) {
-            const medico = receta.medico || '—';
-            const fechaFmt = receta.fecha
-                ? receta.fecha.split('-').reverse().join('/')
-                : '—';
-            const diags = (receta.diagnostico || []).join(', ') || '—';
-
-            const filaMeds = (receta.medicamentos || []).map((m, i) => `
+        const filaMeds = (receta.medicamentos || []).map((m, i) => `
                 <tr>
                     <td style="padding:8px 10px; border-bottom:1px solid #e0e0e0; font-size:0.95rem;">${i + 1}</td>
                     <td style="padding:8px 10px; border-bottom:1px solid #e0e0e0; font-size:0.95rem; font-weight:600;">${m.nombre}</td>
@@ -325,7 +324,7 @@ export const utilidades = {
                 </tr>
             `).join('');
 
-            return `
+        return `
                 <div style="max-width:700px; margin:0 auto; padding:30px 25px; font-family:sans-serif; box-sizing:border-box; color:#333;">
                     <!-- Membrete -->
                     <div style="text-align:center; margin-bottom:15px;">
@@ -368,26 +367,26 @@ export const utilidades = {
                     </p>
                 </div>
             `;
-        },
+    },
 
-        /**
-         * Imprime una receta médica usando window.open (sistema limpio, sin sidebar).
-         * @param {Object} receta - Objeto receta
-         */
-        imprimirReceta(receta) {
-            const recetaHTML = this._generarRecetaHTML(receta);
-            const iframeId = '__sanitas_print_receta__';
-            let iframe = document.getElementById(iframeId);
-            if (!iframe) {
-                iframe = document.createElement('iframe');
-                iframe.id = iframeId;
-                iframe.setAttribute('aria-hidden', 'true');
-                iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:-9999px;';
-                document.body.appendChild(iframe);
-            }
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write(`<!DOCTYPE html>
+    /**
+     * Imprime una receta médica usando window.open (sistema limpio, sin sidebar).
+     * @param {Object} receta - Objeto receta
+     */
+    imprimirReceta(receta) {
+        const recetaHTML = this._generarRecetaHTML(receta);
+        const iframeId = '__sanitas_print_receta__';
+        let iframe = document.getElementById(iframeId);
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = iframeId;
+            iframe.setAttribute('aria-hidden', 'true');
+            iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:-9999px;';
+            document.body.appendChild(iframe);
+        }
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write(`<!DOCTYPE html>
                 <html>
                 <head>
                     <title>Imprimir Receta Médica</title>
@@ -398,187 +397,187 @@ export const utilidades = {
                 </head>
                 <body>${recetaHTML}</body>
                 </html>`);
-            doc.close();
-            iframe.onload = function () {
-                setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 300);
-            };
-        },
+        doc.close();
+        iframe.onload = function () {
+            setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 300);
+        };
+    },
 
-        /**
-         * Descarga un PDF de receta médica usando jsPDF nativo.
-         * Control estricto del eje Y para iterar medicamentos sin superposición.
-         * @param {Object} receta - Objeto receta con {medico, fecha, diagnostico[], medicamentos[]}
-         */
-        descargarPDFReceta(receta) {
-            const medico = receta.medico || '—';
-            const fechaFmt = receta.fecha
-                ? receta.fecha.split('-').reverse().join('/')
-                : '—';
-            const diags = (receta.diagnostico || []).join(', ') || '—';
+    /**
+     * Descarga un PDF de receta médica usando jsPDF nativo.
+     * Control estricto del eje Y para iterar medicamentos sin superposición.
+     * @param {Object} receta - Objeto receta con {medico, fecha, diagnostico[], medicamentos[]}
+     */
+    descargarPDFReceta(receta) {
+        const medico = receta.medico || '—';
+        const fechaFmt = receta.fecha
+            ? receta.fecha.split('-').reverse().join('/')
+            : '—';
+        const diags = (receta.diagnostico || []).join(', ') || '—';
 
-            try {
-                const { jsPDF } = window.jspdf || window;
-                const doc = new jsPDF('p', 'mm', 'letter');
+        try {
+            const { jsPDF } = window.jspdf || window;
+            const doc = new jsPDF('p', 'mm', 'letter');
 
-                const pageWidth = 215.9;
-                const pageHeight = 279.4;
-                const margin = 20;
-                const contentWidth = pageWidth - 2 * margin;
-                let y = margin;
+            const pageWidth = 215.9;
+            const pageHeight = 279.4;
+            const margin = 20;
+            const contentWidth = pageWidth - 2 * margin;
+            let y = margin;
 
-                // ── Encabezado ──
+            // ── Encabezado ──
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.setTextColor(59, 73, 163);
+            doc.text('Centro Médico Familiar', pageWidth / 2, y, { align: 'center' });
+            y += 9;
+
+            doc.setFontSize(13);
+            doc.setTextColor(13, 169, 159);
+            doc.text('Dra. Verónica Barahona', pageWidth / 2, y, { align: 'center' });
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(85, 85, 85);
+            doc.text('Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador', pageWidth / 2, y, { align: 'center' });
+            y += 4;
+            doc.text('Tel: 099 890 8034', pageWidth / 2, y, { align: 'center' });
+            y += 8;
+
+            // Línea separadora
+            doc.setDrawColor(13, 169, 159);
+            doc.setLineWidth(0.5);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 7;
+
+            // Título
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(15);
+            doc.setTextColor(59, 73, 163);
+            doc.text('RECETA MÉDICA', pageWidth / 2, y, { align: 'center' });
+            y += 10;
+
+            // ── Info de la receta ──
+            doc.setFontSize(11);
+            doc.setTextColor(33, 33, 33);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Médico prescriptor:', margin, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(medico, margin + 43, y);
+            y += 7;
+
+            doc.setFont('helvetica', 'bold');
+            doc.text('Fecha:', margin, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(fechaFmt, margin + 43, y);
+            y += 7;
+
+            doc.setFont('helvetica', 'bold');
+            doc.text('Diagnóstico:', margin, y);
+            doc.setFont('helvetica', 'normal');
+            const diagLines = doc.splitTextToSize(diags, contentWidth - 43);
+            doc.text(diagLines, margin + 43, y);
+            y += diagLines.length * 5 + 5;
+
+            // ── Tabla de medicamentos ──
+            // Cabecera
+            doc.setFillColor(59, 73, 163);
+            doc.rect(margin, y, contentWidth, 8, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(255, 255, 255);
+
+            const col1 = margin + 2;
+            const col2 = margin + 10;
+            const col3 = margin + 75;
+            const col4 = margin + 140;
+            const col5 = margin + 155;
+
+            doc.text('#', col1, y + 5.5);
+            doc.text('Medicamento', col2, y + 5.5);
+            doc.text('Dosis / Indicación', col3, y + 5.5);
+            doc.text('Cant.', col4, y + 5.5);
+            doc.text('Vía', col5, y + 5.5);
+            y += 10;
+
+            // Filas de medicamentos — control estricto del eje Y
+            doc.setTextColor(33, 33, 33);
+            const meds = receta.medicamentos || [];
+            meds.forEach((m, idx) => {
+                // Calcular altura necesaria para esta fila
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(18);
-                doc.setTextColor(59, 73, 163);
-                doc.text('Centro Médico Familiar', pageWidth / 2, y, { align: 'center' });
-                y += 9;
-
-                doc.setFontSize(13);
-                doc.setTextColor(13, 169, 159);
-                doc.text('Dra. Verónica Barahona', pageWidth / 2, y, { align: 'center' });
-                y += 6;
-
-                doc.setFont('helvetica', 'normal');
                 doc.setFontSize(9);
-                doc.setTextColor(85, 85, 85);
-                doc.text('Pifo, Ignacio Jarrín y Tulio Garzón · Quito, Ecuador', pageWidth / 2, y, { align: 'center' });
-                y += 4;
-                doc.text('Tel: 099 890 8034', pageWidth / 2, y, { align: 'center' });
-                y += 8;
-
-                // Línea separadora
-                doc.setDrawColor(13, 169, 159);
-                doc.setLineWidth(0.5);
-                doc.line(margin, y, pageWidth - margin, y);
-                y += 7;
-
-                // Título
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(15);
-                doc.setTextColor(59, 73, 163);
-                doc.text('RECETA MÉDICA', pageWidth / 2, y, { align: 'center' });
-                y += 10;
-
-                // ── Info de la receta ──
-                doc.setFontSize(11);
-                doc.setTextColor(33, 33, 33);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Médico prescriptor:', margin, y);
+                const nombreLines = doc.splitTextToSize(m.nombre || '', 62);
                 doc.setFont('helvetica', 'normal');
-                doc.text(medico, margin + 43, y);
-                y += 7;
+                const dosisLines = doc.splitTextToSize(m.dosis || '', 62);
+                const maxLines = Math.max(nombreLines.length, dosisLines.length, 1);
+                const rowHeight = maxLines * 4.5 + 4;
 
-                doc.setFont('helvetica', 'bold');
-                doc.text('Fecha:', margin, y);
-                doc.setFont('helvetica', 'normal');
-                doc.text(fechaFmt, margin + 43, y);
-                y += 7;
-
-                doc.setFont('helvetica', 'bold');
-                doc.text('Diagnóstico:', margin, y);
-                doc.setFont('helvetica', 'normal');
-                const diagLines = doc.splitTextToSize(diags, contentWidth - 43);
-                doc.text(diagLines, margin + 43, y);
-                y += diagLines.length * 5 + 5;
-
-                // ── Tabla de medicamentos ──
-                // Cabecera
-                doc.setFillColor(59, 73, 163);
-                doc.rect(margin, y, contentWidth, 8, 'F');
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(9);
-                doc.setTextColor(255, 255, 255);
-
-                const col1 = margin + 2;
-                const col2 = margin + 10;
-                const col3 = margin + 75;
-                const col4 = margin + 140;
-                const col5 = margin + 155;
-
-                doc.text('#', col1, y + 5.5);
-                doc.text('Medicamento', col2, y + 5.5);
-                doc.text('Dosis / Indicación', col3, y + 5.5);
-                doc.text('Cant.', col4, y + 5.5);
-                doc.text('Vía', col5, y + 5.5);
-                y += 10;
-
-                // Filas de medicamentos — control estricto del eje Y
-                doc.setTextColor(33, 33, 33);
-                const meds = receta.medicamentos || [];
-                meds.forEach((m, idx) => {
-                    // Calcular altura necesaria para esta fila
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(9);
-                    const nombreLines = doc.splitTextToSize(m.nombre || '', 62);
-                    doc.setFont('helvetica', 'normal');
-                    const dosisLines = doc.splitTextToSize(m.dosis || '', 62);
-                    const maxLines = Math.max(nombreLines.length, dosisLines.length, 1);
-                    const rowHeight = maxLines * 4.5 + 4;
-
-                    // Salto de página si no cabe
-                    if (y + rowHeight > pageHeight - 30) {
-                        doc.addPage();
-                        y = margin;
-                    }
-
-                    // Fondo alterno
-                    if (idx % 2 === 0) {
-                        doc.setFillColor(245, 245, 250);
-                        doc.rect(margin, y, contentWidth, rowHeight, 'F');
-                    }
-
-                    const textY = y + 4.5;
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(9);
-                    doc.text(String(idx + 1), col1, textY);
-
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(nombreLines, col2, textY);
-
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(dosisLines, col3, textY);
-                    doc.text(String(m.cantidad || '—'), col4 + 3, textY);
-                    doc.text(m.via || '—', col5, textY);
-
-                    y += rowHeight;
-                });
-
-                y += 8;
-
-                // ── Nota ──
-                if (y + 25 > pageHeight - 20) {
+                // Salto de página si no cabe
+                if (y + rowHeight > pageHeight - 30) {
                     doc.addPage();
                     y = margin;
                 }
-                doc.setFillColor(254, 249, 231);
-                doc.rect(margin, y, contentWidth, 18, 'F');
-                doc.setDrawColor(253, 173, 52);
-                doc.setLineWidth(1.2);
-                doc.line(margin, y, margin, y + 18);
+
+                // Fondo alterno
+                if (idx % 2 === 0) {
+                    doc.setFillColor(245, 245, 250);
+                    doc.rect(margin, y, contentWidth, rowHeight, 'F');
+                }
+
+                const textY = y + 4.5;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.text(String(idx + 1), col1, textY);
 
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(9);
-                doc.setTextColor(196, 127, 10);
-                doc.text('Importante:', margin + 5, y + 5);
+                doc.text(nombreLines, col2, textY);
 
                 doc.setFont('helvetica', 'normal');
-                doc.setTextColor(102, 102, 102);
-                const nota = doc.splitTextToSize(
-                    'Esta receta es de uso exclusivo del paciente. No se automedique. Consulte a su médico ante cualquier reacción adversa.',
-                    contentWidth - 10
-                );
-                doc.text(nota, margin + 5, y + 10);
-                y += 24;
+                doc.text(dosisLines, col3, textY);
+                doc.text(String(m.cantidad || '—'), col4 + 3, textY);
+                doc.text(m.via || '—', col5, textY);
 
-                // ── Pie ──
-                doc.setFontSize(8);
-                doc.setTextColor(170);
-                doc.text(`Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}`, pageWidth / 2, y + 5, { align: 'center' });
+                y += rowHeight;
+            });
 
-                doc.save('Receta_Medica.pdf');
-            } catch (e) {
-                console.error('Error al generar PDF de receta:', e);
-                alert('Error al generar PDF. Asegúrate de que la librería jsPDF esté cargada.');
+            y += 8;
+
+            // ── Nota ──
+            if (y + 25 > pageHeight - 20) {
+                doc.addPage();
+                y = margin;
             }
+            doc.setFillColor(254, 249, 231);
+            doc.rect(margin, y, contentWidth, 18, 'F');
+            doc.setDrawColor(253, 173, 52);
+            doc.setLineWidth(1.2);
+            doc.line(margin, y, margin, y + 18);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(196, 127, 10);
+            doc.text('Importante:', margin + 5, y + 5);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(102, 102, 102);
+            const nota = doc.splitTextToSize(
+                'Esta receta es de uso exclusivo del paciente. No se automedique. Consulte a su médico ante cualquier reacción adversa.',
+                contentWidth - 10
+            );
+            doc.text(nota, margin + 5, y + 10);
+            y += 24;
+
+            // ── Pie ──
+            doc.setFontSize(8);
+            doc.setTextColor(170);
+            doc.text(`Documento generado electrónicamente · ${new Date().toLocaleDateString('es-EC')}`, pageWidth / 2, y + 5, { align: 'center' });
+
+            doc.save('Receta_Medica.pdf');
+        } catch (e) {
+            console.error('Error al generar PDF de receta:', e);
+            alert('Error al generar PDF. Asegúrate de que la librería jsPDF esté cargada.');
         }
+    }
 };

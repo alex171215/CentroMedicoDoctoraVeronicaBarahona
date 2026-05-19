@@ -1,4 +1,4 @@
-﻿/* Variables y reseteo */
+/* Variables y reseteo */
 :root {
     --bg-main: #FAFCFE;
     /* Fondo principal */
@@ -4902,3 +4902,109 @@ textarea:focus-visible {
     }
 }
 /* TR-76: Animacion migrada a Web Animations API en main.js - CSS eliminado */
+
+
+/* --- TR-74: PULIDO RESPONSIVO DE AUTENTICACIÓN MÓVIL/TABLET --- */
+
+/* Botón contenedor móvil adaptable */
+#btn-auth-mobile {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+}
+
+/* Estilos del círculo del Avatar */
+.auth-mobile-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background-color: var(--action-color, #0da99f) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 1.15rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Estilos del saludo de bienvenida */
+.auth-mobile-greeting {
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: var(--text-color, #2c3e50) !important;
+    font-family: inherit !important;
+    white-space: nowrap !important;
+}
+
+/* --- CONTROL EXCLUSIVO DE VISIBILIDAD POR BREAKPOINTS --- */
+
+/* Rango Celular (Menor a 664px): Esconde el texto de saludo */
+@media (max-width: 663px) {
+    .auth-mobile-greeting {
+        display: none !important;
+    }
+}
+
+/* Rango Tablet (664px hasta 767px): Muestra el saludo horizontal amigable */
+@media (min-width: 664px) and (max-width: 767px) {
+    .auth-mobile-greeting {
+        display: inline-block !important;
+    }
+}
+
+/* Rango Desktop (>= 768px): Oculta por completo el botón móvil del layout y del flujo TAB */
+@media (min-width: 768px) {
+    #btn-auth-mobile {
+        display: none !important;
+    }
+}
+
+
+/* ==========================================================================
+   TR-74: CONTROL DE ACCESOS DE AUTENTICACIÓN (CELULAR VS TABLET/PC)
+   ========================================================================== */
+
+/* --- VISTA MÓVIL (Menor a 768px) --- */
+@media (max-width: 767px) {
+    /* Ocultar botón de PC en celulares */
+    #btn-auth {
+        display: none !important;
+    }
+    /* Estilar la inicial "P" en círculo perfecto dentro del celular */
+    #btn-auth-mobile {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        border-radius: 50% !important;
+        background-color: var(--action-color, #0da99f) !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 1.2rem !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: none !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+    }
+}
+
+/* --- VISTA TABLET Y COMPUTADORA (768px o mayor) --- */
+@media (min-width: 768px) {
+    /* Elimina por completo el botón de celular y lo saca del flujo de la tecla TAB */
+    #btn-auth-mobile {
+        display: none !important;
+    }
+    /* Restaura el hermoso óvalo original del botón de PC que te gustaba */
+    #btn-auth.btn--accion {
+        display: inline-flex !important;
+        border-radius: 100px !important; /* Forma de óvalo original restaurada */
+        padding: 10px 24px !important;
+    }
+}

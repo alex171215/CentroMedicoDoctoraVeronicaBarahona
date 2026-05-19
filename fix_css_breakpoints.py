@@ -1,24 +1,18 @@
-# Sesión de Diseño Activa: Corrección de Breakpoints y Estética de Autenticación
+import re
 
-## 1. Objetivo
-Garantizar que el botón móvil `#btn-auth-mobile` desaparezca por completo en tablets y computadoras (incluyendo el flujo de la tecla Tab), restaurar la forma de óvalo del botón de escritorio y unificar sus funciones.
+with open('css/styles.css', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-## 2. Instrucciones Técnicas para Gemini (Agente)
+# Remove the old styles for TR-74 to avoid conflict, then append the new ones.
+idx = content.find("/* --- TR-74: CONTROL DE ACCESOS DE AUTENTICACIÓN SEPARADOS --- */")
+if idx != -1:
+    content = content[:idx].strip()
+    
+idx2 = content.find("/* --- TR-74: RESTAURACIÓN DE CÍRCULO EN AVATAR MÓVIL --- */")
+if idx2 != -1:
+    content = content[:idx2].strip()
 
-### A. Unificación Funcional en JS (`js/main.js`)
-Asegúrate de que la delegación de clics asigne exactamente la misma función de apertura de menú de perfil a ambos identificadores:
-```javascript
-// Dentro del manejador global de clics del sistema:
-if (e.target.closest('#btn-auth') || e.target.closest('#btn-auth-mobile')) {
-    // Abre el menú original con las opciones: Editar información, Mi Salud y Cerrar Sesión
-    app.perfil.abrirMenuCompleto(); 
-}
-```
-
-### B. Control Absoluto en CSS (`css/styles.css`)
-Ve al final del archivo `styles.css`, limpia los experimentos responsivos de las sesiones previas y pega este bloque blindado:
-
-```css
+new_css = """
 /* ==========================================================================
    TR-74: CONTROL DE ACCESOS DE AUTENTICACIÓN (CELULAR VS TABLET/PC)
    ========================================================================== */
@@ -63,4 +57,9 @@ Ve al final del archivo `styles.css`, limpia los experimentos responsivos de las
         padding: 10px 24px !important;
     }
 }
-```
+"""
+
+with open('css/styles.css', 'w', encoding='utf-8') as f:
+    f.write(content + "\n\n" + new_css)
+
+print("styles.css updated successfully.")
