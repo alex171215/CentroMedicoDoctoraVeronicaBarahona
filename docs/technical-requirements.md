@@ -668,6 +668,6 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 2. **Jerarquía de Botones en Bloque de Acciones:** Dentro del contenedor `.modal-actions`, el botón de confirmación ("Sí, cerrar sesión") DEBE posicionarse en la parte superior, mientras que el botón de escape ("Cancelar") DEBE colocarse estrictamente en la parte inferior y estar pintado en color rojo de advertencia, respetando la consistencia interna y la Heurística 3.
 3. **Integración con History API:** Se mantiene el registro del estado `history.pushState` al abrirse el modal para soporte de botón "Atrás" físico en celulares.
 
-## TR-76: Consistencia Tipográfica en Modales y Overlays (H4 / H8)
-1. **Herencia Estricta (Font Family):** Todos los textos renderizados dentro de modales (`.modal-body`, `.modal-content`), incluyendo listas inyectadas dinámicamente (`ul`, `li`), DEBEN heredar estrictamente la tipografía sans-serif base del proyecto (`font-family: inherit`).
-2. **Prohibición de Fallbacks Genéricos:** Queda prohibido el renderizado de tipografías con serifa (ej. Times New Roman) en listas de servicios o cualquier interfaz flotante.
+## TR-76: Corrección Tipográfica y Protección de FontAwesome en Modales (H4)
+1. **Herencia Tipográfica:** Los contenidos inyectados dinámicamente en los modales (como la lista de servicios `.modal-activities-list li`) DEBEN forzar `font-family: inherit` en su texto principal para evitar tipografías por defecto del navegador (Times New Roman), manteniendo la consistencia (H4).
+2. **Excepción de Pseudo-Elementos (Protección de Íconos):** Es ESTRICTAMENTE PROHIBIDO que la herencia tipográfica (`!important`) sobrescriba los pseudo-elementos `::before` o `::after`. El sistema debe garantizar que el `font-family` de FontAwesome se mantenga intacto para renderizar viñetas o checks correctamente sin errores de glifo ("tofu").
