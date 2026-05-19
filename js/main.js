@@ -64,6 +64,35 @@ const app = {
     intervaloCarrusel: null,
     tiempoCarrusel: 7000, // 7 segundos exigidos por reglas de usabilidad (IHC)
 
+    abrirModalLogout: function() {
+        const modal = document.getElementById('modal-logout');
+        if (modal) {
+            modal.style.display = 'flex';
+            history.pushState({ modal: 'modal-logout' }, '', '#logout');
+        }
+    },
+
+    cerrarModalLogout: function() {
+        const modal = document.getElementById('modal-logout');
+        if (modal) {
+            modal.style.display = 'none';
+            if (history.state && history.state.modal === 'modal-logout') {
+                history.back();
+            }
+        }
+    },
+
+    ejecutarLogout: function() {
+        localStorage.removeItem('usuarioLogueado');
+        localStorage.removeItem('usuarioActivo');
+        this.cerrarModalLogout();
+        if (app.perfil && typeof app.perfil.cerrarModal === 'function') {
+            app.perfil.cerrarModal();
+        }
+        app.iniciarSesionUsuario();   // Restaura el botón "Iniciar Sesión"
+        app.navegar('home');
+    },
+
     // ------------------------------------------------------------------
     // TR-48: Auto-Scroll y Auto-Focus al primer campo inválido (WCAG 2.2 / H1)
     // Uso: app.enfocarPrimerError(contenedorId?) — pasa el id del paso/panel
@@ -633,6 +662,7 @@ const app = {
 
             if (usuarioLogueado === 'true') {
                 let nombreMostrar = 'Mi Perfil';
+                let inicial = 'U';
                 try {
                     const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
                     if (userActivo) {
@@ -641,6 +671,7 @@ const app = {
                         if (nom1) {
                             nombreMostrar = ape1 ? `${nom1} ${ape1}` : nom1;
                             if (nombreMostrar.length > 22) nombreMostrar = nombreMostrar.substring(0, 20) + '…';
+                            inicial = nom1.charAt(0).toUpperCase();
                         }
                     }
                 } catch (e) { }
@@ -654,7 +685,7 @@ const app = {
                 if (navMiSalud) navMiSalud.style.display = 'none';
             }
 
-            nuevoBtnAuth.addEventListener('click', (e) => {
+            const authClickHandler = (e) => {
                 e.preventDefault();
                 const yaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
                 if (yaLogueado) {
@@ -675,7 +706,27 @@ const app = {
                         window.location.href = 'login.html';
                     }
                 }
-            });
+            };
+
+            nuevoBtnAuth.addEventListener('click', authClickHandler);
+
+            const btnMovil = document.getElementById('btn-auth-mobile');
+            if (btnMovil) {
+                const nuevoBtnMovil = btnMovil.cloneNode(true);
+                btnMovil.parentNode.replaceChild(nuevoBtnMovil, btnMovil);
+                
+                if (usuarioLogueado === 'true') {
+                    let inicialReal = 'U';
+                    try {
+                        const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
+                        inicialReal = userActivo && userActivo.nombre_1 ? userActivo.nombre_1.charAt(0).toUpperCase() : 'U';
+                    } catch(e) {}
+                    nuevoBtnMovil.textContent = inicialReal;
+                } else {
+                    nuevoBtnMovil.innerHTML = '<i class="fa-solid fa-user"></i>';
+                }
+                nuevoBtnMovil.addEventListener('click', authClickHandler);
+            }
         }
 
         // NUEVO: Actualizar botón en barra inferior
@@ -703,6 +754,7 @@ const app = {
                 bottomAuthItem.onclick = () => app.navegar('login');
             }
         }
+
 
         // TR-25: el widget nace oculto en index.html; solo mostrarlo si no hay sesión (evita parpadeo al estar logueado).
         const widgetInvitado = document.getElementById('widget-invitado');
@@ -2776,11 +2828,7 @@ const app = {
         // 11.3 Cerrar sesión
         // ------------------------------------------------------------------
         cerrarSesion() {
-            localStorage.removeItem('usuarioLogueado');
-            localStorage.removeItem('usuarioActivo');
-            this.cerrarModal();
-            app.iniciarSesionUsuario();   // Restaura el botón "Iniciar Sesión"
-            app.navegar('home');
+            app.abrirModalLogout();
         },
 
         // ------------------------------------------------------------------

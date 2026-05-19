@@ -656,3 +656,14 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-73: Prevención de Colisión Visual de Errores (UI Overlap / H8)
 1. **Supresión Temporal:** Cuando el sanitizador global inyecta el Tooltip Flotante de "Carácter no permitido", DEBE ocultar temporalmente cualquier error nativo subyacente manipulando su opacidad (`opacity: 0 !important`) para evitar la superposición de textos.
 2. **Limpieza en Evento Blur (Garbage Collection):** Se debe implementar un listener global en la fase de captura para el evento `blur`. Al perder el foco, el sistema DEBE destruir instantáneamente cualquier Tooltip Flotante activo en ese input, limpiar su temporizador y restaurar la opacidad del error nativo a `1`. Esto garantiza que las validaciones nativas de campos vacíos tengan el espacio visual despejado.
+
+## TR-74: Control Estricto y Visibilidad de Autenticación por Breakpoints (H4 / WCAG 2.4.3)
+1. **Separación de Pantallas Absoluta:**
+   - **Vista Celular (`max-width: 767px`):** El botón de escritorio `#btn-auth` DEBE ocultarse por completo. El botón `#btn-auth-mobile` debe ser un círculo perfecto de 40x40px mostrando la inicial.
+   - **Vista Tablet y PC (`min-width: 768px`):** El botón móvil `#btn-auth-mobile` DEBE ser destruido visualmente (`display: none !important`). Esto lo elimina del DOM visible y del flujo del teclado (`Tab`). El botón original `#btn-auth` debe recuperar su forma de óvalo nativo (`border-radius: 100px`).
+2. **Unificación de Comportamiento:** Ambos botones deben activar exactamente el mismo menú contextual de opciones completas de perfil (Editar perfil, Mi Salud, Cerrar sesión). Queda prohibido que el botón móvil ejecute una acción distinta al de escritorio.
+
+## TR-75: Prevención de Errores en Cierre de Sesión (H5 y H3)
+1. **Confirmación Obligatoria (Modal):** La acción de "Cerrar Sesión" debe abrir el modal `#modal-logout`.
+2. **Jerarquía de Botones en Bloque de Acciones:** Dentro del contenedor `.modal-actions`, el botón de confirmación ("Sí, cerrar sesión") DEBE posicionarse en la parte superior, mientras que el botón de escape ("Cancelar") DEBE colocarse estrictamente en la parte inferior y estar pintado en color rojo de advertencia, respetando la consistencia interna y la Heurística 3.
+3. **Integración con History API:** Se mantiene el registro del estado `history.pushState` al abrirse el modal para soporte de botón "Atrás" físico en celulares.
