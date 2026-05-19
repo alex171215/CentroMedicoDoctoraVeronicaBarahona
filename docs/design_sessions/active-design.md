@@ -1,66 +1,31 @@
-# Sesión de Diseño Activa: Corrección de Breakpoints y Estética de Autenticación
+# Sesión de Diseño Activa: Reparación Radical de Glifos en Listas
 
 ## 1. Objetivo
-Garantizar que el botón móvil `#btn-auth-mobile` desaparezca por completo en tablets y computadoras (incluyendo el flujo de la tecla Tab), restaurar la forma de óvalo del botón de escritorio y unificar sus funciones.
+Forzar la renderización correcta de las viñetas en `.modal-activities-list li` eliminando la herencia de fuente que rompe los íconos.
 
 ## 2. Instrucciones Técnicas para Gemini (Agente)
 
-### A. Unificación Funcional en JS (`js/main.js`)
-Asegúrate de que la delegación de clics asigne exactamente la misma función de apertura de menú de perfil a ambos identificadores:
-```javascript
-// Dentro del manejador global de clics del sistema:
-if (e.target.closest('#btn-auth') || e.target.closest('#btn-auth-mobile')) {
-    // Abre el menú original con las opciones: Editar información, Mi Salud y Cerrar Sesión
-    app.perfil.abrirMenuCompleto(); 
-}
-```
-
-### B. Control Absoluto en CSS (`css/styles.css`)
-Ve al final del archivo `styles.css`, limpia los experimentos responsivos de las sesiones previas y pega este bloque blindado:
+### A. CSS de Fuerza Bruta (`css/styles.css`)
+Inyecta este código. He añadido una instrucción de `content` explícita por si el original se perdió, y asegurado la familia de fuentes:
 
 ```css
-/* ==========================================================================
-   TR-74: CONTROL DE ACCESOS DE AUTENTICACIÓN (CELULAR VS TABLET/PC)
-   ========================================================================== */
+/* --- TR-75: REPARACIÓN RADICAL DE VIÑETAS --- */
 
-/* --- VISTA MÓVIL (Menor a 768px) --- */
-@media (max-width: 767px) {
-    /* Ocultar botón de PC en celulares */
-    #btn-auth {
-        display: none !important;
-    }
-    /* Estilar la inicial "P" en círculo perfecto dentro del celular */
-    #btn-auth-mobile {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px !important;
-        border-radius: 50% !important;
-        background-color: var(--action-color, #0da99f) !important;
-        color: #ffffff !important;
-        font-weight: 600 !important;
-        font-size: 1.2rem !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border: none !important;
-        cursor: pointer !important;
-        padding: 0 !important;
-    }
+.modal-activities-list li {
+    font-family: inherit !important; /* Mantiene la tipografía del texto */
+    list-style: none !important;     /* Elimina viñeta por defecto del navegador */
+    position: relative;
+    padding-left: 25px !important;
 }
 
-/* --- VISTA TABLET Y COMPUTADORA (768px o mayor) --- */
-@media (min-width: 768px) {
-    /* Elimina por completo el botón de celular y lo saca del flujo de la tecla TAB */
-    #btn-auth-mobile {
-        display: none !important;
-    }
-    /* Restaura el hermoso óvalo original del botón de PC que te gustaba */
-    #btn-auth.btn--accion {
-        display: inline-flex !important;
-        border-radius: 100px !important; /* Forma de óvalo original restaurada */
-        padding: 10px 24px !important;
-    }
+.modal-activities-list li::before {
+    /* Forzamos el ícono de FontAwesome */
+    content: "\f00c" !important; /* Unicode del Check de FontAwesome */
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+    position: absolute;
+    left: 0;
+    color: var(--action-color, #0da99f) !important; /* Mantiene tu color corporativo */
+    font-size: 0.9rem !important;
 }
 ```
