@@ -1592,18 +1592,25 @@ textarea:focus-visible {
     color: #e74c3c;
 }
 
+/* --- TR-75: REPARACIÓN RADICAL DE VIÑETAS --- */
+
 .modal-activities-list li {
-    margin-bottom: 8px;
+    font-family: inherit !important; /* Mantiene la tipografía del texto */
+    list-style: none !important;     /* Elimina viñeta por defecto del navegador */
     position: relative;
+    padding-left: 25px !important;
+    margin-bottom: 8px; /* Preserva margen original */
 }
 
 .modal-activities-list li::before {
-    content: "â€¢";
-    color: #0DA99F;
-    font-weight: bold;
-    display: inline-block;
-    width: 1em;
-    margin-left: -1em;
+    /* Forzamos el ícono de FontAwesome */
+    content: "\f00c" !important; /* Unicode del Check de FontAwesome */
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+    position: absolute;
+    left: 0;
+    color: var(--action-color, #0da99f) !important; /* Mantiene tu color corporativo */
+    font-size: 0.9rem !important;
 }
 
 @keyframes fadeIn {

@@ -667,3 +667,7 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Confirmación Obligatoria (Modal):** La acción de "Cerrar Sesión" debe abrir el modal `#modal-logout`.
 2. **Jerarquía de Botones en Bloque de Acciones:** Dentro del contenedor `.modal-actions`, el botón de confirmación ("Sí, cerrar sesión") DEBE posicionarse en la parte superior, mientras que el botón de escape ("Cancelar") DEBE colocarse estrictamente en la parte inferior y estar pintado en color rojo de advertencia, respetando la consistencia interna y la Heurística 3.
 3. **Integración con History API:** Se mantiene el registro del estado `history.pushState` al abrirse el modal para soporte de botón "Atrás" físico en celulares.
+
+## TR-76: Consistencia Tipográfica en Modales y Overlays (H4 / H8)
+1. **Herencia Estricta (Font Family):** Todos los textos renderizados dentro de modales (`.modal-body`, `.modal-content`), incluyendo listas inyectadas dinámicamente (`ul`, `li`), DEBEN heredar estrictamente la tipografía sans-serif base del proyecto (`font-family: inherit`).
+2. **Prohibición de Fallbacks Genéricos:** Queda prohibido el renderizado de tipografías con serifa (ej. Times New Roman) en listas de servicios o cualquier interfaz flotante.
