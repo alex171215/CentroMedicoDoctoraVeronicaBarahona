@@ -2933,8 +2933,8 @@ export function createCitas() {
                     // BUGFIX: campo vacío al perder foco → mensaje de obligatoriedad
                     this._setEstadoCampo(ced, 'error-cedula', false, 'La cédula es obligatoria.');
                 } else {
-                    this._setEstadoCampo(ced, 'error-cedula', false,
-                        'La cédula no es válida. Verifica los 10 dígitos.');
+                    this._setEstadoCampo(ced, 'error-cedula', false, 'Cédula inválida');
+                    document.getElementById('error-cedula').textContent = 'Cédula inválida';
                 }
 
                 // Celular: validación contextual en cascada (H9) – delegada a utilidades.validarCelular()
@@ -2982,7 +2982,8 @@ export function createCitas() {
                 } else if (val.length === 0) {
                     this._setEstadoCampo(el, errId, false, 'La cédula es obligatoria.');
                 } else {
-                    this._setEstadoCampo(el, errId, false, 'La cédula no es válida. Verifica los 10 dígitos.');
+                    this._setEstadoCampo(el, errId, false, 'Cédula inválida');
+                    document.getElementById('error-cedula').textContent = 'Cédula inválida';
                 }
                 return;
             }
