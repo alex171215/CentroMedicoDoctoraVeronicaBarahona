@@ -64,7 +64,7 @@ const app = {
     intervaloCarrusel: null,
     tiempoCarrusel: 7000, // 7 segundos exigidos por reglas de usabilidad (IHC)
 
-    abrirModalLogout: function() {
+    abrirModalLogout: function () {
         const modal = document.getElementById('modal-logout');
         if (modal) {
             modal.style.display = 'flex';
@@ -72,7 +72,7 @@ const app = {
         }
     },
 
-    cerrarModalLogout: function() {
+    cerrarModalLogout: function () {
         const modal = document.getElementById('modal-logout');
         if (modal) {
             modal.style.display = 'none';
@@ -82,7 +82,7 @@ const app = {
         }
     },
 
-    ejecutarLogout: function() {
+    ejecutarLogout: function () {
         localStorage.removeItem('usuarioLogueado');
         localStorage.removeItem('usuarioActivo');
         this.cerrarModalLogout();
@@ -106,7 +106,7 @@ const app = {
         // 1. Buscar el primer span de error que esté actualmente visible
         const primerSpanError = raiz.querySelector(
             '.login-field__error[style*="block"], ' +
-            '.citas-error-msg[style*="block"], '     +
+            '.citas-error-msg[style*="block"], ' +
             '[id$="-error"][style*="block"]'
         );
 
@@ -169,22 +169,22 @@ const app = {
 
             // 2. Mapeo Estricto por ID
             if (id === 'login-cedula') {
-                val = val.replace(/[^a-zA-Z0-9]/g, ''); 
-            } 
+                val = val.replace(/[^a-zA-Z0-9]/g, '');
+            }
             else if (id === 'widget-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
-                val = val.replace(/[^0-9]/g, ''); 
+                val = val.replace(/[^0-9]/g, '');
             }
             else if (id === 'buscador-especialistas' || id.includes('nombre') || id.includes('apellido')) {
-                val = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, ''); 
+                val = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '');
             }
             else if (type === 'email' || id.includes('correo') || id.includes('identificador')) {
-                val = val.replace(/[^a-zA-Z0-9@._-]/g, ''); 
+                val = val.replace(/[^a-zA-Z0-9@._-]/g, '');
             }
             else if (type === 'password' || id.includes('password')) {
-                val = val.replace(/[<>"'; ]/g, ''); 
-            } 
+                val = val.replace(/[<>"'; ]/g, '');
+            }
             else {
-                val = val.replace(/[<>"';]/g, ''); 
+                val = val.replace(/[<>"';]/g, '');
             }
 
             // 3. Feedback Visual y Textual Cero-Impacto
@@ -197,7 +197,7 @@ const app = {
                         { backgroundColor: '#ffebee', borderColor: '#d32f2f' },
                         { backgroundColor: 'transparent', borderColor: inputEl.style.borderColor || 'transparent' }
                     ], { duration: 400, easing: 'ease-out' });
-                } catch(err) {}
+                } catch (err) { }
 
                 // TR-73: Prevención de Overlap — Oculta el error nativo mientras el tooltip flota
                 let errorNativo = null;
@@ -213,12 +213,12 @@ const app = {
                     tooltipWrapper.className = 'sanitizer-wrapper-zero';
                     // Contenedor fantasma: no ocupa espacio, pero sirve de ancla
                     tooltipWrapper.style.cssText = 'position: relative; width: 100%; height: 0; overflow: visible; pointer-events: none; z-index: 9999; display: block !important;';
-                    
+
                     const msgSpan = document.createElement('span');
                     // Tooltip físico absoluto
                     msgSpan.style.cssText = 'position: absolute; left: 0; top: 4px; color: #d32f2f; font-size: 0.875rem; font-weight: 500; font-family: inherit; white-space: nowrap; background: transparent; padding: 0; box-shadow: none;';
                     msgSpan.textContent = 'Carácter no permitido';
-                    
+
                     tooltipWrapper.appendChild(msgSpan);
                     inputEl.insertAdjacentElement('afterend', tooltipWrapper);
                 }
@@ -714,13 +714,13 @@ const app = {
             if (btnMovil) {
                 const nuevoBtnMovil = btnMovil.cloneNode(true);
                 btnMovil.parentNode.replaceChild(nuevoBtnMovil, btnMovil);
-                
+
                 if (usuarioLogueado === 'true') {
                     let inicialReal = 'U';
                     try {
                         const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
                         inicialReal = userActivo && userActivo.nombre_1 ? userActivo.nombre_1.charAt(0).toUpperCase() : 'U';
-                    } catch(e) {}
+                    } catch (e) { }
                     nuevoBtnMovil.textContent = inicialReal;
                 } else {
                     nuevoBtnMovil.innerHTML = '<i class="fa-solid fa-user"></i>';
@@ -890,15 +890,15 @@ const app = {
     _enfocarEncabezadoVista(vistaId) {
         // Mapa de vistas a sus selectores de encabezado principal
         const selectores = {
-            home:           '.hero__title',
-            citas:          '#view-citas h2, #view-citas h3',
-            especialistas:  '#view-especialistas h2',
-            farmacia:       '#farmacia-heading',
-            contacto:       '#contacto-heading',
-            login:          '#login-heading',
-            registro:       '#registro-heading',
-            'mi-salud':     '#mi-salud-heading',
-            'editar-perfil':'#editar-perfil-heading',
+            home: '.hero__title',
+            citas: '#view-citas h2, #view-citas h3',
+            especialistas: '#view-especialistas h2',
+            farmacia: '#farmacia-heading',
+            contacto: '#contacto-heading',
+            login: '#login-heading',
+            registro: '#registro-heading',
+            'mi-salud': '#mi-salud-heading',
+            'editar-perfil': '#editar-perfil-heading',
         };
         const selector = selectores[vistaId];
         if (!selector) return;
@@ -993,7 +993,7 @@ const app = {
             if (focusables.length === 0) { e.preventDefault(); return; }
 
             const first = focusables[0];
-            const last  = focusables[focusables.length - 1];
+            const last = focusables[focusables.length - 1];
 
             if (e.shiftKey) {
                 if (document.activeElement === first || !modal.contains(document.activeElement)) {
@@ -1169,7 +1169,7 @@ const app = {
                 const cardRect = card.getBoundingClientRect();
                 // Una tarjeta es visible si entra dentro del área horizontal del grid (con un margen de tolerancia de 10px)
                 const isVisible = (cardRect.right > gridRect.left + 10) && (cardRect.left < gridRect.right - 10);
-                
+
                 if (isVisible) {
                     card.removeAttribute('tabindex'); // Habilitar foco (vuelve al valor por defecto)
                 } else {
@@ -1263,6 +1263,20 @@ const app = {
         // Vaciamos la memoria de citas anteriores (El mata-fantasmas)
         sessionStorage.removeItem('reservaCita_preseleccion');
         sessionStorage.removeItem('especialidad_seleccionada');
+        sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+        sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
+        this.navegar('citas');
+    },
+
+    preseleccionarDoctor: function (id_especialista, especialidad, medico, imagen_url) {
+        sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
+            id_especialista: id_especialista,
+            especialidad: especialidad,
+            medico: medico,
+            imagen_url: imagen_url
+        }));
+        // Limpiamos al médico anterior, pero guardamos la nueva especialidad
+        sessionStorage.setItem('especialidad_seleccionada', especialidad);
         sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
         sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
         this.navegar('citas');
@@ -1432,14 +1446,8 @@ const app = {
                 linkVerPerfil.addEventListener('click', abrirModalClick);
 
                 btnAgendar.addEventListener('click', () => {
-                    sessionStorage.setItem('especialidad_seleccionada', med.especialidad);
-                    sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
-                        medico: nombreMed,
-                        especialidad: med.especialidad
-                    }));
-                    sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
-                    sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
-                    app.navegar('citas');
+                    const idEsp = med.id_especialista || med.id;
+                    app.preseleccionarDoctor(idEsp, med.especialidad, nombreMed, med.imagen_url || imagenSrc);
                 });
 
                 grid.appendChild(card);
@@ -1549,7 +1557,7 @@ const app = {
                     if (antes !== despues) {
                         const pos = e.target.selectionStart;
                         e.target.value = despues;
-                        try { e.target.setSelectionRange(pos - 1, pos - 1); } catch (_) {}
+                        try { e.target.setSelectionRange(pos - 1, pos - 1); } catch (_) { }
                     }
                 });
 
@@ -1701,11 +1709,11 @@ const app = {
                 // Un solo mensaje genérico: no revela si falló usuario o contraseña.
                 const inputCed = document.getElementById('login-cedula');
                 const inputPwd = document.getElementById('login-password');
-                const spanPwd  = document.getElementById('login-password-error');
+                const spanPwd = document.getElementById('login-password-error');
 
                 if (inputCed) inputCed.style.borderColor = '#c0392b';
                 if (inputPwd) inputPwd.style.borderColor = '#c0392b';
-                if (spanPwd)  {
+                if (spanPwd) {
                     spanPwd.textContent = 'Número de identificación o contraseña incorrectos.';
                     spanPwd.style.display = 'block';
                 }
@@ -1997,15 +2005,15 @@ const app = {
 
         _emitirOTPAlEntrarPaso3() {
             const emailVal = (document.getElementById('reg-email')?.value || '').trim();
-            const emailEl  = document.getElementById('reg-email-show');
+            const emailEl = document.getElementById('reg-email-show');
             if (emailEl) emailEl.textContent = emailVal;
 
             const codigo = String(Math.floor(100000 + Math.random() * 900000));
             this._codigoOTPGenerado = codigo;
 
             // ── TR-40 + TR-41: OTP por EmailJS con nombre real (sin fallback genérico) ──
-            const EMAILJS_PUBLIC_KEY  = 'kk20Q6x-B6giGcqcU';
-            const EMAILJS_SERVICE_ID  = 'service_y7c5ugc';
+            const EMAILJS_PUBLIC_KEY = 'kk20Q6x-B6giGcqcU';
+            const EMAILJS_SERVICE_ID = 'service_y7c5ugc';
             const EMAILJS_TEMPLATE_ID = 'template_kf8kpt8';
 
             // TR-41: Capturar el nombre real del DOM (el usuario lo escribió en el Paso 1).
@@ -2020,7 +2028,7 @@ const app = {
                 emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
                     nombre_usuario: nombreReal,
                     correo_destino: emailVal,
-                    codigo_otp:     codigo
+                    codigo_otp: codigo
                 }).then(() => {
                     console.log('[EmailJS] OTP de registro enviado a', emailVal);
                 }).catch(err => {
@@ -2175,7 +2183,7 @@ const app = {
                 if (pwdInput) {
                     sessionStorage.setItem('temp_pass', pwdInput.value); // paso 1
                     pwdInput.value = '';                                  // paso 2
-                    pwdInput.type  = 'text';                              // paso 3 — mata el prompt
+                    pwdInput.type = 'text';                              // paso 3 — mata el prompt
                 }
             }
 
@@ -3039,12 +3047,12 @@ const app = {
             const a1 = val('edit-apellido1');
             const a2 = val('edit-apellido2');
 
-            u.nombre1   = n1;  u.nombre_1   = n1;
-            u.nombre2   = n2;  u.nombre_2   = n2;
-            u.apellido1 = a1;  u.apellido_1 = a1;
-            u.apellido2 = a2;  u.apellido_2 = a2;
+            u.nombre1 = n1; u.nombre_1 = n1;
+            u.nombre2 = n2; u.nombre_2 = n2;
+            u.apellido1 = a1; u.apellido_1 = a1;
+            u.apellido2 = a2; u.apellido_2 = a2;
             u.celular = val('edit-celular');
-            u.email   = val('edit-email');
+            u.email = val('edit-email');
             // H3: persistir fecha de nacimiento corregida (TR-13)
             const nuevaFecha = val('edit-fecha-nac');
             if (nuevaFecha) u.fecha_nacimiento = nuevaFecha;
@@ -3053,11 +3061,11 @@ const app = {
             // TR-38: Construir las propiedades unificadas (nombres/apellidos) ANTES del
             // UPDATE, y escribirlas de vuelta en `u` para que el localStorage conserve
             // AMBAS convenciones (dividida para el form + unificada para Supabase/UI).
-            const nombresCompletos  = [val('edit-nombre1'), val('edit-nombre2')].filter(Boolean).join(' ');
+            const nombresCompletos = [val('edit-nombre1'), val('edit-nombre2')].filter(Boolean).join(' ');
             const apellidosCompletos = [val('edit-apellido1'), val('edit-apellido2')].filter(Boolean).join(' ');
 
             // Propiedades unificadas (para Supabase y para UI: modal, navbar)
-            u.nombres   = nombresCompletos;
+            u.nombres = nombresCompletos;
             u.apellidos = apellidosCompletos;
 
             // ── PASO 3 — Ejecutar actualización asíncrona (800ms simulan latencia de red) ──
@@ -3067,10 +3075,10 @@ const app = {
 
                     // TR-38 §1: patch usa los valores unificados ya calculados sincrónicamente.
                     const patch = {
-                        nombres:          u.nombres,
-                        apellidos:        u.apellidos,
-                        celular:          u.celular,
-                        correo:           u.email,
+                        nombres: u.nombres,
+                        apellidos: u.apellidos,
+                        celular: u.celular,
+                        correo: u.email,
                         fecha_nacimiento: u.fecha_nacimiento || null
                     };
 
@@ -3251,9 +3259,9 @@ const app = {
             // 0. Limpiar errores previos
             ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => this._limpiarErrorPass(id));
 
-            const actual   = document.getElementById('pass-actual')?.value   || '';
-            const nueva    = document.getElementById('pass-nueva')?.value    || '';
-            const repetir  = document.getElementById('pass-repetir')?.value  || '';
+            const actual = document.getElementById('pass-actual')?.value || '';
+            const nueva = document.getElementById('pass-nueva')?.value || '';
+            const repetir = document.getElementById('pass-repetir')?.value || '';
 
             // 1. Verificar que ningún campo esté vacío
             if (!actual) {
@@ -3551,23 +3559,23 @@ const app = {
                                 row.nombres ||
                                 '').trim();
                             return {
-                                id_cita:       row.id_cita,
-                                cedula:        row.cedula_paciente || row.cedula,
+                                id_cita: row.id_cita,
+                                cedula: row.cedula_paciente || row.cedula,
                                 cedula_paciente: row.cedula_paciente,
-                                fecha:         row.fecha,
-                                hora:          row.hora,
-                                estado:        row.estado || 'Próxima',
-                                motivo:        row.motivo || '',
-                                tipo:          row.tipo_consulta || '',
+                                fecha: row.fecha,
+                                hora: row.hora,
+                                estado: row.estado || 'Próxima',
+                                motivo: row.motivo || '',
+                                tipo: row.tipo_consulta || '',
                                 tipo_consulta: row.tipo_consulta || '',
                                 // TR-51: JOIN UI — inyectar nombre legible del médico
-                                medico:        row.medico ||
-                                               (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) ||
-                                               '(Especialista #' + idEsp + ')',
-                                especialidad:  row.especialidad ||
-                                               (esp && esp.especialidad) || '',
+                                medico: row.medico ||
+                                    (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) ||
+                                    '(Especialista #' + idEsp + ')',
+                                especialidad: row.especialidad ||
+                                    (esp && esp.especialidad) || '',
                                 // TR-54: nombre del paciente resuelto desde el JOIN
-                                paciente:      nombrePaciente,
+                                paciente: nombrePaciente,
                                 id_especialista: idEsp
                             };
                         });

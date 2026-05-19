@@ -21,6 +21,7 @@
 
 
 </head>
+
 <body>
     <!-- Bypass Block: Skip Link (WCAG 2.4.1) -->
     <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
@@ -44,8 +45,7 @@
         <!-- Navegación principal -->
         <nav class="header__main" aria-label="Navegación principal">
             <div class="header__main-container">
-                <a href="index.html" class="header__logo"
-                    aria-label="Inicio">
+                <a href="index.html" class="header__logo" aria-label="Inicio">
                     <span class="header__logo-text">
                         <img src="assets/img/Logo.png" alt="Logo Centro Médico" class="header__logo-img">
                         <span class="header__logo-words">Centro Médico Familiar<br><strong>Dra. Verónica
@@ -56,7 +56,8 @@
 
                 <!-- Botón hamburguesa (móvil) -->
                 <button id="btn-auth-mobile" class="auth-avatar-btn" aria-label="Menú de perfil móvil"></button>
-                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="main-menu">
+                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false"
+                    aria-controls="main-menu">
                     <i class="fa-solid fa-bars" aria-hidden="true"></i>
                 </button>
 
@@ -64,10 +65,13 @@
                 <div class="header__nav-wrapper" id="main-menu">
                     <ul class="header__nav-list">
                         <li class="header__nav-item"><a href="index.html" class="header__nav-link">Inicio</a></li>
-                        <li class="header__nav-item"><a href="especialistas.html" class="header__nav-link">Especialistas</a></li>
+                        <li class="header__nav-item"><a href="especialistas.html"
+                                class="header__nav-link">Especialistas</a></li>
 
-                        <li class="header__nav-item" id="nav-mi-salud" style="display:none;"><a href="mi-salud.html" class="header__nav-link">Mi Salud</a></li>
-                        <li class="header__nav-item"><a href="citas.html" class="header__nav-link" onclick="event.preventDefault(); app.agendarCitaGeneral();">Agendar Cita</a></li>
+                        <li class="header__nav-item" id="nav-mi-salud" style="display:none;"><a href="mi-salud.html"
+                                class="header__nav-link">Mi Salud</a></li>
+                        <li class="header__nav-item"><a href="citas.html" class="header__nav-link"
+                                onclick="event.preventDefault(); app.agendarCitaGeneral();">Agendar Cita</a></li>
                         <li class="header__nav-item"><a href="contacto.html" class="header__nav-link">Contacto</a></li>
                     </ul>
                 </div>
@@ -76,8 +80,7 @@
     </header>
 
     <main id="main-content">
-        <section id="view-registro" class="view-section registro-view"
-            aria-labelledby="registro-heading">
+        <section id="view-registro" class="view-section registro-view" aria-labelledby="registro-heading">
 
             <div class="login-layout login-layout--centered">
 
@@ -96,10 +99,8 @@
                                 <label for="reg-tipo-doc" class="login-field__label">Documento de Identificación</label>
                                 <div class="reg-select-wrap">
                                     <input type="text" id="reg-tipo-doc" class="login-field__input reg-select-input"
-                                        readonly placeholder="Seleccionar…"
-                                        aria-haspopup="dialog" aria-required="true"
-                                        aria-describedby="reg-tipo-doc-error"
-                                        onclick="app.registro.abrirModalDoc()">
+                                        readonly placeholder="Seleccionar…" aria-haspopup="dialog" aria-required="true"
+                                        aria-describedby="reg-tipo-doc-error" onclick="app.registro.abrirModalDoc()">
                                     <i class="fa-solid fa-chevron-down reg-select-arrow" aria-hidden="true"></i>
                                 </div>
                                 <span id="reg-tipo-doc-error" class="login-field__error" role="alert"
@@ -168,8 +169,7 @@
                                 <div class="reg-select-wrap">
                                     <input type="text" id="reg-sexo" class="login-field__input reg-select-input"
                                         readonly placeholder="Seleccionar…" aria-haspopup="dialog" aria-required="true"
-                                        aria-describedby="reg-sexo-error"
-                                        onclick="app.registro.abrirModalSexo()">
+                                        aria-describedby="reg-sexo-error" onclick="app.registro.abrirModalSexo()">
                                     <i class="fa-solid fa-chevron-down reg-select-arrow" aria-hidden="true"></i>
                                 </div>
                                 <span id="reg-sexo-error" class="login-field__error" role="alert"
@@ -226,8 +226,8 @@
                                 <label for="reg-password" class="login-field__label">Contraseña *</label>
                                 <div class="login-field__password-wrap">
                                     <input type="password" id="reg-password" class="login-field__input"
-                                        autocomplete="new-password" aria-required="true"
-                                        maxlength="128" aria-describedby="reg-password-error">
+                                        autocomplete="new-password" aria-required="true" maxlength="128"
+                                        aria-describedby="reg-password-error">
                                     <button type="button" class="login-field__eye"
                                         aria-label="Mostrar u ocultar contraseña"
                                         onclick="app.registro.togglePasswordReg()">
@@ -277,8 +277,8 @@
                             <div class="login-field" style="margin-top:20px;">
                                 <label for="reg-codigo" class="login-field__label">Código de verificación *</label>
                                 <input type="text" id="reg-codigo" class="login-field__input" placeholder="6 dígitos"
-                                    inputmode="numeric" maxlength="6" aria-required="true"
-                                    autocomplete="one-time-code" aria-describedby="reg-codigo-error"
+                                    inputmode="numeric" maxlength="6" aria-required="true" autocomplete="one-time-code"
+                                    aria-describedby="reg-codigo-error"
                                     style="letter-spacing: 6px; font-size:1.2rem; text-align:center;">
                                 <span id="reg-codigo-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -310,19 +310,14 @@
                 </div>
                 <ul class="reg-modal__list" role="listbox" aria-label="Sexo">
                     <li><label class="reg-modal__option">
-                            <input type="radio" name="sexo-radio" value="Otro"
-                                onchange="app.registro.seleccionarSexo('Otro')">
-                            <span class="reg-modal__radio-circle"></span>Otro
+                            <input type="radio" name="sexo-radio" value="Hombre"
+                                onchange="app.registro.seleccionarSexo('Hombre')">
+                            <span class="reg-modal__radio-circle"></span>Hombre
                         </label></li>
                     <li><label class="reg-modal__option">
-                            <input type="radio" name="sexo-radio" value="Masculino"
-                                onchange="app.registro.seleccionarSexo('Masculino')">
-                            <span class="reg-modal__radio-circle"></span>Masculino
-                        </label></li>
-                    <li><label class="reg-modal__option">
-                            <input type="radio" name="sexo-radio" value="Femenino"
-                                onchange="app.registro.seleccionarSexo('Femenino')">
-                            <span class="reg-modal__radio-circle"></span>Femenino
+                            <input type="radio" name="sexo-radio" value="Mujer"
+                                onchange="app.registro.seleccionarSexo('Mujer')">
+                            <span class="reg-modal__radio-circle"></span>Mujer
                         </label></li>
                 </ul>
             </div>
@@ -354,63 +349,63 @@
         </div>
     </main>
 
-        <div id="modal-perfil" class="perfil-overlay" style="display:none;" role="dialog" aria-modal="true"
-            aria-labelledby="perfil-modal-title">
-            <div class="perfil-modal" role="document">
+    <div id="modal-perfil" class="perfil-overlay" style="display:none;" role="dialog" aria-modal="true"
+        aria-labelledby="perfil-modal-title">
+        <div class="perfil-modal" role="document">
 
-                <!-- Header del modal -->
-                <div class="perfil-modal__header">
-                    <h2 id="perfil-modal-title" class="perfil-modal__title">Mi Perfil</h2>
-                    <button class="perfil-modal__close" aria-label="Cerrar modal de perfil"
-                        onclick="app.perfil.cerrarModal()">
-                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                    </button>
-                </div>
-
-                <!-- Área del Avatar -->
-                <div class="perfil-avatar-wrap" aria-hidden="true">
-                    <div class="perfil-avatar" id="perfil-avatar-iniciales">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-                </div>
-
-                <!-- Nombre completo -->
-                <h3 class="perfil-nombre" id="perfil-nombre-completo">—</h3>
-
-                <!-- Teléfono -->
-                <div class="perfil-telefono">
-                    <i class="fa-solid fa-phone" aria-hidden="true"></i>
-                    <p id="perfil-celular">—</p>
-                </div>
-
-                <!-- Menú de opciones -->
-                <ul class="perfil-menu" role="menu">
-                    <li class="perfil-menu__item" role="menuitem" tabindex="0" aria-label="Mi Salud: Citas y Recetas"
-                        onclick="app.perfil.irAMiSalud()">
-                        <div class="perfil-menu__left">
-                            <i class="fa-regular fa-calendar-check perfil-menu__icon" aria-hidden="true"></i>
-                            <span class="perfil-menu__label">Mi Salud (Citas y Recetas)</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right perfil-menu__arrow" aria-hidden="true"></i>
-                    </li>
-                    <li class="perfil-menu__item" role="menuitem" tabindex="0" aria-label="Editar Información Personal"
-                        onclick="app.perfil.irAEditar()">
-                        <div class="perfil-menu__left">
-                            <i class="fa-regular fa-pen-to-square perfil-menu__icon" aria-hidden="true"></i>
-                            <span class="perfil-menu__label">Editar Información Personal</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right perfil-menu__arrow" aria-hidden="true"></i>
-                    </li>
-                </ul>
-
-                <!-- Botón Cerrar Sesión -->
-                <button type="button" class="perfil-logout-btn" onclick="app.abrirModalLogout()">
-                    <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-                    Cerrar Sesión
+            <!-- Header del modal -->
+            <div class="perfil-modal__header">
+                <h2 id="perfil-modal-title" class="perfil-modal__title">Mi Perfil</h2>
+                <button class="perfil-modal__close" aria-label="Cerrar modal de perfil"
+                    onclick="app.perfil.cerrarModal()">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
-
             </div>
+
+            <!-- Área del Avatar -->
+            <div class="perfil-avatar-wrap" aria-hidden="true">
+                <div class="perfil-avatar" id="perfil-avatar-iniciales">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            </div>
+
+            <!-- Nombre completo -->
+            <h3 class="perfil-nombre" id="perfil-nombre-completo">—</h3>
+
+            <!-- Teléfono -->
+            <div class="perfil-telefono">
+                <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                <p id="perfil-celular">—</p>
+            </div>
+
+            <!-- Menú de opciones -->
+            <ul class="perfil-menu" role="menu">
+                <li class="perfil-menu__item" role="menuitem" tabindex="0" aria-label="Mi Salud: Citas y Recetas"
+                    onclick="app.perfil.irAMiSalud()">
+                    <div class="perfil-menu__left">
+                        <i class="fa-regular fa-calendar-check perfil-menu__icon" aria-hidden="true"></i>
+                        <span class="perfil-menu__label">Mi Salud (Citas y Recetas)</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right perfil-menu__arrow" aria-hidden="true"></i>
+                </li>
+                <li class="perfil-menu__item" role="menuitem" tabindex="0" aria-label="Editar Información Personal"
+                    onclick="app.perfil.irAEditar()">
+                    <div class="perfil-menu__left">
+                        <i class="fa-regular fa-pen-to-square perfil-menu__icon" aria-hidden="true"></i>
+                        <span class="perfil-menu__label">Editar Información Personal</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right perfil-menu__arrow" aria-hidden="true"></i>
+                </li>
+            </ul>
+
+            <!-- Botón Cerrar Sesión -->
+            <button type="button" class="perfil-logout-btn" onclick="app.abrirModalLogout()">
+                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                Cerrar Sesión
+            </button>
+
         </div>
+    </div>
     <footer class="footer" id="site-footer" role="contentinfo">
         <div class="container">
             <div class="footer__grid">
@@ -427,12 +422,11 @@
                     <ul class="footer__nav">
                         <li><a href="index.html" class="footer__link">Inicio</a>
                         </li>
-                        <li><a href="especialistas.html"
-                                class="footer__link">Especialistas</a></li>
+                        <li><a href="especialistas.html" class="footer__link">Especialistas</a></li>
 
-                        <li><a href="contacto.html"
-                                class="footer__link">Contacto</a></li>
-                        <li><a href="citas.html" onclick="event.preventDefault(); app.agendarCitaGeneral();" class="footer__link">Agendar
+                        <li><a href="contacto.html" class="footer__link">Contacto</a></li>
+                        <li><a href="citas.html" onclick="event.preventDefault(); app.agendarCitaGeneral();"
+                                class="footer__link">Agendar
                                 Cita</a></li>
                     </ul>
                 </div>
@@ -514,11 +508,14 @@
                 <h3 class="modal-header__title">Cerrar Sesión</h3>
             </div>
             <div class="modal-body">
-                <p style="text-align: center; margin-top: 10px;">¿Estás seguro de que deseas cerrar tu sesión actual?</p>
+                <p style="text-align: center; margin-top: 10px;">¿Estás seguro de que deseas cerrar tu sesión actual?
+                </p>
             </div>
             <div class="modal-actions" style="display: flex; flex-direction: column; gap: 12px;">
-                <button type="button" class="btn btn--primario" onclick="app.ejecutarLogout()">Sí, cerrar sesión</button>
-                <button type="button" class="btn btn--secundario modal-cerrar" style="background-color: #d32f2f; color: white;" onclick="app.cerrarModalLogout()">Cancelar</button>
+                <button type="button" class="btn btn--primario" onclick="app.ejecutarLogout()">Sí, cerrar
+                    sesión</button>
+                <button type="button" class="btn btn--secundario modal-cerrar"
+                    style="background-color: #d32f2f; color: white;" onclick="app.cerrarModalLogout()">Cancelar</button>
             </div>
         </div>
     </div>
