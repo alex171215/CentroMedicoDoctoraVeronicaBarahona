@@ -1861,18 +1861,18 @@ export function createCitas() {
                 } catch (e) { }
                 // Nombre y cédula del paciente vienen del formulario del familiar
                 const inputNombres = document.getElementById('citas-nombres');
-                const inputCedula  = document.getElementById('citas-cedula');
-                if (inputNombres) paciente      = inputNombres.value.trim() || 'Familiar';
-                if (inputCedula)  cedulaPaciente = inputCedula.value.trim();
+                const inputCedula = document.getElementById('citas-cedula');
+                if (inputNombres) paciente = inputNombres.value.trim() || 'Familiar';
+                if (inputCedula) cedulaPaciente = inputCedula.value.trim();
 
             } else {
                 // ── Invitado sin cuenta ──
-                const inputNombres   = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
+                const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
                 const inputApellidos = document.getElementById('cita-apellidos');
-                const inputCedula    = document.getElementById('citas-cedula');
-                const n = inputNombres   ? inputNombres.value.trim()   : '';
+                const inputCedula = document.getElementById('citas-cedula');
+                const n = inputNombres ? inputNombres.value.trim() : '';
                 const a = inputApellidos ? inputApellidos.value.trim() : '';
-                paciente      = [n, a].filter(Boolean).join(' ') || 'Paciente';
+                paciente = [n, a].filter(Boolean).join(' ') || 'Paciente';
                 if (inputCedula) cedulaPaciente = inputCedula.value.trim();
                 cedulaTitular = cedulaPaciente;
             }
@@ -1971,6 +1971,7 @@ export function createCitas() {
 
         // Guarda la cita en Supabase (y caché local para widget / ocupadas) y muestra éxito
         async confirmarCita() {
+            this.liberarHorario(false);
             let cita = this._citaTemporal;
             if (!cita) {
                 try {
@@ -2652,6 +2653,8 @@ export function createCitas() {
 
             grid.innerHTML = html || '<p style="text-align:center; padding:20px;">No hay horarios disponibles esta semana.</p>';
 
+            this.deshabilitarHorarios();
+
             // ── C1 UI (Escritorio): Ocultar botón "Anterior" en la semana de inicio ──
             // Usa visibility:hidden (no display:none) para mantener el layout Flexbox estable.
             const hoyNorm = new Date();
@@ -2730,7 +2733,7 @@ export function createCitas() {
                 // no tiene sentido retroceder (solo vería días sin slots).
                 const limiteMinimo = this.fechaInicioDisponible
                     ? new Date(this.fechaInicioDisponible)
-                    : (() => { const h = new Date(); h.setHours(0,0,0,0); return h; })();
+                    : (() => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; })();
                 if (diaVisibleActual <= limiteMinimo) return; // Blindaje infranqueable
             }
 
@@ -2811,6 +2814,83 @@ export function createCitas() {
             this.generarCalendario(false);
         },
 
+        bloquearHorario(especialistaId, fechaISO, labelHora) {
+            const reserva = { especialistaId, fechaISO, labelHora, timestamp: Date.now() };
+            sessionStorage.setItem('reserva_temporal', JSON.stringify(reserva));
+
+            if (this._ttlTimer) clearTimeout(this._ttlTimer);
+            this._ttlTimer = setTimeout(() => {
+                this.liberarHorario(true);
+            }, 600000); // 10 mins
+
+            this.deshabilitarHorarios();
+        },
+
+        liberarHorario(isTimeout = false) {
+            sessionStorage.removeItem('reserva_temporal');
+            if (this._ttlTimer) {
+                clearTimeout(this._ttlTimer);
+                this._ttlTimer = null;
+            }
+            if (isTimeout) {
+                let ttlModal = document.getElementById('modal-ttl');
+                if (!ttlModal) {
+                    ttlModal = document.createElement('div');
+                    ttlModal.id = 'modal-ttl';
+                    ttlModal.className = 'modal-overlay';
+                    ttlModal.style.zIndex = '9999';
+                    // Reutilizar la estructura de modales existente
+                    ttlModal.innerHTML = `
+                        <div class="modal-content" style="text-align: center;">
+                            <button class="modal-close" onclick="window.location.href='index.html'">&times;</button>
+                            <h2 style="color:var(--text-main); margin-bottom:15px;">Tiempo excedido</h2>
+                            <p style="margin-bottom:20px; color:var(--gray-text);">El tiempo de espera o tiempo permitido ha excedido.</p>
+                            <button class="btn btn--primario" onclick="window.location.href='index.html'">Cerrar</button>
+                        </div>
+                    `;
+                    document.body.appendChild(ttlModal);
+                }
+                ttlModal.style.display = 'flex';
+            } else {
+                document.querySelectorAll('#citas-calendar-grid .time-slot.is-pending').forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('is-pending');
+                });
+            }
+        },
+
+        deshabilitarHorarios() {
+            const reservaStr = sessionStorage.getItem('reserva_temporal');
+
+            // Limpia todos los visuales pendientes primero por si el usuario cambió de slot
+            document.querySelectorAll('#citas-calendar-grid .time-slot.is-pending').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('is-pending');
+            });
+
+            if (!reservaStr) return;
+            let reserva;
+            try { reserva = JSON.parse(reservaStr); } catch (e) { return; }
+            const ahora = Date.now();
+            if ((ahora - reserva.timestamp) > 600000) {
+                this.liberarHorario(false);
+                return;
+            }
+            document.querySelectorAll('#citas-calendar-grid .time-slot').forEach(btn => {
+                const clickAttr = btn.getAttribute('onclick') || '';
+
+                // Prioridad Absoluta: Ignorar el botón si es el que acaban de seleccionar
+                if (btn.classList.contains('time-slot--selected')) {
+                    return;
+                }
+
+                if (clickAttr.includes(reserva.labelHora) && clickAttr.includes(reserva.fechaISO)) {
+                    btn.disabled = true;
+                    btn.classList.add('is-pending');
+                }
+            });
+        },
+
         seleccionarHora(boton, label, fechaISO) {
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => {
                 el.classList.remove('time-slot--selected');
@@ -2818,6 +2898,11 @@ export function createCitas() {
             boton.classList.add('time-slot--selected');
             this.horaSeleccionada = label;
             this.fechaISOSeleccionada = fechaISO || null;
+
+            const doc = this._doctorActual || {};
+            const idEsp = doc.id_especialista || doc.id || 'desconocido';
+            this.bloquearHorario(idEsp, fechaISO, label);
+
             sessionStorage.setItem('cita_hora_seleccionada', label);
             if (fechaISO) sessionStorage.setItem('cita_fecha_iso', fechaISO);
             const btnConfirmar = document.getElementById('btn-confirmar-cita');

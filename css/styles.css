@@ -5100,3 +5100,19 @@ a[href^="mailto:"]:focus-visible,
     display: block !important;
     color: #e74c3c !important;
 }
+
+/* --- CORRECCIÓN: Estilos específicos para horarios bloqueados --- */
+.citas-calendar-grid button.horario-bloqueado,
+.citas-calendar-grid button[disabled].is-pending {
+    background-color: #ccc !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+/* Asegurar que el botón seleccionado mantenga su estilo azul intacto */
+.citas-calendar-grid button.time-slot--selected {
+    background-color: var(--action-color, #0da99f) !important;
+    color: #fff !important;
+    border: none !important;
+    opacity: 1 !important;
+}

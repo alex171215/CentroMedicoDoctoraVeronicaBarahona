@@ -1,31 +1,26 @@
-# Sesión de Diseño Activa: Reparación Radical de Glifos en Listas
+# Sesión de Diseño: Implementación de Concurrencia y TTL de 10 Minutos
 
 ## 1. Objetivo
-Forzar la renderización correcta de las viñetas en `.modal-activities-list li` eliminando la herencia de fuente que rompe los íconos.
+Blindar el proceso de agendamiento para evitar colisiones entre usuarios, implementando un bloqueo temporal de 10 minutos con visualización de horarios deshabilitados.
 
-## 2. Instrucciones Técnicas para Gemini (Agente)
+## 2. Instrucciones Técnicas
 
-### A. CSS de Fuerza Bruta (`css/styles.css`)
-Inyecta este código. He añadido una instrucción de `content` explícita por si el original se perdió, y asegurado la familia de fuentes:
+### A. Lógica JS (No tocar el DOM principal)
+* **Persistencia:** No inyectar HTML nuevo. Crear una función `app.citas.bloquearHorario(especialistaId, fecha, hora)` que gestione el `sessionStorage` y el estado en Supabase.
+* **Interfaz:** Crear una función `app.citas.deshabilitarHorarios()` que recorra los botones de horario en el Paso 2 y les añada el atributo `disabled` si su valor coincide con un horario bloqueado.
+* **Timer:** Usar un `setTimeout` de 600,000ms (10 min). Al finalizar, ejecutar `app.citas.liberarHorario()` y abrir el modal.
 
+### B. Modal de Caducidad (UI)
+* Reutilizar la estructura de modales existente (manteniendo la clase `.modal-overlay`, `.modal-content`).
+* Título: "Tiempo excedido". Mensaje: "El tiempo de espera o tiempo permitido ha excedido".
+* Botón de cierre con evento para llamar a `window.location.href = 'index.html'`.
+
+### C. CSS de Deshabilitación
 ```css
-/* --- TR-75: REPARACIÓN RADICAL DE VIÑETAS --- */
-
-.modal-activities-list li {
-    font-family: inherit !important; /* Mantiene la tipografía del texto */
-    list-style: none !important;     /* Elimina viñeta por defecto del navegador */
-    position: relative;
-    padding-left: 25px !important;
-}
-
-.modal-activities-list li::before {
-    /* Forzamos el ícono de FontAwesome */
-    content: "\f00c" !important; /* Unicode del Check de FontAwesome */
-    font-family: "Font Awesome 6 Free" !important;
-    font-weight: 900 !important;
-    position: absolute;
-    left: 0;
-    color: var(--action-color, #0da99f) !important; /* Mantiene tu color corporativo */
-    font-size: 0.9rem !important;
+.citas-calendar-grid button:disabled, 
+.citas-calendar-grid button.is-pending {
+    background-color: #ccc !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
 }
 ```
