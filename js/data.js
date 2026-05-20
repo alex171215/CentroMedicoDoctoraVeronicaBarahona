@@ -6,226 +6,1201 @@
 const datosIniciales = {
     // 1. CARTERA DE ESPECIALISTAS Y PERSONAL MÉDICO
     cartera_especialistas: [
-        {
-            id: "esp-001",
-            especialidad: "MEDICINA FAMILIAR",
-            duracion_minutos: 40,
-            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
-            doctor: {
-                nombres: "Verónica Del Pilar",
-                apellidos: "Barahona Charfuelan",
-                nombre_completo: "Dra. Verónica Del Pilar Barahona Charfuelan",
-                cedula: "1715811293"
+            {
+                "especialidad": "MEDICINA FAMILIAR",
+                "duracion_minutos": 40,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Consulta medica",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Terapia Individual",
+                    "Terapia Familiar",
+                    "Terapia Grupal",
+                    "Cuidados Prenatales",
+                    "Medicina Preventiva",
+                    "Visitas Domiciliarias"
+                ],
+                "nombre_completo": "Dra. Sonia Fernando Romero Vega",
+                "id_especialista": "esp-014"
             },
-            actividades: [
-                "Consulta medica", "Suturas", "Curación de Heridas",
-                "Terapia Individual", "Terapia Familiar", "Terapia Grupal",
-                "Cuidados Prenatales", "Medicina Preventiva", "Visitas Domiciliarias"
-            ]
-        },
-        {
-            id: "esp-002",
-            especialidad: "MEDICINA GENERAL",
-            duracion_minutos: 35,
-            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
-            doctor: {
-                nombres: "Oscar Bladimir",
-                apellidos: "Poma Sumba",
-                nombre_completo: "Dr. Oscar Bladimir Poma Sumba",
-                cedula: "1714967625"
+            {
+                "especialidad": "MEDICINA FAMILIAR",
+                "duracion_minutos": 40,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Consulta medica",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Terapia Individual",
+                    "Terapia Familiar",
+                    "Terapia Grupal",
+                    "Cuidados Prenatales",
+                    "Medicina Preventiva",
+                    "Visitas Domiciliarias"
+                ],
+                "nombre_completo": "Dra. Marta Marta Paredes Soto",
+                "id_especialista": "esp-015"
             },
-            actividades: [
-                "Prevención de enfermedades", "Diagnóstico de enfermedades",
-                "Tratamiento de enfermedades", "Derivación a especialidades",
-                "Suturas", "Curación de Heridas", "Medicina Preventiva"
-            ]
-        },
-        {
-            id: "esp-003",
-            especialidad: "RADIODIÁGNOSTICO",
-            duracion_minutos: 35,
-            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "10:00", hora_fin: "12:00" },
-            doctor: {
-                nombres: "Camilo Calixto",
-                apellidos: "Sifontes Zayas",
-                nombre_completo: "Dr. Camilo Calixto Sifontes Zayas",
-                cedula: "1754664082"
+            {
+                "especialidad": "MEDICINA FAMILIAR",
+                "duracion_minutos": 40,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Consulta medica",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Terapia Individual",
+                    "Terapia Familiar",
+                    "Terapia Grupal",
+                    "Cuidados Prenatales",
+                    "Medicina Preventiva",
+                    "Visitas Domiciliarias"
+                ],
+                "nombre_completo": "Dr. David Gonzalo Vargas Salas",
+                "id_especialista": "esp-016"
             },
-            actividades: [
-                "Realización de Ecografías Abdominales", "Realización de Ecografías Ginecológicas",
-                "Realización de Ecografías Prostática", "Realización de Ecografías Obstétricas",
-                "Realización de Ecografías Articulares", "Realización de Ecografías Doppler",
-                "Interpretación de Ecografías", "Diagnóstico de Ecografías"
-            ]
-        },
-        {
-            id: "esp-004",
-            especialidad: "DERMATOLOGÍA",
-            duracion_minutos: 30,
-            horarios_atencion: { dias: [3], hora_inicio: "14:00", hora_fin: "16:00" }, // Miércoles
-            doctor: {
-                nombres: "María Del Carmen",
-                apellidos: "Terán Pineida",
-                nombre_completo: "Dra. María Del Carmen Terán Pineida",
-                cedula: "1715922652"
+            {
+                "especialidad": "MEDICINA FAMILIAR",
+                "duracion_minutos": 40,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Consulta medica",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Terapia Individual",
+                    "Terapia Familiar",
+                    "Terapia Grupal",
+                    "Cuidados Prenatales",
+                    "Medicina Preventiva",
+                    "Visitas Domiciliarias"
+                ],
+                "nombre_completo": "Dr. Raúl Ramiro López Salas",
+                "id_especialista": "esp-017"
             },
-            actividades: [
-                "Consulta Medica", "Diagnóstico de Enfermedades Dermatológicos",
-                "Tratamiento de Enfermedades Dermatológicos", "Prevención de Enfermedades Dermatológicos"
-            ]
-        },
-        {
-            id: "esp-005",
-            especialidad: "UROLOGÍA",
-            duracion_minutos: 30,
-            horarios_atencion: { dias: [2], hora_inicio: "14:00", hora_fin: "16:00" }, // Martes
-            doctor: {
-                nombres: "Mario Lenin",
-                apellidos: "Moran Molina",
-                nombre_completo: "Dr. Mario Lenin Moran Molina",
-                cedula: "703914671"
+            {
+                "especialidad": "MEDICINA GENERAL",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Prevención de enfermedades",
+                    "Diagnóstico de enfermedades",
+                    "Tratamiento de enfermedades",
+                    "Derivación a especialidades",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Medicina Preventiva"
+                ],
+                "nombre_completo": "Dra. Laura Francisco Aguilar Paredes",
+                "id_especialista": "esp-018"
             },
-            actividades: [
-                "Consulta Medica", "Diagnóstico de Enfermedades Urología",
-                "Tratamiento de Enfermedades Urología", "Prevención de Enfermedades Urológicas"
-            ]
-        },
-        {
-            id: "esp-006",
-            especialidad: "ENDOCRINOLOGÍA",
-            duracion_minutos: 20,
-            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "11:00" }, // Sábados
-            doctor: {
-                nombres: "José Fernando",
-                apellidos: "Guerrero Grijalva",
-                nombre_completo: "Dr. José Fernando Guerrero Grijalva",
-                cedula: "1803004140"
+            {
+                "especialidad": "MEDICINA GENERAL",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Prevención de enfermedades",
+                    "Diagnóstico de enfermedades",
+                    "Tratamiento de enfermedades",
+                    "Derivación a especialidades",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Medicina Preventiva"
+                ],
+                "nombre_completo": "Dr. Luis Ricardo Mendoza Fernández",
+                "id_especialista": "esp-019"
             },
-            actividades: [
-                "Consulta Medica", "Diagnóstico de Enfermedades Endocrinología",
-                "Tratamiento de Enfermedades Endocrinología", "Prevención de Enfermedades Endocrinológicas",
-                "Manejo de problemas nutricionales", "Soporte Nutricional"
-            ]
-        },
-        {
-            id: "esp-007",
-            especialidad: "TRAUMATOLOGÍA",
-            duracion_minutos: 60,
-            horarios_atencion: { dias: [4], hora_inicio: "09:00", hora_fin: "11:00" }, // Jueves
-            doctor: {
-                nombres: "Deulis Rafael",
-                apellidos: "Salazar Coello",
-                nombre_completo: "Dr. Deulis Rafael Salazar Coello",
-                cedula: "132863513"
+            {
+                "especialidad": "MEDICINA GENERAL",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Prevención de enfermedades",
+                    "Diagnóstico de enfermedades",
+                    "Tratamiento de enfermedades",
+                    "Derivación a especialidades",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Medicina Preventiva"
+                ],
+                "nombre_completo": "Dr. Santiago Francisco García Mendoza",
+                "id_especialista": "esp-020"
             },
-            actividades: [
-                "Consulta Medica", "Diagnóstico de Enfermedades de Traumatología",
-                "Tratamiento de Enfermedades de Traumatología", "Prevención de Enfermedades de Traumatología",
-                "Infiltración de plasma rico en plaquetas", "Infiltración de Ácido Hialurónico",
-                "Infiltración de esteroides intra y extra articulares para lesiones musculo esquelético"
-            ]
-        },
-        {
-            id: "esp-008",
-            especialidad: "PSICOLOGÍA",
-            duracion_minutos: 60,
-            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "12:00" }, // Sábados
-            doctor: {
-                nombres: "Katalina Sofía",
-                apellidos: "Rivadeneira Vasconez",
-                nombre_completo: "Psic. Katalina Sofía Rivadeneira Vasconez",
-                cedula: "1804503140"
+            {
+                "especialidad": "MEDICINA GENERAL",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Prevención de enfermedades",
+                    "Diagnóstico de enfermedades",
+                    "Tratamiento de enfermedades",
+                    "Derivación a especialidades",
+                    "Suturas",
+                    "Curación de Heridas",
+                    "Medicina Preventiva"
+                ],
+                "nombre_completo": "Dra. Julia David Salas Herrera",
+                "id_especialista": "esp-021"
             },
-            actividades: [
-                "Terapia psicológica", "Identificación de problemas", "Restructuración de pensamientos",
-                "Evaluación de personalidad", "Informe psicológico", "Psicoterapia",
-                "Terapia de pareja", "Terapia individual", "Terapia familiar", "Test Vocacional"
-            ]
-        },
-        {
-            id: "esp-009",
-            especialidad: "ODONTOLOGÍA",
-            duracion_minutos: 35,
-            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
-            doctor: {
-                nombres: "Tania Maribel",
-                apellidos: "Lara Vega",
-                nombre_completo: "Odont. Tania Maribel Lara Vega",
-                cedula: "1721932133"
+            {
+                "especialidad": "RADIODIÁGNOSTICO",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "10:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Realización de Ecografías Abdominales",
+                    "Realización de Ecografías Ginecológicas",
+                    "Realización de Ecografías Prostática",
+                    "Realización de Ecografías Obstétricas",
+                    "Realización de Ecografías Articulares",
+                    "Realización de Ecografías Doppler",
+                    "Interpretación de Ecografías",
+                    "Diagnóstico de Ecografías"
+                ],
+                "nombre_completo": "Dr. Andrés Hugo Gómez Fernández",
+                "id_especialista": "esp-022"
             },
-            actividades: [
-                "Odontología Preventiva", "Operatoria Dental", "Extracciones Simples"
-            ]
-        },
-        {
-            id: "esp-010",
-            especialidad: "ENFERMERÍA",
-            duracion_minutos: 15,
-            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
-            doctor: {
-                nombres: "Milton Fernando",
-                apellidos: "Rosero Mendoza",
-                nombre_completo: "Lic. Milton Fernando Rosero Mendoza",
-                cedula: "1712509031"
+            {
+                "especialidad": "RADIODIÁGNOSTICO",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "10:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Realización de Ecografías Abdominales",
+                    "Realización de Ecografías Ginecológicas",
+                    "Realización de Ecografías Prostática",
+                    "Realización de Ecografías Obstétricas",
+                    "Realización de Ecografías Articulares",
+                    "Realización de Ecografías Doppler",
+                    "Interpretación de Ecografías",
+                    "Diagnóstico de Ecografías"
+                ],
+                "nombre_completo": "Dra. Marta Teresa Gómez Salas",
+                "id_especialista": "esp-023"
             },
-            actividades: [
-                "Toma de signos vitales", "Promoción de salud",
-                "Educación Sanitaria", "Colaboración Multidisciplinaria"
-            ]
-        },
-        {
-            id: "esp-011",
-            especialidad: "LABORATORIO",
-            duracion_minutos: 12,
-            horarios_atencion: { dias: [1, 2, 3, 4, 5, 6], hora_inicio: "07:00", hora_fin: "17:00", hora_fin_sabado: "13:00" },
-            doctor: {
-                nombres: "Yolanda Antonela",
-                apellidos: "Sánchez Barahona",
-                nombre_completo: "Lic. Yolanda Antonela Sánchez Barahona",
-                cedula: "1722167457"
+            {
+                "especialidad": "RADIODIÁGNOSTICO",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "10:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Realización de Ecografías Abdominales",
+                    "Realización de Ecografías Ginecológicas",
+                    "Realización de Ecografías Prostática",
+                    "Realización de Ecografías Obstétricas",
+                    "Realización de Ecografías Articulares",
+                    "Realización de Ecografías Doppler",
+                    "Interpretación de Ecografías",
+                    "Diagnóstico de Ecografías"
+                ],
+                "nombre_completo": "Dr. Héctor Francisco Muñoz Rodríguez",
+                "id_especialista": "esp-024"
             },
-            actividades: [
-                "Análisis Clínicos: Hemostasia y Coagulación", "Química Sanguínea",
-                "Serología", "Uroanálisis", "Coproanálisis", "Toxicología",
-                "Inmunología", "Hematología"
-            ]
-        },
-        {
-            id: "esp-012",
-            especialidad: "GINECOLOGÍA",
-            duracion_minutos: 40,
-            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "12:00" }, // Sábados
-            doctor: {
-                nombres: "Marco Daniel",
-                apellidos: "Moya Carrillo",
-                nombre_completo: "Dr. Marco Daniel Moya Carrillo",
-                cedula: "1711841880"
+            {
+                "especialidad": "RADIODIÁGNOSTICO",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "10:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Realización de Ecografías Abdominales",
+                    "Realización de Ecografías Ginecológicas",
+                    "Realización de Ecografías Prostática",
+                    "Realización de Ecografías Obstétricas",
+                    "Realización de Ecografías Articulares",
+                    "Realización de Ecografías Doppler",
+                    "Interpretación de Ecografías",
+                    "Diagnóstico de Ecografías"
+                ],
+                "nombre_completo": "Dra. Patricia Pedro Morales Vega",
+                "id_especialista": "esp-025"
             },
-            actividades: [
-                "Consulta Medica", "Diagnóstico de Enfermedades Ginecológicas",
-                "Tratamiento de Enfermedades Ginecológicas", "Prevención de Enfermedades Ginecológicas",
-                "Asesoramiento y planificación familiar", "Manejo de ETS",
-                "Interpretación y manejo de resultados de citología", "Manejo de embarazos"
-            ]
-        },
-        {
-            id: "esp-013",
-            especialidad: "GINECOLOGÍA",
-            duracion_minutos: 40,
-            horarios_atencion: { dias: [6], hora_inicio: "08:00", hora_fin: "12:00" }, // Sábados
-            doctor: {
-                nombres: "Marcela Paulina",
-                apellidos: "Pantoja Vargas",
-                nombre_completo: "Dra. Marcela Paulina Pantoja Vargas",
-                cedula: "1707951602"
+            {
+                "especialidad": "DERMATOLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        3,
+                        5
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Dermatológicos",
+                    "Tratamiento de Enfermedades Dermatológicos",
+                    "Prevención de Enfermedades Dermatológicos"
+                ],
+                "nombre_completo": "Dra. Patricia Gabriel Delgado Castro",
+                "id_especialista": "esp-026"
             },
-            actividades: [
-                "Consulta Medica", "Diagnóstico de Enfermedades Ginecológicas",
-                "Tratamiento de Enfermedades Ginecológicas", "Prevención de Enfermedades Ginecológicas",
-                "Asesoramiento y planificación familiar", "Manejo de ETS",
-                "Interpretación y manejo de resultados de citología", "Manejo de embarazos"
-            ]
-        }
+            {
+                "especialidad": "DERMATOLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        3,
+                        5
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Dermatológicos",
+                    "Tratamiento de Enfermedades Dermatológicos",
+                    "Prevención de Enfermedades Dermatológicos"
+                ],
+                "nombre_completo": "Dra. Laura Sonia Ortega Gómez",
+                "id_especialista": "esp-027"
+            },
+            {
+                "especialidad": "DERMATOLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        3,
+                        5
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Dermatológicos",
+                    "Tratamiento de Enfermedades Dermatológicos",
+                    "Prevención de Enfermedades Dermatológicos"
+                ],
+                "nombre_completo": "Dr. Francisco Luis Vega Morales",
+                "id_especialista": "esp-028"
+            },
+            {
+                "especialidad": "DERMATOLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        3,
+                        5
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Dermatológicos",
+                    "Tratamiento de Enfermedades Dermatológicos",
+                    "Prevención de Enfermedades Dermatológicos"
+                ],
+                "nombre_completo": "Dra. Elena Lucía Gómez Fernández",
+                "id_especialista": "esp-029"
+            },
+            {
+                "especialidad": "UROLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Urología",
+                    "Tratamiento de Enfermedades Urología",
+                    "Prevención de Enfermedades Urológicas"
+                ],
+                "nombre_completo": "Dr. Gabriel Roberto Delgado Vega",
+                "id_especialista": "esp-030"
+            },
+            {
+                "especialidad": "UROLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Urología",
+                    "Tratamiento de Enfermedades Urología",
+                    "Prevención de Enfermedades Urológicas"
+                ],
+                "nombre_completo": "Dra. Lucía Diego Vega Silva",
+                "id_especialista": "esp-031"
+            },
+            {
+                "especialidad": "UROLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Urología",
+                    "Tratamiento de Enfermedades Urología",
+                    "Prevención de Enfermedades Urológicas"
+                ],
+                "nombre_completo": "Dr. Alejandro Susana Navarro Vega",
+                "id_especialista": "esp-032"
+            },
+            {
+                "especialidad": "UROLOGÍA",
+                "duracion_minutos": 30,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "14:00",
+                    "hora_fin": "16:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Urología",
+                    "Tratamiento de Enfermedades Urología",
+                    "Prevención de Enfermedades Urológicas"
+                ],
+                "nombre_completo": "Dr. Ramiro Miguel Sánchez Villanueva",
+                "id_especialista": "esp-033"
+            },
+            {
+                "especialidad": "ENDOCRINOLOGÍA",
+                "duracion_minutos": 20,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Endocrinología",
+                    "Tratamiento de Enfermedades Endocrinología",
+                    "Prevención de Enfermedades Endocrinológicas",
+                    "Manejo de problemas nutricionales",
+                    "Soporte Nutricional"
+                ],
+                "nombre_completo": "Dr. Gonzalo Pablo Díaz Torres",
+                "id_especialista": "esp-034"
+            },
+            {
+                "especialidad": "ENDOCRINOLOGÍA",
+                "duracion_minutos": 20,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Endocrinología",
+                    "Tratamiento de Enfermedades Endocrinología",
+                    "Prevención de Enfermedades Endocrinológicas",
+                    "Manejo de problemas nutricionales",
+                    "Soporte Nutricional"
+                ],
+                "nombre_completo": "Dr. Alejandro Francisco Fernández Díaz",
+                "id_especialista": "esp-035"
+            },
+            {
+                "especialidad": "ENDOCRINOLOGÍA",
+                "duracion_minutos": 20,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Endocrinología",
+                    "Tratamiento de Enfermedades Endocrinología",
+                    "Prevención de Enfermedades Endocrinológicas",
+                    "Manejo de problemas nutricionales",
+                    "Soporte Nutricional"
+                ],
+                "nombre_completo": "Dra. Silvia Ricardo Medina Navarro",
+                "id_especialista": "esp-036"
+            },
+            {
+                "especialidad": "ENDOCRINOLOGÍA",
+                "duracion_minutos": 20,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Endocrinología",
+                    "Tratamiento de Enfermedades Endocrinología",
+                    "Prevención de Enfermedades Endocrinológicas",
+                    "Manejo de problemas nutricionales",
+                    "Soporte Nutricional"
+                ],
+                "nombre_completo": "Dra. Susana Diego Mendoza Ruiz",
+                "id_especialista": "esp-037"
+            },
+            {
+                "especialidad": "TRAUMATOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "09:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades de Traumatología",
+                    "Tratamiento de Enfermedades de Traumatología",
+                    "Prevención de Enfermedades de Traumatología",
+                    "Infiltración de plasma rico en plaquetas",
+                    "Infiltración de Ácido Hialurónico",
+                    "Infiltración de esteroides intra y extra articulares para lesiones musculo esquelético"
+                ],
+                "nombre_completo": "Dra. Rosa Ana Rodríguez Pérez",
+                "id_especialista": "esp-038"
+            },
+            {
+                "especialidad": "TRAUMATOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "09:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades de Traumatología",
+                    "Tratamiento de Enfermedades de Traumatología",
+                    "Prevención de Enfermedades de Traumatología",
+                    "Infiltración de plasma rico en plaquetas",
+                    "Infiltración de Ácido Hialurónico",
+                    "Infiltración de esteroides intra y extra articulares para lesiones musculo esquelético"
+                ],
+                "nombre_completo": "Dra. Elena Julia Navarro Ortiz",
+                "id_especialista": "esp-039"
+            },
+            {
+                "especialidad": "TRAUMATOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "09:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades de Traumatología",
+                    "Tratamiento de Enfermedades de Traumatología",
+                    "Prevención de Enfermedades de Traumatología",
+                    "Infiltración de plasma rico en plaquetas",
+                    "Infiltración de Ácido Hialurónico",
+                    "Infiltración de esteroides intra y extra articulares para lesiones musculo esquelético"
+                ],
+                "nombre_completo": "Dra. Alicia Pedro Ortega Cabrera",
+                "id_especialista": "esp-040"
+            },
+            {
+                "especialidad": "TRAUMATOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "09:00",
+                    "hora_fin": "11:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades de Traumatología",
+                    "Tratamiento de Enfermedades de Traumatología",
+                    "Prevención de Enfermedades de Traumatología",
+                    "Infiltración de plasma rico en plaquetas",
+                    "Infiltración de Ácido Hialurónico",
+                    "Infiltración de esteroides intra y extra articulares para lesiones musculo esquelético"
+                ],
+                "nombre_completo": "Dr. Eduardo Ricardo Ríos Castro",
+                "id_especialista": "esp-041"
+            },
+            {
+                "especialidad": "PSICOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Terapia psicológica",
+                    "Identificación de problemas",
+                    "Restructuración de pensamientos",
+                    "Evaluación de personalidad",
+                    "Informe psicológico",
+                    "Psicoterapia",
+                    "Terapia de pareja",
+                    "Terapia individual",
+                    "Terapia familiar",
+                    "Test Vocacional"
+                ],
+                "nombre_completo": "Psic. Luis Laura Vargas Romero",
+                "id_especialista": "esp-042"
+            },
+            {
+                "especialidad": "PSICOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Terapia psicológica",
+                    "Identificación de problemas",
+                    "Restructuración de pensamientos",
+                    "Evaluación de personalidad",
+                    "Informe psicológico",
+                    "Psicoterapia",
+                    "Terapia de pareja",
+                    "Terapia individual",
+                    "Terapia familiar",
+                    "Test Vocacional"
+                ],
+                "nombre_completo": "Psic. David Rosa Silva Fernández",
+                "id_especialista": "esp-043"
+            },
+            {
+                "especialidad": "PSICOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Terapia psicológica",
+                    "Identificación de problemas",
+                    "Restructuración de pensamientos",
+                    "Evaluación de personalidad",
+                    "Informe psicológico",
+                    "Psicoterapia",
+                    "Terapia de pareja",
+                    "Terapia individual",
+                    "Terapia familiar",
+                    "Test Vocacional"
+                ],
+                "nombre_completo": "Psic. Gonzalo Jorge Hernández Castro",
+                "id_especialista": "esp-044"
+            },
+            {
+                "especialidad": "PSICOLOGÍA",
+                "duracion_minutos": 60,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Terapia psicológica",
+                    "Identificación de problemas",
+                    "Restructuración de pensamientos",
+                    "Evaluación de personalidad",
+                    "Informe psicológico",
+                    "Psicoterapia",
+                    "Terapia de pareja",
+                    "Terapia individual",
+                    "Terapia familiar",
+                    "Test Vocacional"
+                ],
+                "nombre_completo": "Psic. Fernando Victoria Ortega Soto",
+                "id_especialista": "esp-045"
+            },
+            {
+                "especialidad": "ODONTOLOGÍA",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Odontología Preventiva",
+                    "Operatoria Dental",
+                    "Extracciones Simples"
+                ],
+                "nombre_completo": "Odont. Héctor Luis Romero Reyes",
+                "id_especialista": "esp-046"
+            },
+            {
+                "especialidad": "ODONTOLOGÍA",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Odontología Preventiva",
+                    "Operatoria Dental",
+                    "Extracciones Simples"
+                ],
+                "nombre_completo": "Odont. María David Navarro Delgado",
+                "id_especialista": "esp-047"
+            },
+            {
+                "especialidad": "ODONTOLOGÍA",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Odontología Preventiva",
+                    "Operatoria Dental",
+                    "Extracciones Simples"
+                ],
+                "nombre_completo": "Odont. Oscar Roberto Vega Álvarez",
+                "id_especialista": "esp-048"
+            },
+            {
+                "especialidad": "ODONTOLOGÍA",
+                "duracion_minutos": 35,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Odontología Preventiva",
+                    "Operatoria Dental",
+                    "Extracciones Simples"
+                ],
+                "nombre_completo": "Odont. Juan Gabriel García Castro",
+                "id_especialista": "esp-049"
+            },
+            {
+                "especialidad": "ENFERMERÍA",
+                "duracion_minutos": 15,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Toma de signos vitales",
+                    "Promoción de salud",
+                    "Educación Sanitaria",
+                    "Colaboración Multidisciplinaria"
+                ],
+                "nombre_completo": "Lic. Carlos Alicia Campos Medina",
+                "id_especialista": "esp-050"
+            },
+            {
+                "especialidad": "ENFERMERÍA",
+                "duracion_minutos": 15,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Toma de signos vitales",
+                    "Promoción de salud",
+                    "Educación Sanitaria",
+                    "Colaboración Multidisciplinaria"
+                ],
+                "nombre_completo": "Lic. Gabriel Gabriel Gómez Herrera",
+                "id_especialista": "esp-051"
+            },
+            {
+                "especialidad": "ENFERMERÍA",
+                "duracion_minutos": 15,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Toma de signos vitales",
+                    "Promoción de salud",
+                    "Educación Sanitaria",
+                    "Colaboración Multidisciplinaria"
+                ],
+                "nombre_completo": "Lic. Julia María Moreno López",
+                "id_especialista": "esp-052"
+            },
+            {
+                "especialidad": "ENFERMERÍA",
+                "duracion_minutos": 15,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Toma de signos vitales",
+                    "Promoción de salud",
+                    "Educación Sanitaria",
+                    "Colaboración Multidisciplinaria"
+                ],
+                "nombre_completo": "Lic. Jorge Raúl Medina Sánchez",
+                "id_especialista": "esp-053"
+            },
+            {
+                "especialidad": "LABORATORIO",
+                "duracion_minutos": 12,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Análisis Clínicos: Hemostasia y Coagulación",
+                    "Química Sanguínea",
+                    "Serología",
+                    "Uroanálisis",
+                    "Coproanálisis",
+                    "Toxicología",
+                    "Inmunología",
+                    "Hematología"
+                ],
+                "nombre_completo": "Lic. María Silvia Ruiz Medina",
+                "id_especialista": "esp-054"
+            },
+            {
+                "especialidad": "LABORATORIO",
+                "duracion_minutos": 12,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Análisis Clínicos: Hemostasia y Coagulación",
+                    "Química Sanguínea",
+                    "Serología",
+                    "Uroanálisis",
+                    "Coproanálisis",
+                    "Toxicología",
+                    "Inmunología",
+                    "Hematología"
+                ],
+                "nombre_completo": "Lic. Patricia María Sánchez Guerrero",
+                "id_especialista": "esp-055"
+            },
+            {
+                "especialidad": "LABORATORIO",
+                "duracion_minutos": 12,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Análisis Clínicos: Hemostasia y Coagulación",
+                    "Química Sanguínea",
+                    "Serología",
+                    "Uroanálisis",
+                    "Coproanálisis",
+                    "Toxicología",
+                    "Inmunología",
+                    "Hematología"
+                ],
+                "nombre_completo": "Lic. Lucía Miguel Silva Cruz",
+                "id_especialista": "esp-056"
+            },
+            {
+                "especialidad": "LABORATORIO",
+                "duracion_minutos": 12,
+                "horarios_atencion": {
+                    "dias": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ],
+                    "hora_inicio": "07:00",
+                    "hora_fin": "17:00",
+                    "hora_fin_sabado": "13:00"
+                },
+                "actividades": [
+                    "Análisis Clínicos: Hemostasia y Coagulación",
+                    "Química Sanguínea",
+                    "Serología",
+                    "Uroanálisis",
+                    "Coproanálisis",
+                    "Toxicología",
+                    "Inmunología",
+                    "Hematología"
+                ],
+                "nombre_completo": "Lic. Victoria Hugo Fernández Soto",
+                "id_especialista": "esp-057"
+            },
+            {
+                "especialidad": "GINECOLOGÍA",
+                "duracion_minutos": 40,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Ginecológicas",
+                    "Tratamiento de Enfermedades Ginecológicas",
+                    "Prevención de Enfermedades Ginecológicas",
+                    "Asesoramiento y planificación familiar",
+                    "Manejo de ETS",
+                    "Interpretación y manejo de resultados de citología",
+                    "Manejo de embarazos"
+                ],
+                "nombre_completo": "Dr. Miguel Pablo Paredes Cabrera",
+                "id_especialista": "esp-058"
+            },
+            {
+                "especialidad": "GINECOLOGÍA",
+                "duracion_minutos": 40,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Ginecológicas",
+                    "Tratamiento de Enfermedades Ginecológicas",
+                    "Prevención de Enfermedades Ginecológicas",
+                    "Asesoramiento y planificación familiar",
+                    "Manejo de ETS",
+                    "Interpretación y manejo de resultados de citología",
+                    "Manejo de embarazos"
+                ],
+                "nombre_completo": "Dra. Beatriz Roberto Aguilar Álvarez",
+                "id_especialista": "esp-059"
+            },
+            {
+                "especialidad": "GINECOLOGÍA",
+                "duracion_minutos": 40,
+                "horarios_atencion": {
+                    "dias": [
+                        2,
+                        4,
+                        6
+                    ],
+                    "hora_inicio": "08:00",
+                    "hora_fin": "12:00"
+                },
+                "actividades": [
+                    "Consulta Medica",
+                    "Diagnóstico de Enfermedades Ginecológicas",
+                    "Tratamiento de Enfermedades Ginecológicas",
+                    "Prevención de Enfermedades Ginecológicas",
+                    "Asesoramiento y planificación familiar",
+                    "Manejo de ETS",
+                    "Interpretación y manejo de resultados de citología",
+                    "Manejo de embarazos"
+                ],
+                "nombre_completo": "Dr. Juan Roberto Aguilar Paredes",
+                "id_especialista": "esp-060"
+            }
     ],
 
     // 2. INVENTARIO DE FARMACIA (Botiquín)

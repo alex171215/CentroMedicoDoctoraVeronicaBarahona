@@ -140,18 +140,43 @@ const app = {
 
     init: async function () {
         try {
+            const refrescarUI = () => {
+                if (document.getElementById('doctors-carousel')) {
+                    this.renderizarEspecialidadesHome();
+                }
+                if (document.getElementById('specialists-directory-grid')) {
+                    this.directorio.inicializar();
+                }
+                if (
+                    document.getElementById('view-citas') &&
+                    this.citas &&
+                    typeof this.citas.renderizarPasoEspecialidades === 'function'
+                ) {
+                    try {
+                        this.citas.renderizarPasoEspecialidades();
+                    } catch (uiErr) {
+                        console.warn('[App] No se pudo refrescar la vista de citas tras actualizar especialistas.', uiErr);
+                    }
+                }
+            };
+
             if (carteraEspecialistasCacheValida()) {
-                fetchEspecialistasSupabase()
-                    .then((lista) => {
-                        if (lista.length) mergeCarteraEnSanitasFamDb(lista);
-                    })
-                    .catch((err) => {
-                        console.warn('[Supabase] Refresco en segundo plano de especialistas no disponible.', err);
-                    });
+                try {
+                    const lista = await fetchEspecialistasSupabase();
+                    if (lista.length) {
+                        mergeCarteraEnSanitasFamDb(lista);
+                        refrescarUI();
+                    }
+                } catch (err) {
+                    console.warn('[Supabase] Refresco de especialistas no disponible.', err);
+                }
             } else {
                 await conCargaGlobal(async () => {
                     const lista = await fetchEspecialistasSupabase();
-                    if (lista.length) mergeCarteraEnSanitasFamDb(lista);
+                    if (lista.length) {
+                        mergeCarteraEnSanitasFamDb(lista);
+                        refrescarUI();
+                    }
                 }, 'Cargando especialistas…');
             }
         } catch (err) {
@@ -1328,19 +1353,29 @@ const app = {
             }
 
             // Modal overlay click (Cerrar)
-            const modalOverlay = document.getElementById('modal-especialista');
-            if (modalOverlay) {
-                modalOverlay.addEventListener('click', (e) => {
-                    if (e.target === modalOverlay) {
-                        this.cerrarModal();
-                    }
-                });
-            }
+            if (!this._eventosModalAgregados) {
+                const modalOverlay = document.getElementById('modal-especialista');
+                if (modalOverlay) {
+                    modalOverlay.addEventListener('click', (e) => {
+                        if (e.target === modalOverlay) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.cerrarModal();
+                        }
+                    });
+                }
 
-            // Botón X modal
-            const closeBtn = document.getElementById('modal-close-btn');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => this.cerrarModal());
+                // Botón X modal
+                const closeBtn = document.getElementById('modal-close-btn');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.cerrarModal();
+                    });
+                }
+
+                this._eventosModalAgregados = true;
             }
 
             this.renderizarTarjetas(this.medicosCache);

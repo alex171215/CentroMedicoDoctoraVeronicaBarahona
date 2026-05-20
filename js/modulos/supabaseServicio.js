@@ -104,14 +104,14 @@ export function mapCitaDesdeDb(row) {
         estado: row.estado || 'Próxima',
         // TR-58: resolver nombre desde alias datos_paciente (FK desambiguado) con cascada backward-compat
         paciente: row.paciente ||
-                  (row.datos_paciente
-                      ? `${row.datos_paciente.nombres || ''} ${row.datos_paciente.apellidos || ''}`.trim()
-                      : null) ||
-                  (row.pacientes
-                      ? `${row.pacientes.nombres || ''} ${row.pacientes.apellidos || ''}`.trim()
-                      : null) ||
-                  row.nombres ||
-                  '',
+            (row.datos_paciente
+                ? `${row.datos_paciente.nombres || ''} ${row.datos_paciente.apellidos || ''}`.trim()
+                : null) ||
+            (row.pacientes
+                ? `${row.pacientes.nombres || ''} ${row.pacientes.apellidos || ''}`.trim()
+                : null) ||
+            row.nombres ||
+            '',
         nombres: row.nombres,
         cedula: row.cedula || row.cedula_paciente,
         cedula_paciente: row.cedula_paciente || row.cedula,
@@ -150,13 +150,15 @@ export async function fetchCitaPorIdCliente(idCliente) {
 }
 
 export async function insertCitaSupabase(payload) {
-    const { data, error } = await supabase.from('citas').insert([payload]).select(SELECT_CITAS).maybeSingle();
+    const flatPayload = transformarParaSupabase(payload);
+    const { data, error } = await supabase.from('citas').insert([flatPayload]).select(SELECT_CITAS).maybeSingle();
     if (error) throw error;
     return data;
 }
 
 export async function updateCitaSupabasePorIdCita(idCita, patch) {
-    const { error } = await supabase.from('citas').update(patch).eq('id_cita', idCita);
+    const flatPatch = transformarParaSupabase(patch);
+    const { error } = await supabase.from('citas').update(flatPatch).eq('id_cita', idCita);
     if (error) throw error;
 }
 
@@ -232,9 +234,9 @@ export async function upsertPacienteParaAgenda(row) {
         // Solo actualizamos datos de contacto básico que el usuario pudo haber
         // escrito en el formulario de citas (nombres, apellidos, celular).
         const camposActualizables = {};
-        if (row.nombres)   camposActualizables.nombres   = row.nombres;
+        if (row.nombres) camposActualizables.nombres = row.nombres;
         if (row.apellidos) camposActualizables.apellidos = row.apellidos;
-        if (row.celular)   camposActualizables.celular   = row.celular;
+        if (row.celular) camposActualizables.celular = row.celular;
 
         if (Object.keys(camposActualizables).length === 0) {
             // Nada seguro que actualizar — devolver datos existentes sin write.
@@ -282,11 +284,12 @@ export async function upsertPacienteInvitadoSiNoExiste(cedula, nombresPaciente) 
     return insertPacienteSupabase(row);
 }
 
-/** Fila BD `especialistas` → forma esperada por citas/directorio (objeto `doctor`). */
-export function mapEspecialistaSupabaseACartera(row) {
+/** Transformador Base -> Convierte la fila plana de Supabase al objeto anidado del Frontend */
+export function transformarDeSupabase(row) {
     if (!row) return null;
-    const idEsp = row.id_especialista;
+    const idEsp = row.id_especialista || row.id;
     const nombreCompleto = row.nombre_completo || '';
+
     return {
         id: idEsp,
         id_especialista: idEsp,
@@ -295,6 +298,7 @@ export function mapEspecialistaSupabaseACartera(row) {
         horarios_atencion: row.horarios_atencion,
         actividades: row.actividades,
         nombre_completo: nombreCompleto,
+        // Adaptador anidado esperado por data.js
         doctor: {
             nombre_completo: nombreCompleto,
             nombres: '',
@@ -303,15 +307,35 @@ export function mapEspecialistaSupabaseACartera(row) {
     };
 }
 
+/** Transformador Frontend -> Aplana el objeto anidado para INSERTs/UPDATEs limpios en Supabase */
+export function transformarParaSupabase(data) {
+    if (!data) return null;
+    const flatData = { ...data };
+
+    // Si viene el objeto compuesto, lo extraemos y pulverizamos el nodo anidado
+    if (flatData.doctor && flatData.doctor.nombre_completo) {
+        flatData.nombre_completo = flatData.doctor.nombre_completo;
+        delete flatData.doctor;
+    }
+
+    return flatData;
+}
+
 export async function fetchEspecialistasSupabase() {
     const SELECT_ESP =
         'id_especialista, especialidad, nombre_completo, duracion_minutos, horarios_atencion, actividades';
     const { data, error } = await supabase.from('especialistas').select(SELECT_ESP).order('id_especialista');
-    if (error) throw error;
-    return (data || []).map(mapEspecialistaSupabaseACartera);
+    if (error) {
+        console.error('[Supabase] Error fetchEspecialistasSupabase:', error);
+        throw error;
+    }
+    const transformed = (data || []).map(transformarDeSupabase);
+    console.info(`[Supabase] fetchEspecialistasSupabase: ${transformed.length} especialistas cargados.`);
+    return transformed;
 }
 
 export function mergeCarteraEnSanitasFamDb(cartera) {
+    console.info(`[Supabase] mergeCarteraEnSanitasFamDb: guardando ${cartera.length} especialistas en sanitasFam_db.`);
     let db;
     try {
         db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
