@@ -183,7 +183,19 @@ export function createCitas() {
 
             if (medicos.length === 1) {
                 const med = medicos[0];
-                // ✅ NUEVO: guardar pre-selección para que el login sepa que hay cita en curso
+                // TR-80.1: Reseteo de calendario al seleccionar especialidad con médico único.
+                // Al elegir un nuevo contexto, la fecha base vuelve a hoy para que el
+                // Smart Jump parta siempre desde el instante actual, evitando mostrar
+                // semanas residuales de una selección previa.
+                this.fechaBaseCalendario = new Date();
+                this.diaSeleccionadoMobile = 0;
+                // TR-80.4: Purga de pre-selecciones efímeras del médico anterior.
+                sessionStorage.removeItem('cita_hora_seleccionada');
+                sessionStorage.removeItem('cita_fecha_iso');
+                this.horaSeleccionada = null;
+                this.fechaISOSeleccionada = null;
+
+                // Guardar pre-selección para que el login sepa que hay cita en curso
                 sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                     medico: med.doctor.nombre_completo,
                     especialidad: especialidad,
@@ -358,6 +370,18 @@ export function createCitas() {
             const nombre = med.doctor.nombre_completo;
             const especialidad = med.especialidad;
             const img = this.obtenerImagenMedico(nombre, especialidad, med.imagen_url);
+
+            // TR-80.1 + TR-80.4: Reseteo de contexto temporal al cambiar de médico.
+            // La fecha base vuelve a hoy para que el Smart Jump parta del instante actual
+            // y no herede la semana de una selección previa. Se purga también la hora y
+            // fecha guardadas para evitar affordances falsos del slot anterior.
+            this.fechaBaseCalendario = new Date();
+            this.diaSeleccionadoMobile = 0;
+            sessionStorage.removeItem('cita_hora_seleccionada');
+            sessionStorage.removeItem('cita_fecha_iso');
+            this.horaSeleccionada = null;
+            this.fechaISOSeleccionada = null;
+
             sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                 medico: nombre,
                 especialidad: especialidad,
@@ -2655,25 +2679,46 @@ export function createCitas() {
 
             this.deshabilitarHorarios();
 
-            // ── C1 UI (Escritorio): Ocultar botón "Anterior" en la semana de inicio ──
+            // ── TR-81 + C1 UI: Cálculo de límites de visibilidad para botones de navegación ──
             // Usa visibility:hidden (no display:none) para mantener el layout Flexbox estable.
+            // El límite máximo (90 días) determina la ocultación del botón de avance (TR-81).
+            // El límite mínimo (hoy / fechaInicioDisponible) determina el botón de retroceso (C1).
             const hoyNorm = new Date();
             hoyNorm.setHours(0, 0, 0, 0);
+            const limiteMaximoNorm = new Date();
+            limiteMaximoNorm.setDate(limiteMaximoNorm.getDate() + 90);
+            limiteMaximoNorm.setHours(0, 0, 0, 0);
+
             const lunesNorm = new Date(lunes);
             lunesNorm.setHours(0, 0, 0, 0);
+
+            // Sábado de la semana actual (último día laborable visible en desktop)
+            const sabadoSemanaActual = new Date(lunesNorm);
+            sabadoSemanaActual.setDate(lunesNorm.getDate() + 5);
+
+            // Lunes de la semana siguiente (primer día del rango potencial de avance)
+            const lunesSiguiente = new Date(lunesNorm);
+            lunesSiguiente.setDate(lunesNorm.getDate() + 7);
+
+            // ── Botón Anterior (Desktop): oculto cuando la semana actual es la primera disponible ──
             const btnAnterior = document.querySelector('.citas-calendar-header .calendar-nav-btn:first-child');
             if (btnAnterior) {
                 btnAnterior.style.visibility = lunesNorm <= hoyNorm ? 'hidden' : 'visible';
             }
 
-            // ── C1 UI (Móvil): Ocultar botón "Día anterior" en el origen de disponibilidad ──
-            // visibility:hidden oculta el botón sin colapsar el espacio que ocupa en el flex,
-            // evitando el salto visual que causaría display:none. El botón vuelve a 'visible'
-            // en cuanto el usuario avanza a cualquier día posterior al límite mínimo.
+            // ── Botón Siguiente (Desktop) TR-81: oculto cuando la semana siguiente supera el límite ──
+            const btnSiguiente = document.querySelector('.citas-calendar-header .calendar-nav-btn:last-child');
+            if (btnSiguiente) {
+                btnSiguiente.style.visibility = lunesSiguiente > limiteMaximoNorm ? 'hidden' : 'visible';
+            }
+
+            // ── UI Móvil: gestión de visibilidad del botón anterior y siguiente por día ──
             if (esMobile) {
                 const diaVisibleMobile = new Date(lunes);
                 diaVisibleMobile.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
                 diaVisibleMobile.setHours(0, 0, 0, 0);
+
+                // Botón Anterior (Móvil): C1 — oculto cuando el día visible es el primer disponible
                 const limiteMinimo = this.fechaInicioDisponible
                     ? new Date(this.fechaInicioDisponible)
                     : (() => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; })();
@@ -2681,28 +2726,90 @@ export function createCitas() {
                 if (btnDiaAnterior) {
                     btnDiaAnterior.style.visibility = diaVisibleMobile <= limiteMinimo ? 'hidden' : 'visible';
                 }
+
+                // Botón Siguiente (Móvil) TR-81: oculto cuando el día siguiente superaría el límite máximo
+                const diaSiguienteMobile = new Date(diaVisibleMobile);
+                diaSiguienteMobile.setDate(diaVisibleMobile.getDate() + 1);
+                const btnDiaSiguiente = document.querySelector('.citas-day-nav-mobile .calendar-nav-btn:last-child');
+                if (btnDiaSiguiente) {
+                    btnDiaSiguiente.style.visibility = diaSiguienteMobile > limiteMaximoNorm ? 'hidden' : 'visible';
+                }
             }
 
             this._bloquearConfirmar();
         },
 
         cambiarSemana(direccion) {
-            // ── C1: Bloqueo del Pasado (H5) ──
-            // Si el usuario intenta ir hacia atrás, calculamos la nueva fecha base
-            // y comparamos contra hoy normalizando las horas para no bloquear el día actual.
+            // ── TR-79: Límites estrictos de navegación temporal ──
+            // Definición de límites (normalizados a medianoche para comparaciones exactas)
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const limiteMaximo = new Date();
+            limiteMaximo.setDate(limiteMaximo.getDate() + 90);
+            limiteMaximo.setHours(0, 0, 0, 0);
+
+            // Calcular el Lunes de la semana objetivo
+            const fechaBaseDestino = new Date(this.fechaBaseCalendario);
+            fechaBaseDestino.setDate(fechaBaseDestino.getDate() + (direccion * 7));
+            const diaSemanaDestino = fechaBaseDestino.getDay();
+            const diffAlLunesDestino = diaSemanaDestino === 0 ? -6 : 1 - diaSemanaDestino;
+            const lunesDestino = new Date(fechaBaseDestino);
+            lunesDestino.setDate(fechaBaseDestino.getDate() + diffAlLunesDestino);
+            lunesDestino.setHours(0, 0, 0, 0);
+
+            // El Sábado de la semana destino (último día laborable)
+            const sabadoDestino = new Date(lunesDestino);
+            sabadoDestino.setDate(lunesDestino.getDate() + 5);
+            sabadoDestino.setHours(0, 0, 0, 0);
+
+            // Selectores de botones de semana
+            const btnAnterior = document.querySelector('.citas-calendar-header .calendar-nav-btn:first-child');
+            const btnSiguiente = document.querySelector('.citas-calendar-header .calendar-nav-btn:last-child');
+
             if (direccion === -1) {
-                const nuevaFecha = new Date(this.fechaBaseCalendario);
-                nuevaFecha.setDate(nuevaFecha.getDate() - 7);
-                nuevaFecha.setHours(0, 0, 0, 0);
-                const hoyNorm = new Date();
-                hoyNorm.setHours(0, 0, 0, 0);
-                if (nuevaFecha < hoyNorm) return; // Abortar: no se puede ir al pasado
+                // Bloqueo pasado: la semana entera ya quedó antes de hoy
+                // (el Sábado de la semana destino debe ser >= hoy)
+                if (sabadoDestino < hoy) {
+                    if (btnAnterior) {
+                        btnAnterior.disabled = true;
+                        btnAnterior.classList.add('calendar-nav-btn--disabled');
+                    }
+                    return; // Abortar: la semana objetivo es completamente pasada
+                }
+            } else if (direccion === 1) {
+                // Bloqueo futuro: el Lunes de la semana destino supera el límite de 90 días
+                if (lunesDestino > limiteMaximo) {
+                    if (btnSiguiente) {
+                        btnSiguiente.disabled = true;
+                        btnSiguiente.classList.add('calendar-nav-btn--disabled');
+                    }
+                    return; // Abortar: se superó el límite máximo de 90 días
+                }
             }
+
+            // Reactivar ambos botones antes de navegar (el estado correcto
+            // se recalcula en generarCalendario() al renderizar el nuevo contexto)
+            if (btnAnterior) {
+                btnAnterior.disabled = false;
+                btnAnterior.classList.remove('calendar-nav-btn--disabled');
+            }
+            if (btnSiguiente) {
+                btnSiguiente.disabled = false;
+                btnSiguiente.classList.remove('calendar-nav-btn--disabled');
+            }
+
             this.fechaBaseCalendario.setDate(this.fechaBaseCalendario.getDate() + (direccion * 7));
             this.generarCalendario();
         },
 
         cambiarDiaMobile(direccion) {
+            // ── TR-79: Límites estrictos de navegación temporal (móvil) ──
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const limiteMaximo = new Date();
+            limiteMaximo.setDate(limiteMaximo.getDate() + 90);
+            limiteMaximo.setHours(0, 0, 0, 0);
+
             const doc = this._doctorActual;
             const diasLaborables = (doc && doc.horarios_atencion && doc.horarios_atencion.dias)
                 ? doc.horarios_atencion.dias
@@ -2719,22 +2826,45 @@ export function createCitas() {
             let diaActual = new Date(lunes);
             diaActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
 
-            // ── C1: Blindaje del Límite Inferior (H5) ──
-            // Compara el día visible ACTUAL (no el destino potencial) contra hoy.
-            // Si el día que se muestra actualmente YA ES hoy, no hay a dónde retroceder.
-            // Usa setHours(0,0,0,0) en ambos para eliminar errores de hora/minuto/segundo.
+            // Selectores de botones de navegación móvil
+            const btnDiaAnterior = document.querySelector('.citas-day-nav-mobile .calendar-nav-btn:first-child');
+            const btnDiaSiguiente = document.querySelector('.citas-day-nav-mobile .calendar-nav-btn:last-child');
+
             if (direccion === -1) {
-                const diaVisibleActual = new Date(lunes);
-                diaVisibleActual.setDate(lunes.getDate() + this.diaSeleccionadoMobile);
-                diaVisibleActual.setHours(0, 0, 0, 0);
-                // ── C1 Lógico: Blindaje contra fechaInicioDisponible ──
-                // El límite dinámico reemplaza la comparación contra "hoy".
-                // Si el usuario ya está en el primer día con disponibilidad,
-                // no tiene sentido retroceder (solo vería días sin slots).
-                const limiteMinimo = this.fechaInicioDisponible
-                    ? new Date(this.fechaInicioDisponible)
-                    : (() => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; })();
-                if (diaVisibleActual <= limiteMinimo) return; // Blindaje infranqueable
+                // ── Bloqueo pasado: el día objetivo no puede ser anterior a hoy ──
+                const diaObjetivo = new Date(diaActual);
+                diaObjetivo.setDate(diaObjetivo.getDate() - 1);
+                diaObjetivo.setHours(0, 0, 0, 0);
+                if (diaObjetivo < hoy) {
+                    if (btnDiaAnterior) {
+                        btnDiaAnterior.disabled = true;
+                        btnDiaAnterior.classList.add('calendar-nav-btn--disabled');
+                    }
+                    return; // Abortar: no se puede ir antes de hoy
+                }
+            } else if (direccion === 1) {
+                // ── Bloqueo futuro: el día objetivo no puede superar el límite de 90 días ──
+                const diaObjetivo = new Date(diaActual);
+                diaObjetivo.setDate(diaObjetivo.getDate() + 1);
+                diaObjetivo.setHours(0, 0, 0, 0);
+                if (diaObjetivo > limiteMaximo) {
+                    if (btnDiaSiguiente) {
+                        btnDiaSiguiente.disabled = true;
+                        btnDiaSiguiente.classList.add('calendar-nav-btn--disabled');
+                    }
+                    return; // Abortar: se superó el límite máximo de 90 días
+                }
+            }
+
+            // Reactivar ambos botones antes de navegar (el estado correcto
+            // se recalcula en generarCalendario() al renderizar el nuevo contexto)
+            if (btnDiaAnterior) {
+                btnDiaAnterior.disabled = false;
+                btnDiaAnterior.classList.remove('calendar-nav-btn--disabled');
+            }
+            if (btnDiaSiguiente) {
+                btnDiaSiguiente.disabled = false;
+                btnDiaSiguiente.classList.remove('calendar-nav-btn--disabled');
             }
 
             // ── Smart Jumps: avanzar/retroceder hasta el próximo día laborable ──

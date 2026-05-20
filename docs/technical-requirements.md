@@ -686,3 +686,17 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Modal Estático:** El feedback de "Cerrando sesión..." no debe ser inyectado dinámicamente con `innerHTML`. Debe existir como un elemento estático en `index.html` con clase `.modal-overlay` y `.hidden`.
 2. **Control de Estado:** El componente debe ser gestionado exclusivamente mediante `classList` (toggling `hidden` / `show` / `fade-in`).
 3. **Persistencia Visual:** El `z-index` debe ser `99999` para garantizar que el modal sea el elemento superior en el DOM.
+
+## TR-79: Límites de Navegación Temporal (H3, WCAG 2.2.1)
+1. **Pasado:** No se permite la navegación a semanas o días donde no existen slots disponibles. Se bloquea la navegación hacia atrás si la fecha objetivo es anterior a la fecha actual.
+2. **Futuro:** Límite máximo de agendamiento de 90 días (3 meses) a partir de la fecha actual. El botón 'Siguiente' debe deshabilitarse al alcanzar esta fecha límite.
+
+
+## TR-80: Ciclo de Vida y Reseteo del Estado Temporal del Calendario (H3, H7)
+1. **Gatillo de Inicialización Total:** Cada vez que el usuario selecciona un nuevo especialista en el Paso 1, el objeto de control de citas DEBE forzar un reseteo de la fecha base del calendario (`this.fechaBaseCalendario = new Date()`). 
+2. **Auto-Búsqueda Asíncrona (Auto-Seek):** Al cambiar de médico, la vista del calendario debe reiniciarse en la fecha actual (Tablet/Desktop) o ejecutar automáticamente la subrutina de búsqueda del primer día disponible con slots reales (Mobile).
+3. **Persistencia Transaccional:** Si el usuario avanza al Paso 3 o Paso 4 y regresa mediante el botón "Atrás" del formulario, la fecha del calendario NO debe ser reseteada; debe conservar exactamente la semana o día donde se originó la selección del slot.
+4. **Purga de Pre-Selecciones:** Al cambiar de especialista o presionar "Volver a Médicos", cualquier horario previamente seleccionado (`time-slot--selected`) debe ser desmarcado, destruyendo su persistencia efímera en el `sessionStorage`.
+
+## TR-81: Ocultamiento Absoluto de Controles de Navegación Temporales (H1, H8)
+1. **Ocultamiento del Límite Máximo:** El botón de navegación hacia adelante (`cambiarSemana(1)` o `cambiarDiaMobile(1)`) debe pasar a `style.visibility = 'hidden'` de forma atómica e inmediata en el momento exacto en que la vista actual alcance el límite máximo establecido de 3 meses (90 días desde el día actual). No basta con deshabilitarlo.
