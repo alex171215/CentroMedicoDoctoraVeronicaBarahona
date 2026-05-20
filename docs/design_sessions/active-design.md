@@ -1,26 +1,19 @@
-# Sesión de Diseño: Implementación de Concurrencia y TTL de 10 Minutos
+# Sesión de Diseño: Corrección de Feedback de Cierre de Sesión (Static Injection)
 
 ## 1. Objetivo
-Blindar el proceso de agendamiento para evitar colisiones entre usuarios, implementando un bloqueo temporal de 10 minutos con visualización de horarios deshabilitados.
+Corregir la invisibilidad del modal de "Cerrando sesión..." utilizando un enfoque de inyección estática en lugar de dinámica para evitar condiciones de carrera (Race Conditions) con la redirección.
 
 ## 2. Instrucciones Técnicas
+- **HTML:** Asegurar que el modal `#modal-logout-loader` exista estáticamente en el DOM.
+- **CSS:** Utilizar una clase `.show` con `display: flex !important` y `z-index: 99999`.
+- **JS:** La función de logout solo debe manipular `classList` y esperar 1.5s antes del `window.location.href`.
 
-### A. Lógica JS (No tocar el DOM principal)
-* **Persistencia:** No inyectar HTML nuevo. Crear una función `app.citas.bloquearHorario(especialistaId, fecha, hora)` que gestione el `sessionStorage` y el estado en Supabase.
-* **Interfaz:** Crear una función `app.citas.deshabilitarHorarios()` que recorra los botones de horario en el Paso 2 y les añada el atributo `disabled` si su valor coincide con un horario bloqueado.
-* **Timer:** Usar un `setTimeout` de 600,000ms (10 min). Al finalizar, ejecutar `app.citas.liberarHorario()` y abrir el modal.
+## 3. Implementado (Registro de Cambios)
+- Se inyectó estáticamente el modal de carga `#modal-logout-loader` al final del `index.html`.
+- Se implementó la restricción en `styles.css` garantizando `display: none !important` mediante la pseudo-clase `.hidden` de utilería.
+- Se reescribió `ejecutarLogout` en `main.js` para destruir la carga de innerHTML y manejar estrictamente `logoutLoader.classList.remove('hidden')`.
+- El temporizador se mantuvo en `1500ms` garantizando que el usuario procese mentalmente la visibilidad antes de la redirección.
 
-### B. Modal de Caducidad (UI)
-* Reutilizar la estructura de modales existente (manteniendo la clase `.modal-overlay`, `.modal-content`).
-* Título: "Tiempo excedido". Mensaje: "El tiempo de espera o tiempo permitido ha excedido".
-* Botón de cierre con evento para llamar a `window.location.href = 'index.html'`.
-
-### C. CSS de Deshabilitación
-```css
-.citas-calendar-grid button:disabled, 
-.citas-calendar-grid button.is-pending {
-    background-color: #ccc !important;
-    cursor: not-allowed !important;
-    opacity: 0.6 !important;
-}
-```
+## Corrección de Race Condition en Logout
+- Se aplicó doble `requestAnimationFrame` para forzar que el navegador ejecute el Reflow y renderice el modal estático en pantalla antes de bloquear el hilo.
+- Se simplificó la limpieza de sesión por `localStorage.clear();` en la redirección dura.

@@ -672,9 +672,17 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Herencia Tipográfica:** Los contenidos inyectados dinámicamente en los modales (como la lista de servicios `.modal-activities-list li`) DEBEN forzar `font-family: inherit` en su texto principal para evitar tipografías por defecto del navegador (Times New Roman), manteniendo la consistencia (H4).
 2. **Excepción de Pseudo-Elementos (Protección de Íconos):** Es ESTRICTAMENTE PROHIBIDO que la herencia tipográfica (`!important`) sobrescriba los pseudo-elementos `::before` o `::after`. El sistema debe garantizar que el `font-family` de FontAwesome se mantenga intacto para renderizar viñetas o checks correctamente sin errores de glifo ("tofu").
 
-## TR-77: Gestión de Concurrencia y Bloqueo Optimista de Citas (H1, H5, WCAG 2.2.1)
-1. **Gatillo de Bloqueo (Trigger):** El temporizador y la reserva en la base de datos se activan EXCLUSIVAMENTE cuando el usuario presiona el botón de confirmación de horario (`#btn-confirmar-cita`) en el Paso 2 (Calendario).
-2. **Persistencia Temporal Aislada:** Debido a restricciones de llaves foráneas (`cedula_paciente`), el bloqueo NO debe insertarse en la tabla `citas`. Debe manejarse mediante una tabla temporal `bloqueos_horarios` (o lógica de bloqueo equivalente en persistencia) que registre `id_especialista`, `fecha`, `hora` y `expiracion`.
-3. **Deshabilitación Visual (H1):** El renderizado del calendario debe pintar y deshabilitar (`disabled`, estilo grisado) tanto las horas ocupadas en la tabla `citas` como las horas retenidas en bloqueos activos de otros usuarios.
-4. **Temporizador de Sesión (TTL):** El bloqueo tiene un Time-To-Live (TTL) estricto de **10 minutos**, garantizando tiempo suficiente para la recolección de documentos físicos del paciente (WCAG 2.2.1). Al dispararse el trigger, inicia un `setTimeout` global en el frontend.
-5. **Manejo de Caducidad (Timeout):** Si el TTL expira antes de completar la cita, se detiene cualquier acción y se muestra un Modal Restrictivo con el texto: *"El tiempo de espera o tiempo permitido ha excedido"*. El modal contará con un botón de "Cerrar" y una "X". Al cerrarse, el usuario es redirigido al Home, purgando su estado local y liberando el horario en la base de datos.
+## TR-77: Gestión de Concurrencia y Bloqueo Optimista de Citas (H1, H5)
+1. **Gatillo de Reserva Temporal:** Al seleccionar un horario en el calendario del Paso 2, se debe crear un registro de "reserva en progreso" con un TTL (Time To Live) de 10 minutos. Este registro se almacena en el `sessionStorage` (para el bloqueo inmediato del cliente) y se sincroniza con Supabase mediante un estado `pendiente` en una tabla auxiliar.
+2. **Deshabilitación Visual Preventiva:** Todos los horarios que tengan un registro de `pendiente` activo (o confirmado) deben ser deshabilitados visualmente en la interfaz (`disabled` y clase `.is-booked` o `.is-pending`) para todos los usuarios.
+3. **Mecanismo de Expiración (TTL):**
+   - Un temporizador (`setTimeout`) de 10 minutos se inicia al seleccionar la hora.
+   - Si el temporizador llega a cero sin confirmación, se libera el horario en la base de datos/estado, se borra la reserva temporal y se despliega un `Modal de Alerta` informativo.
+   - El Modal debe contener: "El tiempo de espera o tiempo permitido excedido", botón de "Cerrar" y un botón de cierre en esquina "X".
+   - Acción al cerrar: Redirección forzada al `Home` para limpiar el estado del sistema.
+4. **Integridad de Datos:** Una vez confirmada la cita, el estado cambia a `confirmada` y el horario queda deshabilitado permanentemente.
+
+## TR-78: Feedback de Cierre de Sesión (H1)
+1. **Modal Estático:** El feedback de "Cerrando sesión..." no debe ser inyectado dinámicamente con `innerHTML`. Debe existir como un elemento estático en `index.html` con clase `.modal-overlay` y `.hidden`.
+2. **Control de Estado:** El componente debe ser gestionado exclusivamente mediante `classList` (toggling `hidden` / `show` / `fade-in`).
+3. **Persistencia Visual:** El `z-index` debe ser `99999` para garantizar que el modal sea el elemento superior en el DOM.

@@ -82,15 +82,21 @@ const app = {
         }
     },
 
-    ejecutarLogout: function () {
-        localStorage.removeItem('usuarioLogueado');
-        localStorage.removeItem('usuarioActivo');
+    async ejecutarLogout() {
         this.cerrarModalLogout();
-        if (app.perfil && typeof app.perfil.cerrarModal === 'function') {
-            app.perfil.cerrarModal();
+        try {
+            await conCargaGlobal(async () => {
+                // Simulación de tiempo para que el modal se vea
+                return new Promise(resolve => {
+                    localStorage.clear();
+                    setTimeout(resolve, 1500);
+                });
+            }, 'Cerrando sesión...');
+
+            window.location.href = 'index.html';
+        } catch (err) {
+            console.error('Error al cerrar sesión:', err);
         }
-        app.iniciarSesionUsuario();   // Restaura el botón "Iniciar Sesión"
-        app.navegar('home');
     },
 
     // ------------------------------------------------------------------
