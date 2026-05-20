@@ -17,3 +17,11 @@ Corregir la invisibilidad del modal de "Cerrando sesión..." utilizando un enfoq
 ## Corrección de Race Condition en Logout
 - Se aplicó doble `requestAnimationFrame` para forzar que el navegador ejecute el Reflow y renderice el modal estático en pantalla antes de bloquear el hilo.
 - Se simplificó la limpieza de sesión por `localStorage.clear();` en la redirección dura.
+
+## Arquitectura de Datos y Escalabilidad (13 -> 60 Especialistas)
+- Se implementó un "Adaptador de Datos" (`transformarDeSupabase` y `transformarParaSupabase`) en `js/modulos/supabaseServicio.js` que hace de puente entre el backend plano de Supabase y el frontend jerárquico (`doctor.nombre_completo`).
+- Se ampliaron los datos localmente en `data.js` respetando la integridad de los especialistas históricos `esp-001` al `esp-013`.
+
+## Aislamiento de Eventos (Fix Modal Regresión)
+- Se redefinió la lógica de cierre del modal de perfil de especialista (`#modal-especialista`) en `js/main.js` para asegurar unicidad (idempotencia) mediante la bandera `this._eventosModalAgregados`.
+- Se introdujo `e.stopPropagation()` y `e.preventDefault()` en los listeners para evitar la propagación (Race Conditions / burbujeo) espuria hacia los disparadores subyacentes (que causaba que el sistema avanzara erróneamente seleccionando al último doctor iterado).
