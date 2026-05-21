@@ -32,6 +32,9 @@
                 <div class="header__top-links">
                 </div>
                 <div class="header__top-buttons">
+                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display:none;" onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita
+                    </button>
                     <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
                         <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
                     </button>
@@ -215,54 +218,37 @@
         </section>
 
         <!-- ===================================================
-             Widget: Consulta de Cita para Invitados
+             Modal: Consulta de Cita para Invitados (TR-82)
              =================================================== -->
-        <section id="widget-invitado" class="widget-invitado" style="display: none;"
-            aria-labelledby="widget-invitado-titulo">
-            <div class="widget-invitado__inner">
-                <div class="widget-invitado__icon" aria-hidden="true">
-                    <i class="fa-regular fa-calendar-check"></i>
-                </div>
-                <h2 id="widget-invitado-titulo" class="widget-invitado__titulo">Consulta tu cita médica</h2>
-                <p class="widget-invitado__desc">Ingresa tus datos para verificar el estado de tu cita agendada.</p>
-                <div class="widget-invitado__fields">
-                    <div class="widget-invitado__field">
-                        <label for="widget-cedula" class="widget-invitado__label">Cédula</label>
-                        <input type="text" id="widget-cedula" class="widget-invitado__input"
-                            placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" aria-required="true"
-                            aria-describedby="widget-cedula-error" autocomplete="on">
-                        <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
-                            style="display:none;"></span>
-                    </div>
-                    <div class="widget-invitado__field">
-                        <label for="widget-fecha-cita" class="widget-invitado__label">Fecha de Cita</label>
-                        <input type="date" id="widget-fecha-cita" class="widget-invitado__input" aria-required="true"
-                            aria-describedby="widget-fecha-error" autocomplete="off">
-                        <span id="widget-fecha-error" class="widget-invitado__error" role="alert"
-                            style="display:none;"></span>
-                    </div>
-                </div>
-                <button type="button" id="btn-consultar-cita" class="btn btn--primario widget-invitado__btn">
-                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar
-                </button>
-            </div>
-        </section>
-
-        <!-- Modal: Resultado de Consulta de Cita (Dinámico — Maestro/Detalle) -->
-        <div id="modal-consulta-cita" class="modal-overlay modal-consulta" style="display:none;" role="dialog"
-            aria-modal="true" aria-labelledby="modal-consulta-title">
-            <div class="modal-content modal-consulta__content">
-                <button class="modal-close" aria-label="Cerrar modal" onclick="app.widgetInvitado.cerrarModal()">
+        <div id="modal-consulta-invitado" class="modal-overlay modal-consulta" style="display:none;" role="dialog"
+            aria-modal="true" aria-labelledby="modal-consulta-invitado-title">
+            <div class="modal-content modal-consulta__content" style="max-width: 400px; padding: 30px;">
+                <button class="modal-close" aria-label="Cerrar modal" onclick="app.widgetInvitado.cerrarModalConsulta()">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
-                <div class="modal-consulta__icon" aria-hidden="true">
-                    <i class="fa-solid fa-calendar-check"></i>
+                <div id="modal-consulta-invitado-body" role="region" aria-live="polite">
+                    <!-- Vista A: Input por defecto -->
+                    <div id="vista-consulta-input">
+                        <div class="widget-invitado__icon" aria-hidden="true" style="margin-bottom: 15px;">
+                            <i class="fa-regular fa-calendar-check" style="font-size: 2.5rem; color: #ffffff !important;"></i>
+                        </div>
+                        <h3 id="modal-consulta-invitado-title" class="modal-consulta__title" style="margin-bottom: 10px;">Consulta tu cita médica</h3>
+                        <p class="widget-invitado__desc" style="margin-bottom: 25px; color: var(--gray-text); text-align: center;">Ingresa tu cédula para verificar tus citas agendadas.</p>
+                        
+                        <div class="widget-invitado__field" style="margin-bottom: 25px; width: 100%; text-align: left;">
+                            <label for="widget-cedula" class="widget-invitado__label">Cédula</label>
+                            <input type="text" id="widget-cedula" class="widget-invitado__input form-control"
+                                placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" aria-required="true"
+                                aria-describedby="widget-cedula-error" autocomplete="on" style="width: 100%;">
+                            <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
+                                style="display:none;"></span>
+                        </div>
+                        
+                        <button type="button" id="btn-consultar-cita" class="btn btn--primario widget-invitado__btn" style="width: 100%;">
+                            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar
+                        </button>
+                    </div>
                 </div>
-                <h3 id="modal-consulta-title" class="modal-consulta__title">Detalle de tu Cita</h3>
-                <!-- Contenedor dinámico: será inyectado por JS según cantidad de resultados -->
-                <div id="modal-consulta-body" class="modal-consulta__body" role="region" aria-live="polite"></div>
-                <button type="button" class="btn btn--primario modal-consulta__close-btn"
-                    onclick="app.widgetInvitado.cerrarModal()">Entendido</button>
             </div>
         </div>
 

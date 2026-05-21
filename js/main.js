@@ -296,7 +296,8 @@ const app = {
 
         this.iniciarSesionUsuario();
 
-        if (document.getElementById('widget-invitado')) {
+        // TR-85: Inicialización incondicional (el nodo raíz de inyección existe aunque el widget ya no esté)
+        if (app.widgetInvitado && typeof app.widgetInvitado.inicializar === 'function') {
             app.widgetInvitado.inicializar();
         }
         if (document.getElementById('login-form')) {
@@ -787,14 +788,10 @@ const app = {
         }
 
 
-        // TR-25: el widget nace oculto en index.html; solo mostrarlo si no hay sesión (evita parpadeo al estar logueado).
-        const widgetInvitado = document.getElementById('widget-invitado');
-        if (widgetInvitado) {
-            if (usuarioLogueado === 'true') {
-                widgetInvitado.style.display = 'none';
-            } else {
-                widgetInvitado.style.display = 'block';
-            }
+        // TR-93: Boton Consultar Cita en header: visible solo para usuarios no logueados.
+        const btnConsultarHeader = document.getElementById('btn-consultar-cita-header');
+        if (btnConsultarHeader) {
+            btnConsultarHeader.style.display = (usuarioLogueado === 'true') ? 'none' : 'inline-block';
         }
     },
 
@@ -3398,77 +3395,131 @@ const app = {
 
     widgetInvitado: {
         _validadoresIniciados: false,
+        /** TR-84: retiene la última cédula procesada con éxito para re-hidratarla al volver a Vista A. */
+        _cedulaConsultada: '',
 
-        inicializar() {
-            if (!this._validadoresIniciados) {
-                this._validadoresIniciados = true;
+        /** TR-84: genera el HTML de Vista A interpolando la cédula persistida (no nace vacía). */
+        _generarVistaAHTML() {
+            return `
+            <div id="vista-consulta-input">
+                <div class="widget-invitado__icon" aria-hidden="true" style="margin-bottom: 15px; text-align: center;">
+                    <i class="fa-regular fa-calendar-check" style="font-size: 2.5rem; color: #ffffff !important;"></i>
+                </div>
+                <h3 id="modal-consulta-invitado-title" class="modal-consulta__title" style="margin-bottom: 10px; text-align: center;">Consulta tu cita m\u00e9dica</h3>
+                <p class="widget-invitado__desc" style="margin-bottom: 25px; color: var(--gray-text); text-align: center;">Ingresa tu c\u00e9dula para verificar tus citas agendadas.</p>
+                <div class="widget-invitado__field" style="margin-bottom: 25px; width: 100%; text-align: left;">
+                    <label for="widget-cedula" class="widget-invitado__label">C\u00e9dula</label>
+                    <input type="text" id="widget-cedula" class="widget-invitado__input form-control"
+                        placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" aria-required="true"
+                        aria-describedby="widget-cedula-error" autocomplete="on" style="width: 100%;"
+                        value="${this._cedulaConsultada || ''}">
+                    <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
+                        style="display:none; color: #d32f2f; font-size: 0.85rem; margin-top: 5px;"></span>
+                </div>
+                <button type="button" id="btn-consultar-cita" class="btn btn--primario widget-invitado__btn" style="width: 100%;">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar
+                </button>
+            </div>`;
+        },
 
-                const inputCedula = document.getElementById('widget-cedula');
-                const inputFecha = document.getElementById('widget-fecha-cita');
-                const btnConsultar = document.getElementById('btn-consultar-cita');
+        abrirModalConsulta() {
+            const modal = document.getElementById('modal-consulta-invitado');
+            if (modal) {
+                history.pushState({ vista: 'widget-invitado-input' }, '', '');
+                modal.style.display = 'flex';
+                this.restaurarVistaA();
+            }
+        },
 
-                // Solo dígitos en cédula y limpiar error en tiempo real
-                if (inputCedula) {
-                    inputCedula.addEventListener('input', (e) => {
-                        e.target.value = e.target.value.replace(/\D/g, '');
-                        inputCedula.classList.remove('input-error');
-                        const errorSpan = document.getElementById('widget-cedula-error');
-                        if (errorSpan) errorSpan.style.display = 'none';
-                    });
-
-                    // Validación on blur (H5 Nielsen)
-                    inputCedula.addEventListener('blur', () => {
-                        const val = inputCedula.value.trim();
-                        const errorSpan = document.getElementById('widget-cedula-error');
-                        if (val.length === 0) {
-                            inputCedula.classList.remove('input-error', 'input-success');
-                            if (errorSpan) errorSpan.style.display = 'none';
-                        } else if (val.length !== 10 || !/^\d{10}$/.test(val)) {
-                            inputCedula.classList.add('input-error');
-                            inputCedula.classList.remove('input-success');
-                            if (errorSpan) { errorSpan.textContent = 'La cédula debe tener 10 dígitos.'; errorSpan.style.display = 'block'; }
-                        } else if (app.citas && !app.citas.validarCedulaEcuatoriana(val)) {
-                            inputCedula.classList.add('input-error');
-                            inputCedula.classList.remove('input-success');
-                            if (errorSpan) { errorSpan.textContent = 'La cédula ingresada no es válida.'; errorSpan.style.display = 'block'; }
-                        } else {
-                            inputCedula.classList.remove('input-error');
-                            inputCedula.classList.add('input-success');
-                            if (errorSpan) errorSpan.style.display = 'none';
-                        }
-                    });
-                }
-
-                if (inputFecha) {
-                    // Limpiar error en tiempo real
-                    inputFecha.addEventListener('input', () => {
-                        inputFecha.classList.remove('input-error');
-                        const errorSpan = document.getElementById('widget-fecha-error');
-                        if (errorSpan) errorSpan.style.display = 'none';
-                    });
-
-                    inputFecha.addEventListener('blur', () => {
-                        const val = inputFecha.value.trim();
-                        const errorSpan = document.getElementById('widget-fecha-error');
-                        if (val.length === 0) {
-                            inputFecha.classList.remove('input-error', 'input-success');
-                            if (errorSpan) errorSpan.style.display = 'none';
-                        } else {
-                            inputFecha.classList.remove('input-error');
-                            inputFecha.classList.add('input-success');
-                            if (errorSpan) errorSpan.style.display = 'none';
-                        }
-                    });
-                }
-
-                // Botón Consultar
-                if (btnConsultar) {
-                    btnConsultar.addEventListener('click', () => {
-                        this.consultar();
-                    });
+        cerrarModalConsulta() {
+            const modal = document.getElementById('modal-consulta-invitado');
+            if (modal) {
+                modal.style.display = 'none';
+                if (history.state && history.state.vista === 'widget-invitado-input') {
+                    history.back();
                 }
             }
+            this._resultadosActuales = [];
+        },
 
+        restaurarVistaA() {
+            const body = document.getElementById('modal-consulta-invitado-body');
+            if (body) {
+                // TR-84: usa el generador dinámico para rehidratar la cédula persistida
+                body.innerHTML = this._generarVistaAHTML();
+                this._bindVistaA();
+            }
+        },
+
+        _bindVistaA() {
+            const inputCedula = document.getElementById('widget-cedula');
+            const btnConsultar = document.getElementById('btn-consultar-cita');
+
+            if (inputCedula) {
+                inputCedula.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.replace(/\D/g, '');
+                    inputCedula.classList.remove('input-error');
+                    const errorSpan = document.getElementById('widget-cedula-error');
+                    if (errorSpan) errorSpan.style.display = 'none';
+                });
+            }
+
+            if (btnConsultar) {
+                btnConsultar.addEventListener('click', () => {
+                    this.consultar();
+                });
+            }
+        },
+
+        inicializar() {
+            if (this._validadoresIniciados) return;
+            
+            this._validadoresIniciados = true;
+            this._bindVistaA();
+
+            // TR-85: Delegación de Eventos Inmortal en document
+            document.addEventListener('click', (e) => {
+                const target = e.target.closest('button, a');
+                if (!target) return;
+
+                const widget = app.widgetInvitado;
+                if (!widget) return;
+                
+                // Lee de data-id o del estado local efímero
+                const idCita = target.getAttribute('data-id') || widget._citaActivaId || (widget._citaActual && widget._citaActual.id_cita);
+
+                if (target.classList.contains('cita-acciones__btn--modificar')) {
+                    e.preventDefault(); e.stopPropagation();
+                    if(idCita) widget.prepararModificacion(idCita);
+                    return;
+                }
+                if (target.classList.contains('cita-acciones__btn--cancelar')) {
+                    e.preventDefault(); e.stopPropagation();
+                    if(idCita) widget.cancelarCita(idCita);
+                    return;
+                }
+                if (target.classList.contains('btn--imprimir')) {
+                    e.preventDefault(); e.stopPropagation();
+                    if(idCita) widget.imprimirCitaInvitado(idCita);
+                    return;
+                }
+                if (target.classList.contains('btn--descargar-pdf')) {
+                    e.preventDefault(); e.stopPropagation();
+                    if(idCita) widget.descargarPDFCitaInvitado(idCita);
+                    return;
+                }
+                if (target.classList.contains('btn--vista-c-volver')) {
+                    e.preventDefault(); e.stopPropagation();
+                    widget.volverAListado();
+                    return;
+                }
+                if (target.classList.contains('btn--vista-c-finalizar')) {
+                    e.preventDefault(); e.stopPropagation();
+                    widget.restaurarVistaA();
+                    return;
+                }
+            });
+            console.log('[WidgetInvitado] Listener global registrado correctamente.');
             this._aplicarAutoConsultaPostAgendamiento();
         },
 
@@ -3484,47 +3535,32 @@ const app = {
                 return;
             }
 
-            const section = document.getElementById('widget-invitado');
-            section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
             window.setTimeout(() => {
+                this.abrirModalConsulta();
                 const inputCedula = document.getElementById('widget-cedula');
-                const inputFecha = document.getElementById('widget-fecha-cita');
-                if (!inputCedula || !inputFecha) {
+                if (!inputCedula) {
                     sessionStorage.removeItem(STORAGE_AUTO_CONSULTA_INVITADO);
                     return;
                 }
                 const ced = String(data.cedula || '').replace(/\D/g, '');
-                const fecha = String(data.fecha || '').trim();
                 inputCedula.value = ced;
-                inputFecha.value = fecha;
                 inputCedula.classList.remove('input-error');
-                inputFecha.classList.remove('input-error');
 
                 this._pendingDetailId = data.id_cita || null;
-                this.consultar();
+                this.consultar(true);
                 sessionStorage.removeItem(STORAGE_AUTO_CONSULTA_INVITADO);
             }, 380);
         },
 
-        consultar() {
+        consultar(isAutoConsulta = false) {
             const inputCedula = document.getElementById('widget-cedula');
-            const inputFecha = document.getElementById('widget-fecha-cita');
             const cedula = (inputCedula?.value || '').trim();
-            const fecha = (inputFecha?.value || '').trim();
             const errorCedula = document.getElementById('widget-cedula-error');
-            const errorFecha = document.getElementById('widget-fecha-error');
             let valido = true;
 
-            // Limpiar errores previos antes de revalidar
-            [inputCedula, inputFecha].forEach(el => {
-                if (el) { el.classList.remove('input-error', 'input-success'); }
-            });
-            [errorCedula, errorFecha].forEach(el => {
-                if (el) { el.textContent = ''; el.style.display = 'none'; }
-            });
+            if (inputCedula) inputCedula.classList.remove('input-error', 'input-success');
+            if (errorCedula) { errorCedula.textContent = ''; errorCedula.style.display = 'none'; }
 
-            // ── H9: Validación de Cédula con mensajes precisos ──
             if (!cedula) {
                 if (errorCedula) { errorCedula.textContent = 'Por favor, ingrese su número de cédula.'; errorCedula.style.display = 'block'; }
                 inputCedula?.classList.add('input-error');
@@ -3535,45 +3571,24 @@ const app = {
                 valido = false;
             }
 
-            // ── H9: Validación de Fecha con mensajes precisos ──
-            if (!fecha) {
-                if (errorFecha) { errorFecha.textContent = 'Por favor, seleccione la fecha de su cita.'; errorFecha.style.display = 'block'; }
-                inputFecha?.classList.add('input-error');
-                valido = false;
-            } else {
-                // Validar rango: no puede exceder 2 meses a futuro
-                const rangos = app.obtenerRangosFecha();
-                if (fecha > rangos.en2Meses) {
-                    if (errorFecha) { errorFecha.textContent = 'Las citas solo pueden consultarse hasta 2 meses a futuro.'; errorFecha.style.display = 'block'; }
-                    inputFecha?.classList.add('input-error');
-                    valido = false;
-                }
-                // Validar rango: no puede ser en el pasado
-                if (fecha < rangos.hoy) {
-                    if (errorFecha) { errorFecha.textContent = 'La fecha de la cita no puede ser en el pasado.'; errorFecha.style.display = 'block'; }
-                    inputFecha?.classList.add('input-error');
-                    valido = false;
-                }
-            }
-
             if (!valido) return;
 
-            // TR-50: Single Source of Truth — leer directo de Supabase (no localStorage)
-            // Envolver en conCargaGlobal para Heurística 1 (visibilidad del estado)
             void (async () => {
                 let resultados = [];
                 try {
                     await conCargaGlobal(async () => {
-                        // TR-58: alias obligatorio para desambiguar FK (cedula_paciente vs cedula_titular)
+                        const rangos = app.obtenerRangosFecha();
+                        const fechaHoy = rangos.hoy;
                         const { data, error } = await supabase
                             .from('citas')
                             .select('*, datos_paciente:pacientes!fk_paciente(nombres, apellidos)')
                             .eq('cedula_paciente', cedula)
-                            .eq('fecha', fecha);
+                            .gte('fecha', fechaHoy)
+                            .order('fecha', { ascending: true })
+                            .order('hora', { ascending: true });
                         if (error) throw error;
                         if (!data || data.length === 0) { resultados = []; return; }
 
-                        // TR-51: Resolver id_especialista → nombre legible usando cache local
                         let cartera = [];
                         try {
                             const db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
@@ -3581,24 +3596,9 @@ const app = {
                         } catch (_) { cartera = []; }
 
                         resultados = data.map(row => {
-                            // Buscar especialista por id
                             const idEsp = row.id_especialista;
-                            const esp = cartera.find(e =>
-                                e.id_especialista === idEsp ||
-                                e.id_especialista === String(idEsp) ||
-                                e.id_especialista === Number(idEsp) ||
-                                e.id === idEsp
-                            );
-                            // TR-58/TR-60: mapear nombre desde alias datos_paciente con .trim()
-                            const nombrePaciente = (row.paciente ||
-                                (row.datos_paciente
-                                    ? `${row.datos_paciente.nombres || ''} ${row.datos_paciente.apellidos || ''}`.trim()
-                                    : null) ||
-                                (row.pacientes
-                                    ? `${row.pacientes.nombres || ''} ${row.pacientes.apellidos || ''}`.trim()
-                                    : null) ||
-                                row.nombres ||
-                                '').trim();
+                            const esp = cartera.find(e => e.id_especialista === idEsp || e.id_especialista === String(idEsp) || e.id_especialista === Number(idEsp) || e.id === idEsp);
+                            const nombrePaciente = (row.paciente || (row.datos_paciente ? `${row.datos_paciente.nombres || ''} ${row.datos_paciente.apellidos || ''}`.trim() : null) || (row.pacientes ? `${row.pacientes.nombres || ''} ${row.pacientes.apellidos || ''}`.trim() : null) || row.nombres || '').trim();
                             return {
                                 id_cita: row.id_cita,
                                 cedula: row.cedula_paciente || row.cedula,
@@ -3609,123 +3609,99 @@ const app = {
                                 motivo: row.motivo || '',
                                 tipo: row.tipo_consulta || '',
                                 tipo_consulta: row.tipo_consulta || '',
-                                // TR-51: JOIN UI — inyectar nombre legible del médico
-                                medico: row.medico ||
-                                    (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) ||
-                                    '(Especialista #' + idEsp + ')',
-                                especialidad: row.especialidad ||
-                                    (esp && esp.especialidad) || '',
-                                // TR-54: nombre del paciente resuelto desde el JOIN
+                                medico: row.medico || (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) || '(Especialista #' + idEsp + ')',
+                                especialidad: row.especialidad || (esp && esp.especialidad) || '',
                                 paciente: nombrePaciente,
                                 id_especialista: idEsp
                             };
                         });
-                    }, 'Sincronizando datos...');
+                    }, 'Buscando citas...');
                 } catch (err) {
-                    // TR-61: imprimir error.message real para diagnóstico
-                    console.error('[TR-61] widgetInvitado.consultar Supabase:', err?.message || err);
-                    const body = document.getElementById('modal-consulta-body');
-                    const titulo = document.getElementById('modal-consulta-title');
-                    if (titulo) titulo.textContent = 'Error de conexión';
-                    if (body) body.innerHTML = `
-                        <div style="text-align:center;padding:20px;">
-                            <i class="fa-solid fa-triangle-exclamation fa-2x" style="color:#c0392b;margin-bottom:12px;"></i>
-                            <p>No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.</p>
-                        </div>`;
-                    const modal = document.getElementById('modal-consulta-cita');
-                    if (modal) {
-                        // TR-53: ancla en historial — caso error Supabase
-                        history.pushState({ vista: 'widget-invitado' }, '', '');
-                        modal.style.display = 'flex';
+                    console.error('[TR-82] widgetInvitado.consultar Supabase:', err?.message || err);
+                    const body = document.getElementById('modal-consulta-invitado-body');
+                    if (body) {
+                        body.innerHTML = `
+                            <div style="text-align:center;padding:20px;">
+                                <i class="fa-solid fa-triangle-exclamation fa-2x" style="color:#c0392b;margin-bottom:12px;"></i>
+                                <h3 style="margin-bottom: 10px;">Error de conexión</h3>
+                                <p>No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.</p>
+                                <button type="button" class="btn btn--secundario" style="margin-top: 15px;" onclick="app.widgetInvitado.restaurarVistaA()">Volver</button>
+                            </div>`;
                     }
                     return;
                 }
 
-                // ── Paso 2: Lógica de visualización según cantidad de resultados ──
-                const body = document.getElementById('modal-consulta-body');
-                const titulo = document.getElementById('modal-consulta-title');
-                if (!body || !titulo) return;
-
+                const body = document.getElementById('modal-consulta-invitado-body');
+                if (!body) return;
+                
                 body.innerHTML = '';
 
                 if (resultados.length === 0) {
-                    titulo.textContent = 'No se encontraron citas';
                     body.innerHTML = `
                         <div style="text-align: center; padding: 20px;">
                             <i class="fa-regular fa-calendar-xmark fa-3x" style="color: var(--gray-text); margin-bottom: 15px;"></i>
-                            <h4 style="margin-bottom: 10px;">No se encontraron citas</h4>
-                            <p style="color: var(--gray-text); font-size: 0.9rem;">No hay citas registradas para la cédula y fecha seleccionadas.</p>
+                            <h3 style="margin-bottom: 10px;">No se encontraron citas</h3>
+                            <p style="color: var(--gray-text); font-size: 0.9rem;">No hay citas futuras registradas para la cédula ingresada.</p>
+                            <button type="button" class="btn btn--primario" style="margin-top: 20px; width: 100%;" onclick="app.widgetInvitado.restaurarVistaA()">Intentar con otra cédula</button>
                         </div>
                     `;
-                    const modal = document.getElementById('modal-consulta-cita');
-                    if (modal) {
-                        // TR-53: ancla en historial — caso sin resultados
-                        history.pushState({ vista: 'widget-invitado' }, '', '');
-                        modal.style.display = 'flex';
-                    }
                     return;
                 }
 
-                // Guardar resultados en memoria para navegación interna
                 this._resultadosActuales = resultados;
+                // TR-84: persiste la cédula procesada con éxito para rehidratarla al volver a Vista A
+                this._cedulaConsultada = cedula;
 
-                if (resultados.length === 1) {
-                    titulo.textContent = 'Detalle de tu Cita';
-                    body.innerHTML = this._renderDetalle(resultados[0]);
+                if (resultados.length === 1 || isAutoConsulta) {
+                    const citaAMostrar = isAutoConsulta && this._pendingDetailId 
+                        ? resultados.find(c => c.id_cita === this._pendingDetailId) || resultados[0] 
+                        : resultados[0];
+                    // TR-85: Guardar el estado de la cita antes de pintar Vista C
+                    this._citaActivaId = citaAMostrar.id_cita;
+                    body.innerHTML = this._renderVistaC(citaAMostrar, false);
                 } else {
-                    titulo.textContent = `Se encontraron ${resultados.length} citas`;
-                    body.innerHTML = this._renderListaMaestro(resultados);
+                    body.innerHTML = this._renderVistaB(resultados);
                 }
 
-                const modal = document.getElementById('modal-consulta-cita');
-                if (modal) {
-                    // TR-53: ancla en historial (caso éxito con resultados) para Atrás nativo
-                    history.pushState({ vista: 'widget-invitado' }, '', '');
-                    modal.style.display = 'flex';
-                }
-
-                // Deep link desde colisión
-                if (this._pendingDetailId) {
-                    const idCita = this._pendingDetailId;
-                    this._pendingDetailId = null;
-                    const index = this._resultadosActuales.findIndex(c => c.id_cita === idCita);
-                    if (index !== -1) this.verDetalle(index);
-                }
+                this._pendingDetailId = null;
             })();
         },
 
-        // ── Render: Vista Detalle de una cita ──
-        _renderDetalle(cita, mostrarVolver) {
-            const fechaFmt = /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha)
-                ? cita.fecha.split('-').reverse().join('/')
-                : cita.fecha;
-
-            // TR-50: Usar id_cita de Supabase como identificador estable (no índice de localStorage)
+        /**
+         * TR-94: genera el HTML de Vista C sin atributos onclick embebidos.
+         * El binding de eventos se realiza programáticamente en _bindVistaC().
+         */
+        _renderVistaC(cita, mostrarVolver) {
+            const fechaFmt = /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha) ? cita.fecha.split('-').reverse().join('/') : cita.fecha;
             const idCitaEstable = cita.id_cita || '';
             const esCancelada = cita.estado === 'Cancelada';
-            const estadoBadge = esCancelada
-                ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
-                : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
+            const estadoBadge = esCancelada ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>' : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
 
             let html = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div class="modal-consulta__icon" aria-hidden="true">
+                        <i class="fa-solid fa-calendar-check" style="font-size: 2.5rem; color: #ffffff !important;"></i>
+                    </div>
+                    <h3 class="modal-consulta__title" style="margin-top: 10px;">Detalle de tu Cita</h3>
+                </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Estado</span>
                     <span class="modal-consulta__val">${estadoBadge}</span>
                 </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Fecha</span>
-                    <span class="modal-consulta__val">${escapeHtmlWidget(fechaFmt || '—')}</span>
+                    <span class="modal-consulta__val">${escapeHtmlWidget(fechaFmt || '\u2014')}</span>
                 </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-regular fa-clock" aria-hidden="true"></i> Hora</span>
-                    <span class="modal-consulta__val">${escapeHtmlWidget(cita.hora || '—')}</span>
+                    <span class="modal-consulta__val">${escapeHtmlWidget(cita.hora || '\u2014')}</span>
                 </div>
                 <div class="modal-consulta__row">
                     <span class="modal-consulta__label"><i class="fa-solid fa-stethoscope" aria-hidden="true"></i> Especialidad</span>
                     <span class="modal-consulta__val">${escapeHtmlWidget(cita.especialidad || 'No especificado')}</span>
                 </div>
                 <div class="modal-consulta__row">
-                    <span class="modal-consulta__label"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> Médico</span>
+                    <span class="modal-consulta__label"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> M\u00e9dico</span>
                     <span class="modal-consulta__val">${escapeHtmlWidget(cita.medico || 'No especificado')}</span>
                 </div>
                 <div class="modal-consulta__row">
@@ -3733,230 +3709,218 @@ const app = {
                     <span class="modal-consulta__val">${escapeHtmlWidget(cita.paciente || cita.nombres || 'No especificado')}</span>
                 </div>`;
 
-            // TR-62: Regla de negocio 24h — calcular tiempo restante para la cita
             const horaWidgetStr = cita.hora ? String(cita.hora).slice(0, 5) : '00:00';
-            const fechaCitaWidgetISO = cita.fecha && /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha)
-                ? `${cita.fecha}T${horaWidgetStr}`
-                : null;
+            const fechaCitaWidgetISO = cita.fecha && /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha) ? `${cita.fecha}T${horaWidgetStr}` : null;
             const fechaCitaWidgetMs = fechaCitaWidgetISO ? new Date(fechaCitaWidgetISO).getTime() : NaN;
-            const horasRestantesWidget = isNaN(fechaCitaWidgetMs)
-                ? Infinity // sin fecha parseable → no bloquear
-                : (fechaCitaWidgetMs - Date.now()) / (1000 * 60 * 60);
+            const horasRestantesWidget = isNaN(fechaCitaWidgetMs) ? Infinity : (fechaCitaWidgetMs - Date.now()) / (1000 * 60 * 60);
             const bloqueadoPor24hWidget = !esCancelada && horasRestantesWidget < 24;
 
-            // Botones CRUD solo si la cita NO está cancelada e id_cita disponible
             if (!esCancelada && idCitaEstable) {
                 if (bloqueadoPor24hWidget) {
-                    html += `
-                <p class="cita-aviso-24h" role="alert" style="font-size:0.85rem;color:#c0392b;margin:12px 0 8px;display:flex;align-items:center;gap:6px;">
-                    <i class="fa-solid fa-clock" aria-hidden="true"></i>
-                    Ya no es posible modificar o cancelar esta cita (menos de 24 horas).
-                </p>`;
+                    html += `<p class="cita-aviso-24h" role="alert" style="font-size:0.85rem;color:#c0392b;margin:12px 0 8px;display:flex;align-items:center;gap:6px;">
+                                <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                                Ya no es posible modificar o cancelar esta cita (menos de 24 horas).
+                            </p>`;
                 } else {
-                    html += `
-                <div class="cita-acciones" role="group" aria-label="Acciones de cita">
-                    <button type="button" class="cita-acciones__btn cita-acciones__btn--modificar"
-                        onclick="app.widgetInvitado.prepararModificacion('${idCitaEstable}')">
-                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Cambiar Fecha/Hora
-                    </button>
-                    <button type="button" class="cita-acciones__btn cita-acciones__btn--cancelar"
-                        onclick="app.widgetInvitado.cancelarCita('${idCitaEstable}')">
-                        <i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar Cita
-                    </button>
-                </div>`;
+                    html += `<div class="cita-acciones" role="group" aria-label="Acciones de cita">
+                                <button type="button" class="cita-acciones__btn cita-acciones__btn--modificar" data-id="${idCitaEstable}" onclick="app.widgetInvitado.prepararModificacion('${idCitaEstable}')">
+                                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Cambiar Fecha/Hora
+                                </button>
+                                <button type="button" class="cita-acciones__btn cita-acciones__btn--cancelar" data-id="${idCitaEstable}" onclick="app.widgetInvitado.cancelarCita('${idCitaEstable}')">
+                                    <i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelar Cita
+                                </button>
+                            </div>`;
                 }
             }
 
-            // Botones de portabilidad (Imprimir / Descargar PDF) — solo si NO cancelada
             if (!esCancelada) {
-                html += `
-                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-                    <button class="btn btn--documento"
-                        onclick="app.widgetInvitado.imprimirCitaInvitado('${idCitaEstable}')">
-                        <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
-                    </button>
-                    <button class="btn btn--documento"
-                        onclick="app.widgetInvitado.descargarPDFCitaInvitado('${idCitaEstable}')">
-                        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
-                    </button>
-                </div>`;
+                html += `<div class="cita-docs" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+                            <button class="btn btn--documento btn--imprimir" data-id="${idCitaEstable}" onclick="app.widgetInvitado.imprimirCitaInvitado('${idCitaEstable}')">
+                                <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
+                            </button>
+                            <button class="btn btn--documento btn--descargar-pdf" data-id="${idCitaEstable}" onclick="app.widgetInvitado.descargarPDFCitaInvitado('${idCitaEstable}')">
+                                <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
+                            </button>
+                        </div>`;
             }
 
-            // Botón "Volver al listado" solo si viene de una lista de múltiples resultados
             if (mostrarVolver) {
-                html += `
-                <button type="button" class="modal-consulta__btn-volver"
-                    onclick="app.widgetInvitado.volverAListado()">
-                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al listado
-                </button>`;
+                html += `<button type="button" class="modal-consulta__btn-volver" onclick="app.widgetInvitado.volverAListado()" style="margin-top: 20px; width: 100%;">
+                            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al listado
+                        </button>`;
+            } else {
+                html += `<button type="button" class="modal-consulta__btn-volver btn--vista-c-volver" onclick="app.widgetInvitado.volverAListado()" style="margin-top: 20px; width: 100%;">
+                            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver al listado
+                        </button>`;
             }
 
             return html;
         },
 
-        // ── Render: Vista Maestro (lista de citas) ──
-        // Recicla la estructura DOM y clases CSS del módulo de Recetas (Mi Salud)
-        _renderListaMaestro(citas) {
-            return citas.map((c, index) => {
-                const horaLabel = escapeHtmlWidget(c.hora || 'Sin hora');
+        _renderVistaB(citas) {
+            // TR-84: encabezado de la vista B
+            let html = `<div style="text-align: center; margin-bottom: 20px;">
+                <h3 class="modal-consulta__title">Se encontraron ${citas.length} citas</h3>
+                <p style="color: var(--gray-text); font-size: 0.9rem;">Selecciona una para ver el detalle</p>
+            </div>`;
+
+            const listaHTML = citas.map((c, index) => {
+                const fechaFormat = /^\d{4}-\d{2}-\d{2}$/.test(c.fecha) ? c.fecha.split('-').reverse().join('/') : c.fecha;
+                const horaLabel = escapeHtmlWidget(`${fechaFormat} - ${c.hora || 'Sin hora'}`);
                 const espLabel = escapeHtmlWidget(c.especialidad || 'No especificado');
                 const medicoLabel = escapeHtmlWidget(c.medico || 'No especificado');
-                const pacienteLine = `<p class="cita-card__paciente"><strong>Paciente:</strong> ${escapeHtmlWidget(c.paciente || c.nombres || 'No especificado')}</p>`;
+                const pacienteLine = `<p class="cita-card__paciente" style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;"><strong>Paciente:</strong> ${escapeHtmlWidget(c.paciente || c.nombres || 'No especificado')}</p>`;
 
                 return `
                 <div class="salud-item modal-consulta__item-lista" role="listitem" tabindex="0"
                      onclick="app.widgetInvitado.verDetalle(${index})"
                      onkeydown="if(event.key==='Enter')app.widgetInvitado.verDetalle(${index})">
-                    <div class="salud-item__info">
-                        <strong class="salud-item__nombre">${medicoLabel}</strong>
-                        <span class="salud-item__sub">${espLabel}</span>
+                    <div class="salud-item__info" style="min-width: 0; flex: 1;">
+                        <strong class="salud-item__nombre" style="display: block; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">${medicoLabel}</strong>
+                        <span class="salud-item__sub" style="display: block; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">${espLabel}</span>
                         ${pacienteLine}
-                        <span class="salud-item__fecha">${horaLabel}</span>
+                        <span class="salud-item__fecha" style="display: block; margin-top: 4px;">${horaLabel}</span>
                     </div>
                     <i class="fa-solid fa-chevron-right salud-item__arrow" aria-hidden="true"></i>
                 </div>`;
             }).join('');
+
+            // TR-84: contenedor con scroll ergonómico para listados volumétricos (evita desbordamiento del viewport)
+            html += `<div style="max-height: 360px; overflow-y: auto; box-sizing: border-box; padding-right: 5px;">${listaHTML}</div>`;
+            html += `<button type="button" class="btn btn--secundario" onclick="app.widgetInvitado.restaurarVistaA()" style="margin-top: 20px; width: 100%;">Volver</button>`;
+
+            return html;
         },
 
-        // ── Navegación: Maestro → Detalle de una cita específica ──
         verDetalle(index) {
             const cita = this._resultadosActuales[index];
             if (!cita) return;
-
-            const body = document.getElementById('modal-consulta-body');
-            const titulo = document.getElementById('modal-consulta-title');
-
-            titulo.textContent = 'Detalle de tu Cita';
-            body.innerHTML = this._renderDetalle(cita, true);
+            const body = document.getElementById('modal-consulta-invitado-body');
+            // TR-85: Guardar cita activa antes de inyectar HTML
+            this._citaActivaId = cita.id_cita;
+            if (body) body.innerHTML = this._renderVistaC(cita, true);
         },
 
-        // ── Navegación: Detalle → Volver al listado Maestro ──
         volverAListado() {
-            const body = document.getElementById('modal-consulta-body');
-            const titulo = document.getElementById('modal-consulta-title');
-
-            titulo.textContent = `Se encontraron ${this._resultadosActuales.length} citas`;
-            body.innerHTML = this._renderListaMaestro(this._resultadosActuales);
+            const body = document.getElementById('modal-consulta-invitado-body');
+            if (body) body.innerHTML = this._renderVistaB(this._resultadosActuales);
         },
 
         cerrarModal() {
-            const modal = document.getElementById('modal-consulta-cita');
-            if (modal) modal.style.display = 'none';
-            // Limpiar estado interno
-            this._resultadosActuales = [];
-            // TR-53: limpiar ancla del historial al cerrar con botón visual
-            if (history.state && history.state.vista === 'widget-invitado') history.back();
+            this.cerrarModalConsulta();
         },
 
-        // ── Bloque A: Cancelar cita desde modal de invitado ──
         cancelarCita(idStr) {
-            console.log("Iniciando proceso de cancelación para:", idStr);
-            app.citas.mostrarConfirmacionCancelacion(idStr, (idCancelado) => {
-                const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-
-                let indexEnPublicas = citasPublicas.findIndex(c => c.id_cita === idStr);
-                if (indexEnPublicas === -1 && !isNaN(parseInt(idStr, 10))) {
-                    indexEnPublicas = parseInt(idStr, 10);
+            console.log('Iniciando proceso de cancelación para:', idStr);
+            const ejecutarCancelacion = async (cancelId) => {
+                const cita = this._buscarCitaInvitado(cancelId || idStr);
+                if (!cita) {
+                    console.warn('[WidgetInvitado] No se encontró la cita para cancelar:', cancelId || idStr);
+                    return;
                 }
 
-                if (indexEnPublicas < 0 || indexEnPublicas >= citasPublicas.length) return;
+                const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                let indexEnPublicas = citasPublicas.findIndex(c => c.id_cita === cita.id_cita || c.id === cita.id_cita || c.id_cita === idStr || c.id === idStr);
+                if (indexEnPublicas === -1) {
+                    indexEnPublicas = citasPublicas.findIndex(c => c.cedula === cita.cedula && c.medico === cita.medico && c.hora === cita.hora && c.fecha === cita.fecha);
+                }
+                if (indexEnPublicas === -1) {
+                    citasPublicas.push({ ...cita, estado: 'Cancelada' });
+                    indexEnPublicas = citasPublicas.length - 1;
+                }
 
-                // Soft-delete: marcar como cancelada sin borrar
                 citasPublicas[indexEnPublicas].estado = 'Cancelada';
                 localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+                const citaActualizada = citasPublicas[indexEnPublicas];
+                cita.estado = 'Cancelada';
+                await app._sincronizarCancelacion(citaActualizada);
 
-                // Sincronizar con sanitas_mis_citas si existe el registro allí
-                const cita = citasPublicas[indexEnPublicas];
-                void app._sincronizarCancelacion(cita);
-
-                // H1: Refrescar la vista — re-renderizar el detalle
-                const body = document.getElementById('modal-consulta-body');
-                const titulo = document.getElementById('modal-consulta-title');
-                if (titulo) titulo.textContent = 'Cita Cancelada';
-
-                // Actualizar el resultado en memoria y re-renderizar
-                if (this._resultadosActuales[0]) {
-                    // Buscar cuál de los resultados coincide
-                    const idxLocal = this._resultadosActuales.findIndex(r =>
-                        r.cedula === cita.cedula && r.fecha === cita.fecha && r.hora === cita.hora);
+                if (Array.isArray(this._resultadosActuales)) {
+                    const idxLocal = this._resultadosActuales.findIndex(r => r.id_cita === cita.id_cita || r.id === cita.id_cita || (r.cedula === cita.cedula && r.fecha === cita.fecha && r.hora === cita.hora));
                     if (idxLocal !== -1) this._resultadosActuales[idxLocal].estado = 'Cancelada';
                 }
-                if (body) body.innerHTML = this._renderDetalle(cita, this._resultadosActuales.length > 1);
-            });
-        },
 
-        // ── Bloque B: Preparar modificación desde modal de invitado ──
-        prepararModificacion(idStr) {
-            console.log('Modificando cita:', idStr);
-            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+                const body = document.getElementById('modal-consulta-invitado-body');
+                this._citaActivaId = cita.id_cita;
+                if (body) body.innerHTML = this._renderVistaC(cita, Array.isArray(this._resultadosActuales) && this._resultadosActuales.length > 1);
+            };
 
-            let indexEnPublicas = citasPublicas.findIndex(c => c.id_cita === idStr);
-            if (indexEnPublicas === -1 && !isNaN(parseInt(idStr, 10))) {
-                indexEnPublicas = parseInt(idStr, 10);
+            if (typeof window.app?.citas?.mostrarConfirmacionCancelacion === 'function') {
+                // Invocar directamente sobre el objeto para preservar el `this` correcto del módulo citas
+                window.app.citas.mostrarConfirmacionCancelacion(idStr, (idCancelado) => {
+                    return ejecutarCancelacion(idCancelado || idStr);
+                });
+                return;
             }
 
-            if (indexEnPublicas < 0 || indexEnPublicas >= citasPublicas.length) return;
+            // Fallback de seguridad (no debería alcanzarse en producción)
+            if (window.confirm('¿Estás seguro de que deseas cancelar esta cita?')) {
+                void ejecutarCancelacion(idStr);
+            }
+        },
 
-            const cita = citasPublicas[indexEnPublicas];
+        prepararModificacion(idStr) {
+            const cita = this._buscarCitaInvitado(idStr);
+            if (!cita) return;
 
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            let indexEnPublicas = citasPublicas.findIndex(c => c.id_cita === idStr || c.id === idStr);
+            if (indexEnPublicas === -1) {
+                indexEnPublicas = citasPublicas.findIndex(c => c.cedula === cita.cedula && c.medico === cita.medico && c.hora === cita.hora && c.fecha === cita.fecha);
+            }
+            if (indexEnPublicas === -1) {
+                citasPublicas.push(cita);
+                indexEnPublicas = citasPublicas.length - 1;
+                localStorage.setItem('sanitas_citas', JSON.stringify(citasPublicas));
+            }
+
+            const citaActualizada = citasPublicas[indexEnPublicas];
+
+            // TR-86: Persistencia de Contexto Operativo — almacenar toda la identidad
+            // del paciente original para que el Smart Jump la recupere sin tocar el DOM.
             sessionStorage.setItem('cita_modificacion', JSON.stringify({
-                id_cita: cita.id_cita,
-                indexPublicas: indexEnPublicas,
-                medico: cita.medico,
-                especialidad: cita.especialidad,
-                cedula: cita.cedula,
-                origen: 'widget',
-                fechaVieja: cita.fecha,
-                horaVieja: cita.hora
+                id_cita:          cita.id_cita,
+                indexPublicas:    indexEnPublicas,
+                medico:           cita.medico,
+                especialidad:     cita.especialidad,
+                cedula:           cita.cedula || cita.cedula_paciente || '',
+                cedula_paciente:  cita.cedula_paciente || cita.cedula || '',
+                paciente:         cita.paciente || '',
+                id_especialista:  cita.id_especialista ?? null,
+                origen:           'widget',
+                fechaVieja:       cita.fecha,
+                horaVieja:        cita.hora,
+                // TR-86: flag maestro del modo modificación
+                modoModificacion: true
             }));
 
             sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
-                medico: cita.medico,
-                especialidad: cita.especialidad
+                medico:         cita.medico,
+                especialidad:   cita.especialidad,
+                id_especialista: cita.id_especialista ?? null
             }));
             sessionStorage.setItem('especialidad_seleccionada', cita.especialidad);
 
-            this.cerrarModal();
+            this.cerrarModalConsulta();
             sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
             sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
             app.navegar('citas');
             setTimeout(() => {
+                // TR-86: posicionarse en Paso 2 (Calendario) ya con el médico preseleccionado.
                 app.citas.mostrarPaso(2);
             }, 100);
         },
 
-        // ── Helper: Normalizar cita de invitado (mapeo de datos H1) ──
-        /**
-         * Busca la cita en sanitas_citas por ID y normaliza el campo `paciente`
-         * (registros antiguos pueden no tenerlo; las nuevas confirmaciones sí lo guardan en citas.js).
-         * Estrategia de resolución del nombre del paciente:
-         *   1. Si la cita ya tiene `paciente`, se usa tal cual.
-         *   2. Cross-ref con sanitas_mis_citas (store privado que SÍ guarda `paciente`).
-         *   3. Lookup en sanitas_usuarios por `cedula` para construir el nombre.
-         *   4. Fallback: "Paciente no especificado".
-         * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
-         * @returns {Object|null} Cita normalizada o null si no se encontró
-         */
         _normalizarCitaInvitado(idStr) {
-            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
-            let cita = citasPublicas.find(c => c.id_cita === idStr);
-            if (!cita && !isNaN(parseInt(idStr, 10))) {
-                const idx = parseInt(idStr, 10);
-                if (idx >= 0 && idx < citasPublicas.length) cita = citasPublicas[idx];
-            }
+            const cita = this._buscarCitaInvitado(idStr);
             if (!cita) return null;
 
-            // ── Mapeo del nombre del paciente ──
             if (!cita.paciente) {
-                // Estrategia 1: Cross-ref con sanitas_mis_citas (tiene el objeto completo)
                 const misCitas = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
-                const citaCompleta = misCitas.find(mc =>
-                    mc.id_cita === cita.id_cita || mc.id === cita.id_cita
-                );
+                const citaCompleta = misCitas.find(mc => mc.id_cita === cita.id_cita || mc.id === cita.id_cita);
                 if (citaCompleta && citaCompleta.paciente) {
                     cita.paciente = citaCompleta.paciente;
                 } else {
-                    // Estrategia 2: Lookup en sanitas_usuarios por cédula
                     const usuarios = JSON.parse(localStorage.getItem('sanitas_usuarios') || '[]');
                     const usuario = usuarios.find(u => u.identificacion === cita.cedula);
                     if (usuario) {
@@ -3966,45 +3930,49 @@ const app = {
                         const a2 = (usuario.apellido_2 || usuario.apellido2 || (usuario.apellidos || '').split(/\s+/).slice(1).join(' ') || '').trim();
                         cita.paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Paciente no especificado';
                     } else {
-                        // Estrategia 3: Fallback digno
                         cita.paciente = 'Paciente no especificado';
                     }
                 }
             }
-
             return cita;
         },
 
-        // ── Proxy: Imprimir cita desde modal de invitado (golden-rules §58) ──
-        /**
-         * Busca la cita en localStorage por ID, normaliza el nombre del paciente,
-         * y delega a utilidades.imprimirCita.
-         * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
-         */
+        _buscarCitaInvitado(idStr) {
+            const parseId = String(idStr || '').trim();
+            const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
+            const misCitas = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+
+            let cita = citasPublicas.find(c => c.id_cita === parseId || c.id === parseId || c.codigo === parseId);
+            if (!cita && Array.isArray(this._resultadosActuales)) {
+                cita = this._resultadosActuales.find(c => c.id_cita === parseId || c.id === parseId || c.codigo === parseId);
+            }
+            if (!cita) {
+                cita = misCitas.find(c => c.id_cita === parseId || c.id === parseId || c.codigo === parseId);
+            }
+            if (!cita && !isNaN(parseInt(parseId, 10))) {
+                const idx = parseInt(parseId, 10);
+                if (idx >= 0) {
+                    if (!cita && idx < citasPublicas.length) cita = citasPublicas[idx];
+                    if (!cita && Array.isArray(this._resultadosActuales) && idx < this._resultadosActuales.length) cita = this._resultadosActuales[idx];
+                    if (!cita && idx < misCitas.length) cita = misCitas[idx];
+                }
+            }
+            return cita || null;
+        },
+
         imprimirCitaInvitado(idStr) {
             const cita = this._normalizarCitaInvitado(idStr);
-            if (!cita) {
-                console.warn('[app.widgetInvitado] imprimirCitaInvitado: cita no encontrada con ID', idStr);
-                return;
-            }
+            if (!cita) return;
             app.utilidades.imprimirCita(cita);
         },
 
-        // ── Proxy: Descargar PDF de cita desde modal de invitado (golden-rules §58) ──
-        /**
-         * Busca la cita en localStorage por ID, normaliza el nombre del paciente,
-         * y delega a utilidades.descargarPDFCita.
-         * @param {string} idStr - ID de la cita (id_cita) o índice numérico fallback
-         */
         descargarPDFCitaInvitado(idStr) {
             const cita = this._normalizarCitaInvitado(idStr);
-            if (!cita) {
-                console.warn('[app.widgetInvitado] descargarPDFCitaInvitado: cita no encontrada con ID', idStr);
-                return;
-            }
+            if (!cita) return;
             app.utilidades.descargarPDFCita(cita);
         }
     }
+
 };
 
 app.citas = createCitas();

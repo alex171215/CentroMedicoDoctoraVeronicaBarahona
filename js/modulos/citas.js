@@ -54,6 +54,33 @@ export function createCitas() {
         async iniciarFlujo() {
             if (!document.getElementById('view-citas')) return;
 
+            // --- INSERCIÓN TR-96: Guard de Inicialización para Widget Invitados ---
+            const modCtxStrGuard = sessionStorage.getItem('cita_modificacion');
+            let modCtxGuard = null;
+            try { modCtxGuard = modCtxStrGuard ? JSON.parse(modCtxStrGuard) : null; } catch (e) { }
+
+            if (modCtxGuard && modCtxGuard.origen === 'widget') {
+                this.pasoActual = 2;
+                this.historialPasos = [0, 1];
+                this.modoProxy = false;
+                this._enRecuperacion = false;
+                
+                document.querySelectorAll('#view-citas .error-msg').forEach(msg => { msg.style.display = 'none'; });
+                history.replaceState({ tipo: 'formulario-citas', paso: 2 }, '', '');
+                this.prepararResumenMedico(modCtxGuard.medico || '', modCtxGuard.especialidad || '', modCtxGuard.imagen_url || '', modCtxGuard.id_especialista || '');
+                
+                document.querySelectorAll('.citas-step').forEach(el => el.style.display = 'none');
+                document.getElementById('citas-step-2').style.display = 'block';
+                this.actualizarBarraProgreso();
+                
+                await this._esperarDatosEspecialistas();
+                this._montarSalidasPaso5();
+                
+                this.generarCalendario(true);
+                return;
+            }
+            // --- FIN INSERCIÓN TR-96 ---
+
             await this._esperarDatosEspecialistas();
             this._montarSalidasPaso5();
 
@@ -640,9 +667,24 @@ export function createCitas() {
             } catch (_) { return 0; }
         },
 
-        /** Titular logueado sin proxy ni modificación: el paso 3 (datos) se omite en el flujo. */
+        /**
+         * El Paso 3 (Formulario de Datos) se omite cuando:
+         * - Titular logueado agendando para sí mismo (flujo estándar), o
+         * - TR-86: cualquier usuario en modo modificación (modoModificacion=true),
+         *   ya que la identidad se extrae del registro preexistente.
+         */
         _omitirDatosEnFlujo() {
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            // TR-86: detectar modo modificación por invitado (flag en el blob de sessionStorage)
+            let esModificacionInvitado = false;
+            try {
+                const modCtxStr = sessionStorage.getItem('cita_modificacion');
+                if (modCtxStr) {
+                    const modCtx = JSON.parse(modCtxStr);
+                    esModificacionInvitado = !!modCtx.modoModificacion;
+                }
+            } catch (_) { /* noop */ }
+            if (esModificacionInvitado) return true;
             const modifica = !!sessionStorage.getItem('cita_modificacion');
             return estaLogueado && !this.modoProxy && !modifica;
         },
@@ -696,18 +738,16 @@ export function createCitas() {
             backBtn.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
         },
 
-        /** TR-22: persiste cédula/código/fecha para el widget y navega al home (tras limpiar flujo de citas). */
+        /** TR-22: persiste cédula/código para el widget y navega al home (tras limpiar flujo de citas). */
         _guardarAutoConsultaInvitadoYIrHome() {
             const t = this.resumenTicketConfirmado;
             const cedula = String(t?.cedulaPaciente || '').replace(/\D/g, '').trim();
-            const fecha = String(t?.fechaIsoConsulta || '').trim();
             const id_cita = t?.id_cita || '';
             const codigo = t?.codigo || '';
             try {
-                if (cedula && fecha) {
+                if (cedula) {
                     sessionStorage.setItem(STORAGE_AUTO_CONSULTA_INVITADO, JSON.stringify({
                         cedula,
-                        fecha,
                         id_cita,
                         codigo
                     }));
@@ -811,6 +851,9 @@ export function createCitas() {
             sessionStorage.removeItem('cita_fecha_iso');
             sessionStorage.removeItem('_citaTemporal_respaldo');
             sessionStorage.removeItem('citas_login_restore');
+            // TR-86: limpiar flags del modo modificación al terminar el flujo
+            sessionStorage.removeItem('cita_modificacion');
+            sessionStorage.removeItem('modoModificacion');
             this.resumenTicketConfirmado = null;
             // TR-22: no eliminar STORAGE_AUTO_CONSULTA_INVITADO aquí; el widget en index la consume al llegar desde el éxito invitado.
             // TR-24: no eliminar sanitas_abrir_detalle_id aquí; mi-salud la consume al llegar desde el éxito registrado.
@@ -876,30 +919,47 @@ export function createCitas() {
             if (this.pasoActual === 2) {
                 const estaLogueado = localStorage.getItem('usuarioLogueado');
 
-                // ─── Lógica de modificación se mantiene idéntica ───
+                // ── TR-86: Smart Jump ── Si estamos en modo modificación de invitado,
+                // la identidad del paciente ya está en el contexto; omitir Paso 3 completamente.
                 const modCtxStr = sessionStorage.getItem('cita_modificacion');
-                if (modCtxStr) {
-                    let modCtx;
-                    try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
-                    if (!estaLogueado && modCtx) {
-                        const misCitas = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
-                        let citaOriginal = null;
-                        if (modCtx.id_cita) {
-                            citaOriginal = misCitas.find(c => (c.id_cita === modCtx.id_cita || c.id === modCtx.id_cita || c._id === modCtx.id_cita));
-                        }
-                        if (!citaOriginal) {
-                            citaOriginal = misCitas.find(c =>
-                                c.cedula === modCtx.cedula && c.medico === modCtx.medico && c.fecha === modCtx.fechaVieja && c.hora === modCtx.horaVieja
-                            );
-                        }
-                        if (citaOriginal) {
-                            const nomInput = document.getElementById('citas-nombres');
-                            const cedInput = document.getElementById('citas-cedula');
-                            if (nomInput) nomInput.value = citaOriginal.paciente || '';
-                            if (cedInput) cedInput.value = citaOriginal.cedula || '';
-                            await this._verificarColisionYContinuar(false);
-                            return;
-                        }
+                let modCtx = null;
+                try { modCtx = modCtxStr ? JSON.parse(modCtxStr) : null; } catch (_) { modCtx = null; }
+
+                if (!estaLogueado && modCtx && modCtx.modoModificacion && modCtx.origen === 'widget') {
+                    // Construir la fila de datos del paciente desde el contexto original
+                    // (cedula y paciente vienen embebidos en cita_modificacion por prepararModificacion)
+                    const nomInput = document.getElementById('citas-nombres');
+                    const cedInput = document.getElementById('citas-cedula');
+                    // Prellenar los campos del DOM aunque no se muestren,
+                    // para que _filaPacienteUpsertParaConfirmar los encuentre si busca en el DOM.
+                    if (nomInput) nomInput.value = modCtx.paciente || '';
+                    if (cedInput) cedInput.value = modCtx.cedula_paciente || modCtx.cedula || '';
+                    // Saltar verificación de colisiones e ir directo al resumen (TR-86 §2)
+                    this.prepararResumenFinal(false);
+                    // mostrarPaso(4) ya es llamado dentro de prepararResumenFinal, pero por seguridad:
+                    this.mostrarPaso(4);
+                    return;
+                }
+
+                // ─── Lógica legacy: modificación sin flag modoModificacion (compatibilidad) ───
+                if (!estaLogueado && modCtx) {
+                    const misCitas = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
+                    let citaOriginal = null;
+                    if (modCtx.id_cita) {
+                        citaOriginal = misCitas.find(c => (c.id_cita === modCtx.id_cita || c.id === modCtx.id_cita || c._id === modCtx.id_cita));
+                    }
+                    if (!citaOriginal) {
+                        citaOriginal = misCitas.find(c =>
+                            c.cedula === modCtx.cedula && c.medico === modCtx.medico && c.fecha === modCtx.fechaVieja && c.hora === modCtx.horaVieja
+                        );
+                    }
+                    if (citaOriginal) {
+                        const nomInput = document.getElementById('citas-nombres');
+                        const cedInput = document.getElementById('citas-cedula');
+                        if (nomInput) nomInput.value = citaOriginal.paciente || '';
+                        if (cedInput) cedInput.value = citaOriginal.cedula || '';
+                        await this._verificarColisionYContinuar(false);
+                        return;
                     }
                 }
 
@@ -1243,6 +1303,7 @@ export function createCitas() {
             modal = document.createElement('div');
             modal.id = 'modal-confirmar-cancelacion';
             modal.className = 'modal-overlay';
+            modal.style.zIndex = '11000';
             modal.setAttribute('role', 'alertdialog');
             modal.setAttribute('aria-modal', 'true');
 
@@ -1257,17 +1318,18 @@ export function createCitas() {
                         ¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.
                     </p>
                     <div class="modal-colision-actions">
-                        <button id="btn-cancelar-no" class="btn btn--secundario btn-full-width btn-margin-bottom">
-                            No, mantener cita
-                        </button>
-                        <button id="btn-cancelar-si" class="btn btn--peligro btn-full-width">
+                        <button id="btn-cancelar-si" class="btn btn--primario btn-full-width btn-margin-bottom">
                             Sí, cancelar cita
+                        </button>
+                        <button id="btn-cancelar-no" class="btn btn--peligro btn-full-width">
+                            Salir
                         </button>
                     </div>
                 </div>
             `;
 
             document.body.appendChild(modal);
+            modal.style.display = 'flex';
 
             // Escape: cerrar sin acción
             document.getElementById('btn-cancelar-no')?.addEventListener('click', () => {
@@ -1797,6 +1859,33 @@ export function createCitas() {
                 };
             }
 
+            // TR-86: cuando modoModificacion es true el Paso 3 fue omitido;
+            // leer identidad directamente del contexto original (no del DOM vacío).
+            let modCtxFila = null;
+            try {
+                const modCtxStr = sessionStorage.getItem('cita_modificacion');
+                if (modCtxStr) modCtxFila = JSON.parse(modCtxStr);
+            } catch (_) { /* noop */ }
+
+            if (modCtxFila && modCtxFila.modoModificacion) {
+                const ced = String(modCtxFila.cedula_paciente || modCtxFila.cedula || '').trim();
+                if (!ced) return null;
+                const fullNom = String(modCtxFila.paciente || cita.paciente || '').trim();
+                const { nombres, apellidos } = this._splitNombreCompletoParaPaciente(fullNom);
+                const celInput = document.getElementById('citas-celular');
+                const cel = (celInput?.value || '').trim() || '0900000000';
+                return {
+                    cedula: ced,
+                    nombres: nombres || '',
+                    apellidos: apellidos || '',
+                    correo: `invitado_${ced}@guest.centromedico.local`,
+                    password: pwdInv(ced),
+                    celular: cel,
+                    fecha_nacimiento: defFecha,
+                    es_invitado: true
+                };
+            }
+
             let ced = String(cita.cedula || cita.cedula_paciente || '').trim();
             const inputCed = document.getElementById('citas-cedula');
             if (inputCed && inputCed.value.trim()) ced = inputCed.value.trim();
@@ -1891,14 +1980,28 @@ export function createCitas() {
 
             } else {
                 // ── Invitado sin cuenta ──
-                const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
-                const inputApellidos = document.getElementById('cita-apellidos');
-                const inputCedula = document.getElementById('citas-cedula');
-                const n = inputNombres ? inputNombres.value.trim() : '';
-                const a = inputApellidos ? inputApellidos.value.trim() : '';
-                paciente = [n, a].filter(Boolean).join(' ') || 'Paciente';
-                if (inputCedula) cedulaPaciente = inputCedula.value.trim();
-                cedulaTitular = cedulaPaciente;
+                // TR-86: En modo modificación el Paso 3 fue omitido; leer identidad desde el
+                // contexto original embebido en cita_modificacion (no del DOM vacío).
+                let modCtxInv = null;
+                try {
+                    const modCtxStr = sessionStorage.getItem('cita_modificacion');
+                    if (modCtxStr) modCtxInv = JSON.parse(modCtxStr);
+                } catch (_) { /* noop */ }
+
+                if (modCtxInv && modCtxInv.modoModificacion) {
+                    paciente       = modCtxInv.paciente || 'Paciente';
+                    cedulaPaciente = modCtxInv.cedula_paciente || modCtxInv.cedula || '';
+                    cedulaTitular  = cedulaPaciente;
+                } else {
+                    const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
+                    const inputApellidos = document.getElementById('cita-apellidos');
+                    const inputCedula = document.getElementById('citas-cedula');
+                    const n = inputNombres ? inputNombres.value.trim() : '';
+                    const a = inputApellidos ? inputApellidos.value.trim() : '';
+                    paciente = [n, a].filter(Boolean).join(' ') || 'Paciente';
+                    if (inputCedula) cedulaPaciente = inputCedula.value.trim();
+                    cedulaTitular = cedulaPaciente;
+                }
             }
 
             const fechaHoraStr = this.horaSeleccionada;
@@ -1963,18 +2066,65 @@ export function createCitas() {
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
             const proxyLinkContainer = document.getElementById('proxy-link-container');
 
+            // TR-86: detectar si estamos en modo modificación
+            let esModSmartJump = false;
+            let modCtxResumen = null;
+            try {
+                const modCtxStr = sessionStorage.getItem('cita_modificacion');
+                if (modCtxStr) {
+                    modCtxResumen = JSON.parse(modCtxStr);
+                    esModSmartJump = !!modCtxResumen.modoModificacion;
+                }
+            } catch (_) { /* noop */ }
+
             // Mostrar/ocultar enlace de proxy: solo si hay sesión y NO es modo proxy
             if (proxyLinkContainer) {
                 proxyLinkContainer.style.display = (estaLogueado && !this.modoProxy) ? 'block' : 'none';
             }
 
-            summaryDiv.innerHTML = `
-                <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Fecha y Hora</span><span class="salud-det__val">${escapeHtmlCita(fechaHora)}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || cita.nombres || 'No especificado')}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
-            `;
+            if (esModSmartJump) {
+                // TR-86 §3: Inmutabilidad de Datos Personales.
+                // Nueva fecha/hora resaltada; identidad del paciente en modo solo lectura.
+                summaryDiv.innerHTML = `
+                    <div class="smart-jump-banner" role="status" aria-live="polite"
+                         style="background:linear-gradient(135deg,#e8f8f5,#d1f2eb);border-left:4px solid #0DA99F;
+                                border-radius:8px;padding:10px 14px;margin-bottom:14px;
+                                display:flex;align-items:center;gap:10px;font-size:0.9rem;">
+                        <i class="fa-solid fa-shield-halved" aria-hidden="true" style="color:#0DA99F;font-size:1.2rem;"></i>
+                        <span><strong>Identidad protegida.</strong> Solo cambia la fecha y hora de la cita.</span>
+                    </div>
+                    <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
+                    <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
+                    <div class="salud-det__row">
+                        <span class="salud-det__label">Nueva Fecha y Hora</span>
+                        <span class="salud-det__val" style="color:#0DA99F;font-weight:600;">
+                            <i class="fa-solid fa-calendar-check" aria-hidden="true" style="margin-right:5px;"></i>
+                            ${escapeHtmlCita(fechaHora)}
+                        </span>
+                    </div>
+                    <div class="salud-det__row" style="opacity:0.8;">
+                        <span class="salud-det__label">Cita anterior</span>
+                        <span class="salud-det__val" style="text-decoration:line-through;color:#888;">
+                            ${escapeHtmlCita((modCtxResumen.fechaVieja || '') + (modCtxResumen.horaVieja ? ', ' + modCtxResumen.horaVieja : ''))}
+                        </span>
+                    </div>
+                    <hr style="border:none;border-top:1px solid #e0e0e0;margin:10px 0;">
+                    <p style="font-size:0.8rem;color:#888;margin:0 0 8px;"
+                       aria-label="Los siguientes datos son de solo lectura">
+                        <i class="fa-solid fa-lock" aria-hidden="true"></i> Datos del paciente (solo lectura)
+                    </p>
+                    <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || 'No especificado')}</span></div>
+                    <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
+                `;
+            } else {
+                summaryDiv.innerHTML = `
+                    <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
+                    <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
+                    <div class="salud-det__row"><span class="salud-det__label">Fecha y Hora</span><span class="salud-det__val">${escapeHtmlCita(fechaHora)}</span></div>
+                    <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || cita.nombres || 'No especificado')}</span></div>
+                    <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
+                `;
+            }
 
             // Configurar botón Volver
             // REGLA DE ORO: Delegar SIEMPRE a irAtras().

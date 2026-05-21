@@ -728,6 +728,13 @@ export const salud = {
             } catch (e) {
                 console.error(e);
             }
+
+            // Re-renderizar el detalle en segundo plano (el modal de éxito sigue encima)
+            // para que al cerrarlo el usuario vea el badge "Cancelada" sin tener que volver al listado.
+            const idParaDetalle = String(cita.id_cita || cita.id || cita._id || idCita);
+            try {
+                await this.verDetalleCita(idParaDetalle);
+            } catch (_) { /* no bloquear si falla el re-render */ }
         });
     },
 

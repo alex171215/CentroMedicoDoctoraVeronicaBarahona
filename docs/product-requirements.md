@@ -32,3 +32,9 @@ Todo flujo de agendamiento o modificación DEBE respetar las siguientes reglas m
     1. **Paso 3 (Invitado/Proxy):** Al hacer clic en "Siguiente".
     2. **Paso 4 (Titular):** Al hacer clic en el botón de "Confirmar Cita" definitivo.
 
+
+## BR-1: Flujo de Consulta de Citas para Invitados
+1. **Acceso Efímero:** El acceso a la consulta de citas para usuarios no autenticados se realizará mediante un control visible en el Header. Este control desaparecerá inmediatamente tras un inicio de sesión exitoso.
+2. **Simplificación de Entrada:** Se elimina el campo "Fecha de Cita" del flujo de consulta general. El sistema listará de forma síncrona o asíncrona todas las citas activas programadas a futuro basándose únicamente en la Cédula del paciente.
+3. **Excepción de Agendamiento:** El botón "Ver mi cita" al finalizar una reserva forzará la apertura del detalle de la última cita generada de manera directa, omitiendo el listado general.
+
