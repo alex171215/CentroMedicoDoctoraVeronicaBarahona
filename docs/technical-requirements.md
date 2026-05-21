@@ -686,3 +686,44 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Modal Estático:** El feedback de "Cerrando sesión..." no debe ser inyectado dinámicamente con `innerHTML`. Debe existir como un elemento estático en `index.html` con clase `.modal-overlay` y `.hidden`.
 2. **Control de Estado:** El componente debe ser gestionado exclusivamente mediante `classList` (toggling `hidden` / `show` / `fade-in`).
 3. **Persistencia Visual:** El `z-index` debe ser `99999` para garantizar que el modal sea el elemento superior en el DOM.
+
+## TR-79: Límites de Navegación Temporal (H3, WCAG 2.2.1)
+1. **Pasado:** No se permite la navegación a semanas o días donde no existen slots disponibles. Se bloquea la navegación hacia atrás si la fecha objetivo es anterior a la fecha actual.
+2. **Futuro:** Límite máximo de agendamiento de 90 días (3 meses) a partir de la fecha actual. El botón 'Siguiente' debe deshabilitarse al alcanzar esta fecha límite.
+
+## TR-80: Adaptación de Interfaz y Filtro de Citas de Invitados
+1. **Estructura UI:** Eliminación de la sección `#widget-invitado` del flujo principal del DOM en `index.html`. Transición hacia un contenedor modal estático `#modal-consulta-invitado`.
+2. **Lógica de Consulta:** La búsqueda en la base de datos se ejecutará mediante la sentencia equivalente a: `SELECT * FROM citas WHERE cedula_paciente = X AND fecha >= CURRENT_DATE AND estado = 'Próxima' ORDER BY fecha ASC`.
+
+## TR-81: Cableado de Eventos y Contraste en Modal de Consulta (H1, WCAG 2.2)
+1. **Binding Obligatorio:** El botón `#btn-consultar-cita` debe vincularse explícitamente en el inicio de la aplicación al método ejecutor de consulta por cédula, validando que el input no esté vacío.
+2. **Contraste de Iconografía:** Todo elemento gráfico dentro de los modales (incluyendo `fa-calendar-check`) debe garantizar un fondo contrastante con un ratio mínimo de 4.5:1, utilizando color blanco o el aceptor tipográfico de alta visibilidad.
+3. **Persistencia en Layout (App Shell):** El botón de "Consultar Cita" se integra estructuralmente en el Header compartido de todas las páginas de la aplicación, controlando su visibilidad mediante el módulo de autenticación base.
+
+## TR-82: Patrón Adaptador de Sub-Vistas en Modal de Invitados (H6, H8)
+1. **Contenedor Único:** Queda estrictamente prohibido el apilamiento de modales o el uso de wrappers secundarios en paralelo. Toda la interacción de consulta de invitados residirá dentro de `#modal-consulta-invitado`.
+2. **Ciclo de Vistas Internas:** El cuerpo del modal mutará dinámicamente mediante funciones de renderizado local bajo tres estados:
+   - Vista A: Formulario de entrada de Cédula.
+   - Vista B: Grid/Lista de citas futuras filtradas (`.gte('fecha', hoy)`).
+   - Vista C: Ficha de detalle de la cita seleccionada con escapes de impresión.
+3. **Botón de Retorno:** La Vista C presentará un control 'Volver al listado' que restablecerá la Vista B sin cerrar el modal principal ni alterar el App Shell.
+
+
+## TR-83: Blindaje de Controles e Inicialización en Header (App Shell)
+1. **Permanencia del Trigger:** El elemento `<button id="btn-consultar-cita-header">` debe declararse estáticamente en el `<header>` de todas las páginas de la aplicación.
+2. **Determinismo de Visibilidad:** Al ejecutarse la inicialización del App Shell en `main.js`, el sistema debe evaluar el estado de autenticación. Si no existe un usuario activo, se forzará `display: inline-block` mediante estilos directos para garantizar su persistencia en el flujo de invitados.
+
+## TR-84: Ciclo de Vida y Persistencia de Estado en Sub-Vistas de Invitados (H6, KISS)
+1. **Preservación de Input de Control:** La subrutina `restaurarVistaA()` debe leer la propiedad en memoria que almacena la última identificación consultada e inyectarla explícitamente en el atributo `value` del input `#widget-cedula`.
+2. **Interpolación Determinista CRUD:** Los elementos interactivos generados en la Vista C (Detalle) deben mapear sus listeners de ejecución utilizando strings interpolados con la variable real del objeto de la cita (`cita.id_cita`).
+3. **Aislamiento de Scroll en Grid (KISS):** El nodo contenedor del listado dinámico de la Vista B debe configurarse rígidamente mediante CSS con un límite de altura `max-height: 360px` y la propiedad `overflow-y: auto`, aislando el desplazamiento dentro del modal único.
+
+## TR-85: Delegación Global Inmortal de Eventos en App Shell (H3, Nielsen)
+1. **Inmortalidad del Listener:** Queda estrictamente prohibido enlazar escuchas de eventos en contenedores dinámicos que sufran mutaciones por `innerHTML`.
+2. **Estrategia Global:** Todas las interacciones del flujo dinámico de invitados (Modificar, Cancelar, Imprimir, PDF y Navegación entre sub-vistas) se resolverán mediante un único Event Listener global asignado a la raíz del `document`.
+3. **Mapeo Semántico:** La captura del evento evaluará las clases nativas mediante `e.target.closest()`, garantizando la ejecución de la lógica sin importar el nivel de re-renderizado del modal.
+
+## TR-86: Flujo de Modificación de Citas para Invitados (Heurística #7 - Smart Jumps)
+1. **Persistencia de Contexto Operativo:** La activación de `prepararModificacion(idCita)` almacenará en `sessionStorage` las propiedades de control: `modoModificacion = true` e `idCitaModificar = idCita`.
+2. **Omitir Formulario Friccional:** Durante el flujo de modificación, al validar la selección de un slot en el Paso 2 (Calendario), la acción de confirmación saltará de forma directa al Paso 4 (Resumen), omitiendo la renderización y captura del Paso 3 (Formulario de Datos).
+3. **Inmutabilidad de Datos Personales:** Los datos de identidad del paciente se extraerán del registro preexistente en la base de datos, mapeándolos en modo de lectura en la pantalla de confirmación final.
