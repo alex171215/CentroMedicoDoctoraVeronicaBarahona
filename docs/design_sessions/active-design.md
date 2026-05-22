@@ -974,3 +974,104 @@ La limpieza solo corre en clausura/cancelación del modal. No interviene mientra
 
 ### Estado: ✅ CERRADO — TR-107 sanitización en cierre de modal invitado.
 
+---
+
+## Unificación Estructural del Header y Consolidación de Identidad TR-108
+
+### Fecha: 2026-05-22
+
+### Problema
+
+El App Shell mostraba el encabezado fragmentado en dos franjas (`.header__top` y `.header__main-container`) separadas por `border-bottom`, con paddings verticales amplios y el logo centrado en la franja inferior, consumiendo altura útil y rompiendo la unidad visual (H8 — Gestalt).
+
+### Fix (solo `css/styles.css` — sin JS ni HTML)
+
+| Regla | Cambio |
+|-------|--------|
+| Fusión | Eliminado `border-bottom` y sombras en `.header__top`; fondo `transparent` en top y main; sombra única suavizada en `.header`. |
+| Compactación | `.header__top` `padding: 4px 0 0` (escritorio `3px`); `.header__main-container` de `15px` a `8–10px` (escritorio `0 20px 8px`). |
+| Logo TR-108 | Nueva regla `.header__logo` con `align-self: flex-start` y `margin-top: -10px` (≥768px) para elevar identidad hacia la zona superior sin solapar el menú. |
+| Imagen | `.header__logo-img` base `68px` (antes `75px`); tablet `62px`. |
+| Tablet | Media `768px–1024px`: gaps de nav y tipografía reducidos para equilibrio horizontal. |
+
+Todas las páginas MPA (`index.html`, `citas.html`, `especialistas.html`, `mi-salud.html`, `farmacia.html`, `contacto.html`, `login.html`, `registro.html`, `perfil.html`, `recuperar.html`) comparten `styles.css` → aplicación automática y consistente.
+
+### Intacto
+
+- `main.js`, `citas.js`, botones del header, modales, calendario y marcado HTML.
+
+### Verificación
+
+- Escritorio/tablet: una sola masa visual continua; sin línea entre franjas; logo integrado en zona superior izquierda; nav alineado al centro vertical de la fila principal.
+- Móvil: `.header__top` sigue oculto; logo sin margen negativo agresivo.
+
+### Estado: ✅ CERRADO — TR-108 header unificado en `styles.css`.
+
+---
+
+## Ajuste Fino de Eje del Logo en Header Unificado TR-109
+
+### Fecha: 2026-05-22
+
+### Objetivo
+
+Elevar y centrar armoniosamente el bloque de identidad (imagen + «Centro Médico Familiar / Dra. Verónica Barahona») dentro del cabezal fusionado TR-108, alineándolo con la altura visual de `#btn-consultar-cita-header` y `#btn-auth` sin invadir el menú horizontal.
+
+### Fix (solo reglas de logo en `css/styles.css`)
+
+| Selector | Ajuste TR-109 |
+|----------|----------------|
+| `.header__logo` | `align-items: center`; escritorio `margin-top: -18px`, `align-self: center`, `transform: translateY(-6px)`; móvil sin desplazamiento. |
+| `.header__logo-text` | `align-items: center`; `padding-top` / `margin-top` en 0. |
+| `.header__logo-img` | `display: block`, `max-width: 100%`, altura `66px` (escritorio) manteniendo proporción fluida. |
+| `.header__logo-words` | `line-height: 1.28` para centrado óptico del texto junto al isotipo. |
+| Tablet | `margin-top: -14px`, `translateY(-4px)`, imagen `62px`. |
+
+### Intacto
+
+- JavaScript, HTML, `.header__main-container` (salvo reglas previas TR-108), navegación y modales.
+
+### Verificación (inspector / responsive)
+
+- Escritorio: logo más alto en la zona verde de referencia; eje vertical equilibrado respecto a botones derechos; nav sin solapamiento.
+- Tablet: desplazamiento atenuado; sin overflow horizontal.
+- Móvil: logo centrado en fila única sin `transform` negativo.
+
+### Estado: ✅ CERRADO — TR-109 eje del logo refinado en `styles.css`.
+
+---
+
+## Transmutación de Cuenta Invitado a Usuario Registrado TR-110
+
+### Fecha: 2026-05-22
+
+### Problema
+
+Un paciente creado como invitado al agendar (`es_invitado: true`, PK `cedula`) que intentaba registrarse formalmente provocaba un `INSERT` ciego y colisión `23505` en Supabase.
+
+### Fix
+
+**`js/modulos/supabaseServicio.js`**
+
+| Función | Rol |
+|---------|-----|
+| `fetchPacienteRegistroPorCedula()` | `SELECT` con `es_invitado` antes de escribir. |
+| `correoOcupadoPorOtraCedula()` | Valida correo sin bloquear la fila invitado en transmutación. |
+| `registrarPacienteCondicionalTR110()` | Paso D: `INSERT` + `es_invitado: false` si no existe. Paso C: `UPDATE` password, correo, celular, nombres y `es_invitado: false` si `es_invitado === true`. Paso B: error `TR110_CUENTA_REGISTRADA` si cuenta formal. |
+
+**`js/main.js` → `app.registro`**
+
+- Paso 1: solo bloquea si la cédula existe y **no** es invitado (mensaje TR-110).
+- Paso 2: `correoOcupadoPorOtraCedula` en lugar de rechazo global por correo.
+- `validarCodigo()`: usa `registrarPacienteCondicionalTR110`; tras éxito mantiene sesión automática (`usuarioLogueado`, `iniciarSesionUsuario`, pantalla de éxito / home).
+
+### Intacto
+
+- Migraciones SQL, navbar, stepper radial, modales home, calendario, `citas.js`.
+
+### Verificación
+
+- `node -c js/modulos/supabaseServicio.js` y `node -c js/main.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-110 registro condicional por `es_invitado`.
+

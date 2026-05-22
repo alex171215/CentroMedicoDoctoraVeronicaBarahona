@@ -14,8 +14,9 @@ import {
     pacienteDesdeRegistroLocal,
     updatePacientePorCedula,
     updateCitaSupabasePorIdCita,
-    existePacienteConCedula,
-    existePacienteConCorreo
+    fetchPacienteRegistroPorCedula,
+    registrarPacienteCondicionalTR110,
+    correoOcupadoPorOtraCedula
 } from './modulos/supabaseServicio.js';
 
 // function enviarCorreoOTP(correo, codigo) {}
@@ -2231,14 +2232,14 @@ const app = {
                 const ident = (document.getElementById('reg-identificacion')?.value || '').trim();
                 if (ident) {
                     try {
-                        const existe = await conCargaGlobal(
-                            () => existePacienteConCedula(ident),
+                        const pacientePrevio = await conCargaGlobal(
+                            () => fetchPacienteRegistroPorCedula(ident),
                             'Verificando datos…'
                         );
-                        if (existe) {
+                        if (pacientePrevio && pacientePrevio.es_invitado !== true) {
                             this._mostrarModalCuentaExistenteRegistro({
                                 titulo: 'Cédula ya registrada',
-                                mensaje: 'Ya existe una cuenta con esta cédula.'
+                                mensaje: 'Esta cédula ya está vinculada a una cuenta registrada.'
                             });
                             return;
                         }
@@ -2252,13 +2253,14 @@ const app = {
 
             if (pasoActual === 2) {
                 const correoVal = (document.getElementById('reg-email')?.value || '').trim();
+                const cedulaReg = (document.getElementById('reg-identificacion')?.value || '').trim();
                 if (correoVal) {
                     try {
-                        const existe = await conCargaGlobal(
-                            () => existePacienteConCorreo(correoVal),
+                        const correoEnOtro = await conCargaGlobal(
+                            () => correoOcupadoPorOtraCedula(correoVal, cedulaReg),
                             'Verificando datos…'
                         );
-                        if (existe) {
+                        if (correoEnOtro) {
                             this._mostrarModalCuentaExistenteRegistro({
                                 titulo: 'Correo ya registrado',
                                 mensaje: 'Ya existe una cuenta con este correo electrónico.'
@@ -2622,11 +2624,19 @@ const app = {
             let filaInsertada;
             try {
                 filaInsertada = await conCargaGlobal(
-                    () => insertPacienteSupabase(filaPacienteSupabase),
+                    () => registrarPacienteCondicionalTR110(filaPacienteSupabase),
                     'Creando tu cuenta…'
                 );
             } catch (err) {
                 console.error('[Supabase] Registro:', err);
+                if (err?.code === 'TR110_CUENTA_REGISTRADA') {
+                    this._limpiarError('reg-codigo');
+                    this._mostrarModalCuentaExistenteRegistro({
+                        titulo: 'Cédula ya registrada',
+                        mensaje: err.message || 'Esta cédula ya está vinculada a una cuenta registrada.'
+                    });
+                    return;
+                }
                 if (this._esErrorDuplicadoPaciente(err)) {
                     this._limpiarError('reg-codigo');
                     this._mostrarModalCuentaExistenteRegistro({

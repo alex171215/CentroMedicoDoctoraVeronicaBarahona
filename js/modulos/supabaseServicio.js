@@ -202,6 +202,68 @@ export async function existePacienteConCorreo(correo) {
     return !!data;
 }
 
+/** TR-110: correo en uso por otra cédula (permite reutilizar el del invitado en transmutación). */
+export async function correoOcupadoPorOtraCedula(correo, cedulaExcluir) {
+    const e = String(correo || '').trim();
+    const c = String(cedulaExcluir || '').trim();
+    if (!e) return false;
+    const { data, error } = await supabase.from('pacientes').select('cedula').eq('correo', e).maybeSingle();
+    if (error) throw error;
+    if (!data) return false;
+    return String(data.cedula || '').trim() !== c;
+}
+
+/** TR-110: lectura previa con flag es_invitado para registro condicional. */
+export async function fetchPacienteRegistroPorCedula(cedula) {
+    const c = String(cedula || '').trim();
+    if (!c) return null;
+    const { data, error } = await supabase.from('pacientes').select(SELECT_PACIENTE).eq('cedula', c).maybeSingle();
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * TR-110: INSERT si es nuevo; UPDATE (transmutación) si es_invitado === true;
+ * error controlado si ya tiene cuenta formal.
+ */
+export async function registrarPacienteCondicionalTR110(filaPaciente) {
+    const cedula = String(filaPaciente?.cedula || '').trim();
+    if (!cedula) throw new Error('registrarPacienteCondicionalTR110: falta cedula');
+
+    const existente = await fetchPacienteRegistroPorCedula(cedula);
+
+    if (!existente) {
+        return insertPacienteSupabase({ ...filaPaciente, es_invitado: false });
+    }
+
+    if (existente.es_invitado !== true) {
+        const err = new Error('Esta cédula ya está vinculada a una cuenta registrada.');
+        err.code = 'TR110_CUENTA_REGISTRADA';
+        throw err;
+    }
+
+    const patch = {
+        nombres: filaPaciente.nombres,
+        apellidos: filaPaciente.apellidos,
+        correo: filaPaciente.correo,
+        celular: filaPaciente.celular,
+        fecha_nacimiento: filaPaciente.fecha_nacimiento,
+        password: filaPaciente.password,
+        es_invitado: false
+    };
+
+    const { data, error } = await supabase
+        .from('pacientes')
+        .update(patch)
+        .eq('cedula', cedula)
+        .select(SELECT_PACIENTE)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error('No se pudo formalizar la cuenta de invitado.');
+    return data;
+}
+
 export async function updatePacientePorCedula(cedula, patch) {
     if (!cedula) return;
     const { error } = await supabase.from('pacientes').update(patch).eq('cedula', cedula);

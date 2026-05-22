@@ -825,3 +825,19 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-107: Sanitización y Vaciado de Campos por Clausura de Modal (Privacidad y H5)
 1. **Destrucción de Datos Residuales:** El método encargado de ocultar el modal de consultas (`cerrarModalConsulta()` o equivalente en `js/main.js`) debe limpiar de forma obligatoria el valor del input `#widget-cedula` asignándole una cadena vacía (`value = ''`).
 2. **Reinicio de Mensajes de Alerta:** Durante la misma rutina de cierre, el contenedor de errores indexado (`#widget-cedula-error`) debe ser forzado a `style.display = 'none'` y vaciado de cualquier microcopy de error, asegurando que el formulario nazca en un estado estético e higiénico neutral en la próxima apertura.
+
+## TR-108: Unificación Estructural del Header y Consolidación Visual (H8 - Gestalt)
+1. **Fusión de Regiones Visuales:** Se eliminarán de forma absoluta todas las líneas divisorias físicas (`border-bottom`, `box-shadow` o separadores de color) entre `.header__top` y `.header__main-container`.
+2. **Compactación del App Shell:** Ambas secciones compartirán un único flujo de fondo visual continuo, eliminando márgenes o paddings sobredimensionados para reducir la altura total del encabezado en pantallas de escritorio y tablets.
+3. **Realineación de Identidad (Logo):** El contenedor `.header__logo` se elevará verticalmente mediante reajuste de flexbox/paddings hacia la zona de transición superior, integrándose orgánicamente en el nuevo espacio unificado sin invadir el menú de navegación horizontal.
+
+## TR-109: Unificación Estructural del Header y Consolidación de Identidad (Ajuste Fino de Eje)
+1. **Remoción de Fronteras:** Eliminación de divisores físicos entre la franja de utilidades superior y la barra de navegación principal.
+2. **Realineación del Vector de Identidad:** El bloque contenedor del logo (`.header__logo` o `.header__logo-text`) se desplazará verticalmente hacia arriba mediante la reducción de paddings superiores o la aplicación de márgenes relativos balanceados, ocupando de forma equilibrada el espacio vacío dejado por la antigua división horizontal, garantizando simetría con los botones de acción del header.
+
+## TR-110: Transmutación de Cuenta de Invitado a Usuario Autenticado (Heurística #5)
+1. **Validación de Existencia Previa:** El módulo de registro interceptará la sumisión del formulario y realizará una consulta previa (`SELECT`) en Supabase para verificar si la cédula ingresada ya existe en la tabla `pacientes`.
+2. **Estrategia de Inserción Condicional (Upsert):**
+   - **Caso Nuevo:** Si la cédula no existe, se procederá con un `INSERT` tradicional asignando `es_invitado = false`.
+   - **Caso Duplicado Real:** Si la cédula existe y posee `es_invitado = false`, se detendrá el flujo arrojando el mensaje de error: "Esta cédula ya tiene una cuenta activa".
+   - **Caso Transmutación:** Si la cédula existe pero posee `es_invitado = true`, el sistema ejecutará un comando `UPDATE` sobre esa fila específica, actualizando los datos personales, guardando el hash de la contraseña (`password`) y cambiando de forma definitiva el flag a `es_invitado = false`.
