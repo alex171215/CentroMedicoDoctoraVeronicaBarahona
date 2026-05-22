@@ -1075,3 +1075,39 @@ Un paciente creado como invitado al agendar (`es_invitado: true`, PK `cedula`) q
 
 ### Estado: ✅ CERRADO — TR-110 registro condicional por `es_invitado`.
 
+---
+
+## Matriz Categorizada de Especialistas M x 5 TR-111
+
+### Fecha: 2026-05-22
+
+### Objetivo
+
+Reestructurar `#specialists-directory-grid` de lista plana a bloques por especialidad con sub-malla responsive M×5 en escritorio (Gestalt H8).
+
+### Fix
+
+**`js/main.js` → `app.directorio`**
+
+| Pieza | Implementación |
+|-------|----------------|
+| Orden | `_ordenarMedicosDirectorioTR111()` — especialidad A-Z, luego nombre A-Z (`localeCompare` es). |
+| Render | `renderizarTarjetas()` inyecta `<h3 class="directory-specialty-title">` + `<div class="directory-specialty-group">` al cambiar especialidad. |
+| Tarjetas | `_crearTarjetaDirectorio()` preserva clases, `tabindex`, `loading="lazy"` y listeners de perfil / `preseleccionarDoctor`. |
+| Búsqueda | `manejarFiltro()` reutiliza `renderizarTarjetas()` → mismo orden y agrupación. |
+
+**`css/styles.css`**
+
+- `.directory-grid`: contenedor vertical (flex column) de secciones.
+- `.directory-specialty-group`: grid 1 col (≤480px), 3 cols (≥768px), **5 cols** (≥1200px), `gap: 20px`.
+
+### Intacto
+
+- Modales header, Supabase, flujo `preseleccionarDoctor`, `citas.js`, citas paso 1 (`.specialists-directory-grid` en wizard no alterado).
+
+### Verificación
+
+- `node -c js/main.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-111 directorio segmentado y matriz M×5.
+
