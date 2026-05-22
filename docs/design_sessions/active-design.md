@@ -724,3 +724,149 @@ Tras rechazar un carácter, el tooltip flotante «Carácter no permitido» (`.sa
 
 ### Estado: ✅ CERRADO — Tooltip y flash se ocultan en el primer `input`; TTL solo como red de seguridad.
 
+---
+
+## Implementación del Túnel de Reagendamiento Aislado TR-100
+
+### Fecha: 2026-05-22
+
+### Objetivo
+
+Aislar visual y operativamente la **modificación de citas** del wizard de agendamiento nuevo, cumpliendo TR-100 (`docs/technical-requirements.md`): 3 hitos, bloqueo retroactivo y smart jump preservado.
+
+### Cambios en `js/modulos/citas.js` (pinpoint)
+
+| Pieza | Implementación |
+|--------|----------------|
+| Contexto | `_leerContextoModificacion()` normaliza `modoModificacion: true` en blobs legacy con `id_cita`. |
+| Detección | `_esTunelReagendamientoTR100()`. |
+| Stepper | `_obtenerFasesBarraProgreso()` bifurca a **Nuevo Horario → Revisión → Confirmación** (DOM 2, 4, 5). El radial móvil (TR-106) sincroniza vía MutationObserver sin tocar HTML. |
+| Ordinal | `_mapDomPasoABookingOrdinal(..., tunelReagendamiento)`. |
+| Entrada | `iniciarFlujo()` guard con `modoModificacion` y `historialPasos = []` (sin Especialidad/Médico). |
+| Smart Jump | `avanzarPaso()` salta al paso 4 para cualquier `modoModificacion` (invitado y titular). |
+| Atrás calendario | En paso 2, `.btn-back-minimalist` → **Cancelar modificación** (`_cancelarModificacionTR100`). |
+| `irAtras()` | En túnel: paso 2 u origen 0/1 → cancelar; destino 0/1 prohibido; historial vacío → cancelar. |
+| Salida | `_cancelarModificacionTR100()`: limpia storage vía `limpiarSessionFlujoCitas`; `origen === 'widget'` → `index.html` + `STORAGE_AUTO_CONSULTA_INVITADO`; `dashboard` / sesión → `mi-salud.html`. |
+
+### Intacto (blindaje)
+
+- `confirmarCita()`, `updateCitaSupabasePorIdCita`, colisiones, `_verificarLimiteDiario`, validaciones `blur`/TR-99, stepper TR-106 en HTML/CSS.
+- Sin `replace.js` ni cambios en `citas.html`.
+
+### Verificación
+
+- `node -c js/modulos/citas.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-100 implementado en `citas.js`.
+
+---
+
+## Blindaje de Identidad e Inactivación Proxy en Reagendamiento TR-101
+
+### Fecha: 2026-05-22
+
+### Problema
+
+En el Paso 4 (Resumen), un usuario **con cuenta** en reagendamiento (`modoModificacion`) veía el enlace `#proxy-link-container` («Agendar para un familiar»), aunque la identidad del paciente debe ser inmutable en una modificación.
+
+### Causa
+
+En `_mostrarResumen()`, la visibilidad del proxy solo evaluaba `estaLogueado && !modoProxy`, sin considerar `modoModificacion`.
+
+### Fix (pinpoint en `_mostrarResumen`)
+
+- Detección unificada vía `_leerContextoModificacion()` → `esModSmartJump`.
+- `#proxy-link-container`: `display: none` cuando `esModSmartJump` es verdadero.
+- El bloque `.smart-jump-banner` y el resumen de solo lectura siguen gobernados por `esModSmartJump` (sin cambios en Supabase ni transiciones del wizard).
+
+```javascript
+const modCtxResumen = this._leerContextoModificacion();
+const esModSmartJump = !!modCtxResumen?.modoModificacion;
+const mostrarProxy = estaLogueado && !this.modoProxy && !esModSmartJump;
+proxyLinkContainer.style.display = mostrarProxy ? 'block' : 'none';
+```
+
+### Verificación
+
+- `node -c js/modulos/citas.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-101 aplicado en `_mostrarResumen`.
+
+---
+
+## Estabilización de Contextos de Revisión y Enrutamiento Compartido TR-102
+
+### Fecha: 2026-05-22
+
+### Regresiones corregidas
+
+**TR-102 — Bifurcación de vistas de resumen**
+
+La unificación previa mezclaba plantillas de agendamiento nuevo y reagendamiento. Se restauró la separación estricta en `_mostrarResumen()`:
+
+| `modoModificacion === true` | `modoModificacion` ausente/falso |
+|-----------------------------|----------------------------------|
+| `_renderResumenReagendamiento()` — banner `.smart-jump-banner`, datos solo lectura, cita anterior tachada | `_renderResumenAgendamientoNuevo()` — resumen estándar interactivo |
+| `#proxy-link-container` oculto (TR-101) | Proxy visible si hay sesión y no es `modoProxy` |
+
+Detección de rama: `_esModoModificacionEstricto()` (flag explícito, sin normalización legacy). El túnel TR-100 sigue usando `_leerContextoModificacion()` para routing.
+
+**TR-103 — Enrutamiento desde widget de consulta**
+
+`prepararModificacion()` en `main.js` navegaba a `citas.html` y dependía de un `setTimeout(mostrarPaso(2))` frágil. Ahora `iniciarFlujo()` intercepta al inicio:
+
+- `_debeEntrarCalendarioModificacion()` — `modoModificacion === true` o `origen === 'widget'` con `id_cita`.
+- `_entrarCalendarioModificacionTR103()` — purga `STORAGE_CITA_EN_PROGRESO`, post-login y restore; fija paso 2; hidrata médico desde `cita_modificacion` + `reservaCita_preseleccion`; genera calendario.
+
+### Intacto
+
+- Supabase, colisiones, `confirmarCita()`, transiciones del wizard fuera del guard de entrada.
+
+### Verificación
+
+- `node -c js/modulos/citas.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-102 (resumen) y TR-103 (enrutamiento calendario) estabilizados en `citas.js`.
+
+---
+
+## Control de Ciclo de Vida y Hard-Reset de Navegación TR-103
+
+### Fecha: 2026-05-22
+
+### Problema
+
+Al reingresar a «Agendar Cita» o cambiar de sección en la MPA, persistían blobs huérfanos (`STORAGE_CITA_EN_PROGRESO`, hora/slot, paso intermedio) que desviaban al usuario a pantallas incorrectas.
+
+### `hardResetCitas(opts)` — `js/modulos/citas.js`
+
+Resetea estado en memoria (`pasoActual = 0`, historial, médico, hora, `_citaTemporal`, calendario) y purga storage efímero. Opciones:
+
+| Opción | Efecto |
+|--------|--------|
+| `preserveModificacion: true` | Conserva `cita_modificacion` |
+| `preservePreseleccion: true` | Conserva `reservaCita_preseleccion` y `especialidad_seleccionada` |
+
+No elimina `STORAGE_AUTO_CONSULTA_INVITADO` ni `sanitas_abrir_detalle_id`.
+
+### Puntos de vinculación
+
+| Origen | Comportamiento |
+|--------|----------------|
+| `iniciarFlujo()` | Tras guard de reagendamiento y rutas de recuperación (post-login/blob), ejecuta `hardResetCitas({ preservePreseleccion })` antes del paso 0 |
+| `purgaHorarioPorDesercionRuta()` | Delega en `hardResetCitas()` (TR-93 navbar) |
+| `main.js` → `agendarCitaGeneral()` | Hard-reset total antes de `navegar('citas')` |
+| `main.js` → `preseleccionarDoctor` / `seleccionarEspecialidad` | Reset previo; `iniciarFlujo` preserva tokens de preselección |
+| `main.js` → `navegar()` | Si sale de `citas.html`, invoca `hardResetCitas()` |
+| `main.js` → `iniciarPurgaDesercionRutaTR93()` | Click en `.header__nav-link` desde citas → reset |
+
+### Intacto
+
+- Túnel de reagendamiento (`_entrarCalendarioModificacionTR103`), Supabase, colisiones, formularios del home.
+
+### Verificación
+
+- `node -c js/modulos/citas.js` y `node -c js/main.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-103 hard-reset operativo en MPA y entry point de citas.
+

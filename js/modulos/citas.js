@@ -54,37 +54,11 @@ export function createCitas() {
         async iniciarFlujo() {
             if (!document.getElementById('view-citas')) return;
 
-            // --- INSERCIÓN TR-96: Guard de Inicialización para Widget Invitados ---
-            const modCtxStrGuard = sessionStorage.getItem('cita_modificacion');
-            let modCtxGuard = null;
-            try { modCtxGuard = modCtxStrGuard ? JSON.parse(modCtxStrGuard) : null; } catch (e) { }
-
-            if (modCtxGuard && modCtxGuard.origen === 'widget') {
-                this.pasoActual = 2;
-                this.historialPasos = [0, 1];
-                this.modoProxy = false;
-                this._enRecuperacion = false;
-                
-                document.querySelectorAll('#view-citas .error-msg').forEach(msg => { msg.style.display = 'none'; });
-                history.replaceState({ tipo: 'formulario-citas', paso: 2 }, '', '');
-                this.prepararResumenMedico(modCtxGuard.medico || '', modCtxGuard.especialidad || '', modCtxGuard.imagen_url || '', modCtxGuard.id_especialista || '');
-                
-                document.querySelectorAll('.citas-step').forEach(el => el.style.display = 'none');
-                document.getElementById('citas-step-2').style.display = 'block';
-                this.actualizarBarraProgreso();
-                
-                await this._esperarDatosEspecialistas();
-                this._montarSalidasPaso5();
-                
-                this.generarCalendario(true);
+            // TR-103: reagendamiento desde widget / Mi Salud — Paso 2 determinista (sin depender de setTimeout en main.js).
+            const modCtxGuard = this._leerContextoModificacion();
+            if (this._debeEntrarCalendarioModificacion(modCtxGuard)) {
+                await this._entrarCalendarioModificacionTR103(modCtxGuard);
                 return;
-            }
-            // --- FIN INSERCIÓN TR-96 ---
-
-            // TR-95: reingreso fresco — sin hora confirmada, purga total (evita recuperar paso 2 con slot azul).
-            const entradaDirectorio = sessionStorage.getItem('reservaCita_preseleccion');
-            if (entradaDirectorio && sessionStorage.getItem('cita_hora_confirmada') !== 'true') {
-                this.purgaHorarioEntradaFresca();
             }
 
             await this._esperarDatosEspecialistas();
@@ -126,21 +100,17 @@ export function createCitas() {
                 sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
             }
 
-            document.querySelectorAll('#view-citas .error-msg').forEach(msg => { msg.style.display = 'none'; });
-            document.querySelectorAll('#view-citas .form-control').forEach(input => {
-                input.classList.remove('input-error', 'input-success');
-                input.value = '';
-            });
+            // TR-103: reingreso fresco — destruye reservas huérfanas; conserva preselección del directorio/home.
+            const tienePreseleccion = !!(
+                sessionStorage.getItem('reservaCita_preseleccion')
+                || sessionStorage.getItem('especialidad_seleccionada')
+            );
+            this.hardResetCitas({ preservePreseleccion: tienePreseleccion });
 
             if (!this.validadoresIniciados) {
                 this.configurarValidadores();
                 this.validadoresIniciados = true;
             }
-
-            this.modoProxy = false;
-            this.pasoActual = 0;
-            this.historialPasos = [];
-            this.resumenTicketConfirmado = null;
 
             // TR-53: Establecer el ancla base del formulario en el historial del navegador.
             // Se usa replaceState (no pushState) para no añadir una entrada extra:
@@ -577,17 +547,25 @@ export function createCitas() {
                 this.modoProxy = false;
             }
 
-            // TR-18: etiqueta del Volver en calendario según el último paso DOM del historial (avance real).
+            // TR-18 / TR-100: etiqueta del Volver en calendario (o cancelar reagendamiento).
             if (nuevoPaso === 2) {
                 const backBtnPaso2 = document.querySelector('#citas-step-2 .btn-back-minimalist');
                 if (backBtnPaso2) {
-                    const prevDom = this.historialPasos.length
-                        ? this.historialPasos[this.historialPasos.length - 1]
-                        : null;
-                    let label = 'Volver';
-                    if (prevDom === 1) label = 'Volver a Médicos';
-                    else if (prevDom === 0) label = 'Volver a Especialidades';
-                    backBtnPaso2.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
+                    if (this._esTunelReagendamientoTR100()) {
+                        backBtnPaso2.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancelar modificación';
+                        backBtnPaso2.setAttribute('aria-label', 'Cancelar modificación y volver al punto de partida');
+                        backBtnPaso2.onclick = () => this._cancelarModificacionTR100();
+                    } else {
+                        backBtnPaso2.onclick = () => window.app.citas.irAtras();
+                        const prevDom = this.historialPasos.length
+                            ? this.historialPasos[this.historialPasos.length - 1]
+                            : null;
+                        let label = 'Volver';
+                        if (prevDom === 1) label = 'Volver a Médicos';
+                        else if (prevDom === 0) label = 'Volver a Especialidades';
+                        backBtnPaso2.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
+                        backBtnPaso2.removeAttribute('aria-label');
+                    }
                 }
 
                 // TR-95: re-hidratar slot azul solo si la hora fue confirmada con #btn-confirmar-cita.
@@ -712,6 +690,126 @@ export function createCitas() {
             } catch (_) { return 0; }
         },
 
+        /** TR-100: lee y normaliza el blob operativo de reagendamiento en sessionStorage. */
+        _leerContextoModificacion() {
+            try {
+                const raw = sessionStorage.getItem('cita_modificacion');
+                if (!raw) return null;
+                const ctx = JSON.parse(raw);
+                if (ctx && !ctx.modoModificacion && ctx.id_cita) {
+                    ctx.modoModificacion = true;
+                }
+                return ctx;
+            } catch (_) {
+                return null;
+            }
+        },
+
+        /** TR-100: túnel aislado de reagendamiento (3 pasos visibles). */
+        _esTunelReagendamientoTR100() {
+            return !!this._leerContextoModificacion()?.modoModificacion;
+        },
+
+        /** TR-102: bifurcación de vista de resumen — solo flag explícito (sin normalizar). */
+        _esModoModificacionEstricto() {
+            try {
+                const raw = sessionStorage.getItem('cita_modificacion');
+                if (!raw) return false;
+                return JSON.parse(raw).modoModificacion === true;
+            } catch (_) {
+                return false;
+            }
+        },
+
+        /** TR-103: tokens activos que exigen calendario (Paso 2) al cargar citas.html. */
+        _debeEntrarCalendarioModificacion(modCtx) {
+            if (!modCtx) return false;
+            if (modCtx.modoModificacion === true) return true;
+            if (modCtx.origen === 'widget' && modCtx.id_cita) return true;
+            return false;
+        },
+
+        /**
+         * TR-103: Hard-entry al calendario del especialista en reagendamiento.
+         * Purga blobs conflictivos para evitar que _recuperarEstadoCita desvíe la ruta.
+         */
+        async _entrarCalendarioModificacionTR103(modCtx) {
+            sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+            sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
+            sessionStorage.removeItem('citas_login_restore');
+            this.purgaHorarioEntradaFresca();
+
+            this.pasoActual = 2;
+            this.historialPasos = [];
+            this.modoProxy = false;
+            this._enRecuperacion = false;
+
+            let pre = null;
+            try {
+                pre = JSON.parse(sessionStorage.getItem('reservaCita_preseleccion') || 'null');
+            } catch (_) { pre = null; }
+
+            const medico = modCtx.medico || pre?.medico || '';
+            const especialidad = modCtx.especialidad || pre?.especialidad
+                || sessionStorage.getItem('especialidad_seleccionada') || '';
+            const img = modCtx.imagen_url || pre?.imagen_url || '';
+            const idEsp = modCtx.id_especialista ?? pre?.id_especialista ?? '';
+
+            if (especialidad) sessionStorage.setItem('especialidad_seleccionada', especialidad);
+
+            document.querySelectorAll('#view-citas .error-msg').forEach(msg => { msg.style.display = 'none'; });
+            history.replaceState({ tipo: 'formulario-citas', paso: 2 }, '', '');
+
+            this.prepararResumenMedico(medico, especialidad, img, idEsp);
+
+            document.querySelectorAll('.citas-step').forEach(el => el.style.display = 'none');
+            const step2 = document.getElementById('citas-step-2');
+            if (step2) step2.style.display = 'block';
+            this.actualizarBarraProgreso();
+
+            await this._esperarDatosEspecialistas();
+            this._montarSalidasPaso5();
+            this.generarCalendario(true);
+        },
+
+        /**
+         * TR-100: aborta el reagendamiento y devuelve al origen (widget invitado o Mi Salud).
+         * No toca rutinas transaccionales de confirmación/UPDATE.
+         */
+        _cancelarModificacionTR100() {
+            const modCtx = this._leerContextoModificacion();
+            const origen = modCtx?.origen || '';
+            const cedula = String(modCtx?.cedula_paciente || modCtx?.cedula || '').replace(/\D/g, '').trim();
+
+            if (this.pasoActual === 2) {
+                const imgEl = document.getElementById('citas-doctor-img');
+                if (imgEl) imgEl.src = '';
+                this._purgaSeleccionHorario();
+            }
+
+            try {
+                if (origen === 'widget' && cedula) {
+                    sessionStorage.setItem(STORAGE_AUTO_CONSULTA_INVITADO, JSON.stringify({
+                        cedula,
+                        id_cita: modCtx?.id_cita || '',
+                        codigo: modCtx?.codigo || ''
+                    }));
+                }
+            } catch (_) { /* noop */ }
+
+            this.limpiarSessionFlujoCitas(false);
+
+            if (origen === 'widget') {
+                window.location.href = 'index.html';
+                return;
+            }
+            if (origen === 'dashboard' || localStorage.getItem('usuarioLogueado') === 'true') {
+                window.location.href = 'mi-salud.html';
+                return;
+            }
+            window.app.navegar('home');
+        },
+
         /**
          * El Paso 3 (Formulario de Datos) se omite cuando:
          * - Titular logueado agendando para sí mismo (flujo estándar), o
@@ -720,16 +818,7 @@ export function createCitas() {
          */
         _omitirDatosEnFlujo() {
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
-            // TR-86: detectar modo modificación por invitado (flag en el blob de sessionStorage)
-            let esModificacionInvitado = false;
-            try {
-                const modCtxStr = sessionStorage.getItem('cita_modificacion');
-                if (modCtxStr) {
-                    const modCtx = JSON.parse(modCtxStr);
-                    esModificacionInvitado = !!modCtx.modoModificacion;
-                }
-            } catch (_) { /* noop */ }
-            if (esModificacionInvitado) return true;
+            if (this._esTunelReagendamientoTR100()) return true;
             const modifica = !!sessionStorage.getItem('cita_modificacion');
             return estaLogueado && !this.modoProxy && !modifica;
         },
@@ -738,7 +827,13 @@ export function createCitas() {
          * TR-16: ordinal del hito de agendamiento (0..N-1) a partir del paso DOM.
          * Devuelve -1 si la combinación no aplica.
          */
-        _mapDomPasoABookingOrdinal(domPaso, multiMedico, omitirDatos) {
+        _mapDomPasoABookingOrdinal(domPaso, multiMedico, omitirDatos, tunelReagendamiento = false) {
+            if (tunelReagendamiento) {
+                if (domPaso === 2) return 0;
+                if (domPaso === 4) return 1;
+                if (domPaso === 5) return 2;
+                return -1;
+            }
             if (domPaso === 0) return 0;
             if (domPaso === 1) return multiMedico ? 1 : -1;
             if (domPaso === 2) return multiMedico ? 2 : 1;
@@ -755,6 +850,19 @@ export function createCitas() {
 
         /** Construye fases de la barra: TR-16 + TR-17 (Confirmación siempre presente; hitos fijos en el flujo). */
         _obtenerFasesBarraProgreso() {
+            if (this._esTunelReagendamientoTR100()) {
+                return {
+                    phases: [
+                        { label: 'Nuevo Horario', domSteps: [2] },
+                        { label: 'Revisión', domSteps: [4] },
+                        { label: 'Confirmación', domSteps: [5] }
+                    ],
+                    bookingCount: 2,
+                    multiMedico: false,
+                    omitirDatos: true,
+                    tunelReagendamiento: true
+                };
+            }
             const nMed = this._contarMedicosParaProgreso();
             const multiMedico = nMed > 1;
             const omitirDatos = this._omitirDatosEnFlujo();
@@ -766,12 +874,17 @@ export function createCitas() {
             phases.push({ label: 'Revisión', domSteps: [4] });
             const bookingCount = phases.length;
             phases.push({ label: 'Confirmación', domSteps: [5] });
-            return { phases, bookingCount, multiMedico, omitirDatos };
+            return { phases, bookingCount, multiMedico, omitirDatos, tunelReagendamiento: false };
         },
 
         _sincronizarEtiquetaVolverPaso4() {
             const backBtn = document.getElementById('btn-back-review');
             if (!backBtn) return;
+            if (this._esModoModificacionEstricto()) {
+                backBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Volver al Calendario';
+                backBtn.onclick = () => window.app.citas.irAtras();
+                return;
+            }
             const prevDom = this.historialPasos.length
                 ? this.historialPasos[this.historialPasos.length - 1]
                 : null;
@@ -781,6 +894,7 @@ export function createCitas() {
             else if (prevDom === 1) label = 'Volver a Médicos';
             else if (prevDom === 0) label = 'Volver a Especialidades';
             backBtn.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
+            backBtn.onclick = () => window.app.citas.irAtras();
         },
 
         /** TR-22: persiste cédula/código para el widget y navega al home (tras limpiar flujo de citas). */
@@ -906,6 +1020,77 @@ export function createCitas() {
             // TR-24: no eliminar sanitas_abrir_detalle_id aquí; mi-salud la consume al llegar desde el éxito registrado.
         },
 
+        /**
+         * TR-103: Hard-reset del wizard para reingreso fresco o deserción de ruta.
+         * opts.preserveModificacion — conserva cita_modificacion (túnel de reagendamiento).
+         * opts.preservePreseleccion — conserva reservaCita_preseleccion y especialidad_seleccionada.
+         */
+        hardResetCitas(opts = {}) {
+            const preserveMod = opts.preserveModificacion === true;
+            const preservePre = opts.preservePreseleccion === true;
+
+            const backupMod = preserveMod ? sessionStorage.getItem('cita_modificacion') : null;
+            const backupPre = preservePre ? sessionStorage.getItem('reservaCita_preseleccion') : null;
+            const backupEsp = preservePre ? sessionStorage.getItem('especialidad_seleccionada') : null;
+
+            this.pasoActual = 0;
+            this.historialPasos = [];
+            this.modoProxy = false;
+            this._enRecuperacion = false;
+            this._suppressHistorialPush = false;
+            this.horaSeleccionada = null;
+            this.fechaISOSeleccionada = null;
+            this._citaTemporal = null;
+            this._doctorActual = null;
+            this._medicosPaso1List = null;
+            this.medicoSeleccionado = null;
+            this.resumenTicketConfirmado = null;
+            this.fechaBaseCalendario = new Date();
+            this.diaSeleccionadoMobile = 0;
+            this.fechaInicioDisponible = null;
+
+            this._purgaSeleccionHorario();
+
+            sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+            sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
+            sessionStorage.removeItem('cita_hora_seleccionada');
+            sessionStorage.removeItem('cita_fecha_iso');
+            sessionStorage.removeItem('cita_hora_confirmada');
+            sessionStorage.removeItem('reserva_temporal');
+            sessionStorage.removeItem('_citaTemporal_respaldo');
+            sessionStorage.removeItem('citas_login_restore');
+            sessionStorage.removeItem('temp_datos_recuperacion');
+            sessionStorage.removeItem('cita_desde_login');
+            sessionStorage.removeItem('modoModificacion');
+            if (!preserveMod) {
+                sessionStorage.removeItem('cita_modificacion');
+            }
+            if (!preservePre) {
+                sessionStorage.removeItem('reservaCita_preseleccion');
+                sessionStorage.removeItem('especialidad_seleccionada');
+            }
+
+            if (backupMod) sessionStorage.setItem('cita_modificacion', backupMod);
+            if (backupPre) sessionStorage.setItem('reservaCita_preseleccion', backupPre);
+            if (backupEsp) sessionStorage.setItem('especialidad_seleccionada', backupEsp);
+
+            const view = document.getElementById('view-citas');
+            if (view) {
+                view.querySelectorAll('.error-msg').forEach(msg => { msg.style.display = 'none'; });
+                view.querySelectorAll('.form-control').forEach(input => {
+                    input.classList.remove('input-error', 'input-success', 'input-rechazado');
+                    input.style.removeProperty('border-color');
+                    input.value = '';
+                });
+                view.querySelectorAll('.citas-step').forEach(el => { el.style.display = 'none'; });
+                const modMsg = document.getElementById('modificacion-msg');
+                if (modMsg) modMsg.remove();
+                const proxyEl = document.getElementById('proxy-link-container');
+                if (proxyEl) proxyEl.style.display = 'none';
+                history.replaceState({ tipo: 'formulario-citas', paso: 0 }, '', '');
+            }
+        },
+
         finalizarFlujoCita(opts = {}) {
             const navegar = opts.navegar !== false;
             this.limpiarSessionFlujoCitas(false);
@@ -939,9 +1124,29 @@ export function createCitas() {
         irAtras() {
             if (this.pasoActual === 5) return;
 
+            if (this._esTunelReagendamientoTR100()) {
+                if (this.pasoActual === 2) {
+                    this._cancelarModificacionTR100();
+                    return;
+                }
+                if (this.pasoActual === 0 || this.pasoActual === 1) {
+                    this._cancelarModificacionTR100();
+                    return;
+                }
+            }
+
             const dest = this.historialPasos.pop();
             if (dest === undefined || dest === null) {
+                if (this._esTunelReagendamientoTR100()) {
+                    this._cancelarModificacionTR100();
+                    return;
+                }
                 window.app.navegar('home');
+                return;
+            }
+
+            if (this._esTunelReagendamientoTR100() && (dest === 0 || dest === 1)) {
+                this._cancelarModificacionTR100();
                 return;
             }
 
@@ -975,24 +1180,17 @@ export function createCitas() {
 
                 const estaLogueado = localStorage.getItem('usuarioLogueado');
 
-                // ── TR-86: Smart Jump ── Si estamos en modo modificación de invitado,
-                // la identidad del paciente ya está en el contexto; omitir Paso 3 completamente.
-                const modCtxStr = sessionStorage.getItem('cita_modificacion');
-                let modCtx = null;
-                try { modCtx = modCtxStr ? JSON.parse(modCtxStr) : null; } catch (_) { modCtx = null; }
+                // ── TR-86 / TR-100: Smart Jump — omitir Paso 3; identidad desde cita_modificacion.
+                const modCtx = this._leerContextoModificacion();
 
-                if (!estaLogueado && modCtx && modCtx.modoModificacion && modCtx.origen === 'widget') {
-                    // Construir la fila de datos del paciente desde el contexto original
-                    // (cedula y paciente vienen embebidos en cita_modificacion por prepararModificacion)
-                    const nomInput = document.getElementById('citas-nombres');
-                    const cedInput = document.getElementById('citas-cedula');
-                    // Prellenar los campos del DOM aunque no se muestren,
-                    // para que _filaPacienteUpsertParaConfirmar los encuentre si busca en el DOM.
-                    if (nomInput) nomInput.value = modCtx.paciente || '';
-                    if (cedInput) cedInput.value = modCtx.cedula_paciente || modCtx.cedula || '';
-                    // Saltar verificación de colisiones e ir directo al resumen (TR-86 §2)
-                    this.prepararResumenFinal(false);
-                    // mostrarPaso(4) ya es llamado dentro de prepararResumenFinal, pero por seguridad:
+                if (modCtx && modCtx.modoModificacion === true) {
+                    if (!estaLogueado) {
+                        const nomInput = document.getElementById('citas-nombres');
+                        const cedInput = document.getElementById('citas-cedula');
+                        if (nomInput) nomInput.value = modCtx.paciente || '';
+                        if (cedInput) cedInput.value = modCtx.cedula_paciente || modCtx.cedula || '';
+                    }
+                    this.prepararResumenFinal(!!estaLogueado);
                     this.mostrarPaso(4);
                     return;
                 }
@@ -2117,6 +2315,52 @@ export function createCitas() {
             this._persistirProgresoCita();
         },
 
+        /** TR-102: plantilla de resumen — agendamiento nuevo (interactivo / proxy). */
+        _renderResumenAgendamientoNuevo(summaryDiv, cita, fechaHora) {
+            summaryDiv.innerHTML = `
+                <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Fecha y Hora</span><span class="salud-det__val">${escapeHtmlCita(fechaHora)}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || cita.nombres || 'No especificado')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
+            `;
+        },
+
+        /** TR-102: plantilla de resumen — túnel reagendamiento (solo lectura + banner). */
+        _renderResumenReagendamiento(summaryDiv, cita, fechaHora, modCtx) {
+            summaryDiv.innerHTML = `
+                <div class="smart-jump-banner" role="status" aria-live="polite"
+                     style="background:linear-gradient(135deg,#e8f8f5,#d1f2eb);border-left:4px solid #0DA99F;
+                            border-radius:8px;padding:10px 14px;margin-bottom:14px;
+                            display:flex;align-items:center;gap:10px;font-size:0.9rem;">
+                    <i class="fa-solid fa-shield-halved" aria-hidden="true" style="color:#0DA99F;font-size:1.2rem;"></i>
+                    <span><strong>Identidad protegida.</strong> Solo cambia la fecha y hora de la cita.</span>
+                </div>
+                <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
+                <div class="salud-det__row">
+                    <span class="salud-det__label">Nueva Fecha y Hora</span>
+                    <span class="salud-det__val" style="color:#0DA99F;font-weight:600;">
+                        <i class="fa-solid fa-calendar-check" aria-hidden="true" style="margin-right:5px;"></i>
+                        ${escapeHtmlCita(fechaHora)}
+                    </span>
+                </div>
+                <div class="salud-det__row" style="opacity:0.8;">
+                    <span class="salud-det__label">Cita anterior</span>
+                    <span class="salud-det__val" style="text-decoration:line-through;color:#888;">
+                        ${escapeHtmlCita((modCtx?.fechaVieja || '') + (modCtx?.horaVieja ? ', ' + modCtx.horaVieja : ''))}
+                    </span>
+                </div>
+                <hr style="border:none;border-top:1px solid #e0e0e0;margin:10px 0;">
+                <p style="font-size:0.8rem;color:#888;margin:0 0 8px;"
+                   aria-label="Los siguientes datos son de solo lectura">
+                    <i class="fa-solid fa-lock" aria-hidden="true"></i> Datos del paciente (solo lectura)
+                </p>
+                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || 'No especificado')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
+            `;
+        },
+
         // Muestra el resumen de la cita en el Paso 4
         _mostrarResumen(cita) {
             const summaryDiv = document.getElementById('review-summary-content');
@@ -2126,64 +2370,20 @@ export function createCitas() {
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
             const proxyLinkContainer = document.getElementById('proxy-link-container');
 
-            // TR-86: detectar si estamos en modo modificación
-            let esModSmartJump = false;
-            let modCtxResumen = null;
-            try {
-                const modCtxStr = sessionStorage.getItem('cita_modificacion');
-                if (modCtxStr) {
-                    modCtxResumen = JSON.parse(modCtxStr);
-                    esModSmartJump = !!modCtxResumen.modoModificacion;
-                }
-            } catch (_) { /* noop */ }
+            // TR-102: bifurcación estricta por flag explícito modoModificacion === true.
+            const esReagendamiento = this._esModoModificacionEstricto();
+            const modCtxResumen = esReagendamiento ? this._leerContextoModificacion() : null;
 
-            // Mostrar/ocultar enlace de proxy: solo si hay sesión y NO es modo proxy
+            // TR-101: proxy solo en agendamiento nuevo interactivo.
             if (proxyLinkContainer) {
-                proxyLinkContainer.style.display = (estaLogueado && !this.modoProxy) ? 'block' : 'none';
+                const mostrarProxy = estaLogueado && !this.modoProxy && !esReagendamiento;
+                proxyLinkContainer.style.display = mostrarProxy ? 'block' : 'none';
             }
 
-            if (esModSmartJump) {
-                // TR-86 §3: Inmutabilidad de Datos Personales.
-                // Nueva fecha/hora resaltada; identidad del paciente en modo solo lectura.
-                summaryDiv.innerHTML = `
-                    <div class="smart-jump-banner" role="status" aria-live="polite"
-                         style="background:linear-gradient(135deg,#e8f8f5,#d1f2eb);border-left:4px solid #0DA99F;
-                                border-radius:8px;padding:10px 14px;margin-bottom:14px;
-                                display:flex;align-items:center;gap:10px;font-size:0.9rem;">
-                        <i class="fa-solid fa-shield-halved" aria-hidden="true" style="color:#0DA99F;font-size:1.2rem;"></i>
-                        <span><strong>Identidad protegida.</strong> Solo cambia la fecha y hora de la cita.</span>
-                    </div>
-                    <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
-                    <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
-                    <div class="salud-det__row">
-                        <span class="salud-det__label">Nueva Fecha y Hora</span>
-                        <span class="salud-det__val" style="color:#0DA99F;font-weight:600;">
-                            <i class="fa-solid fa-calendar-check" aria-hidden="true" style="margin-right:5px;"></i>
-                            ${escapeHtmlCita(fechaHora)}
-                        </span>
-                    </div>
-                    <div class="salud-det__row" style="opacity:0.8;">
-                        <span class="salud-det__label">Cita anterior</span>
-                        <span class="salud-det__val" style="text-decoration:line-through;color:#888;">
-                            ${escapeHtmlCita((modCtxResumen.fechaVieja || '') + (modCtxResumen.horaVieja ? ', ' + modCtxResumen.horaVieja : ''))}
-                        </span>
-                    </div>
-                    <hr style="border:none;border-top:1px solid #e0e0e0;margin:10px 0;">
-                    <p style="font-size:0.8rem;color:#888;margin:0 0 8px;"
-                       aria-label="Los siguientes datos son de solo lectura">
-                        <i class="fa-solid fa-lock" aria-hidden="true"></i> Datos del paciente (solo lectura)
-                    </p>
-                    <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || 'No especificado')}</span></div>
-                    <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
-                `;
+            if (esReagendamiento && modCtxResumen) {
+                this._renderResumenReagendamiento(summaryDiv, cita, fechaHora, modCtxResumen);
             } else {
-                summaryDiv.innerHTML = `
-                    <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
-                    <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
-                    <div class="salud-det__row"><span class="salud-det__label">Fecha y Hora</span><span class="salud-det__val">${escapeHtmlCita(fechaHora)}</span></div>
-                    <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || cita.nombres || 'No especificado')}</span></div>
-                    <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
-                `;
+                this._renderResumenAgendamientoNuevo(summaryDiv, cita, fechaHora);
             }
 
             // Configurar botón Volver
@@ -2192,6 +2392,9 @@ export function createCitas() {
             const backBtn = document.getElementById('btn-back-review');
             if (backBtn) {
                 backBtn.onclick = () => window.app.citas.irAtras();
+            }
+            if (esReagendamiento) {
+                this._sincronizarEtiquetaVolverPaso4();
             }
 
             // Configurar botón Confirmar Cita
@@ -2575,10 +2778,13 @@ export function createCitas() {
             const indicator = document.getElementById('citas-progress-indicator');
             if (!indicator) return;
 
-            const { phases, bookingCount, multiMedico, omitirDatos } = this._obtenerFasesBarraProgreso();
+            const { phases, bookingCount, multiMedico, omitirDatos, tunelReagendamiento } =
+                this._obtenerFasesBarraProgreso();
             const ordActual = this.pasoActual === 5
                 ? bookingCount
-                : this._mapDomPasoABookingOrdinal(this.pasoActual, multiMedico, omitirDatos);
+                : this._mapDomPasoABookingOrdinal(
+                    this.pasoActual, multiMedico, omitirDatos, !!tunelReagendamiento
+                );
             const totalSr = phases.length;
             const pasoSr = this.pasoActual === 5 ? phases.length : Math.max(1, ordActual + 1);
 
@@ -3257,7 +3463,7 @@ export function createCitas() {
          */
         purgaHorarioPorDesercionRuta() {
             if (sessionStorage.getItem('cita_hora_confirmada') === 'true') return;
-            this.purgaHorarioEntradaFresca();
+            this.hardResetCitas();
         },
 
         /** Libera únicamente el soft-lock TTL (reserva_temporal), sin borrar la hora comprometida. */
