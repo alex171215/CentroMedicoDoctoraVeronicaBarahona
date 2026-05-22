@@ -1467,65 +1467,70 @@ const app = {
             this.renderizarTarjetas(filtrados);
         },
 
-        renderizarTarjetas(listaMedicos) {
-            const grid = document.getElementById('specialists-directory-grid');
-            if (!grid) return;
+        /** TR-111: orden dual Especialidad A-Z → Nombre A-Z. */
+        _ordenarMedicosDirectorioTR111(listaMedicos) {
+            return [...listaMedicos].sort((a, b) => {
+                const espA = (a.especialidad || '').trim();
+                const espB = (b.especialidad || '').trim();
+                const cmpEsp = espA.localeCompare(espB, 'es', { sensitivity: 'base' });
+                if (cmpEsp !== 0) return cmpEsp;
+                const nomA = (a.doctor?.nombre_completo || '').trim();
+                const nomB = (b.doctor?.nombre_completo || '').trim();
+                return nomA.localeCompare(nomB, 'es', { sensitivity: 'base' });
+            });
+        },
 
-            grid.innerHTML = '';
-
-            if (listaMedicos.length === 0) {
-                grid.innerHTML = '<p style="text-align:center; color:#888; grid-column: 1/-1;">No se encontraron médicos con ese criterio.</p>';
-                return;
-            }
-
-            // Asignación de imágenes (Dra Verónica u genéricas Unsplash)
-            // Para asegurar la heurística de consistencia y la foto guardada en assets/img
-            listaMedicos.forEach(med => {
-                const nombreMed = med.doctor.nombre_completo || '';
-                let imagenSrc = med.imagen_url;
-
-                if (nombreMed.toLowerCase().includes('verónica') && nombreMed.toLowerCase().includes('barahona')) {
-                    imagenSrc = 'assets/img/veronica-barahona.jpg'; // Imagen específica guardada localmente
-                } else if (!imagenSrc) {
-                    const espLower = med.especialidad.toLowerCase();
-                    if (espLower.includes('medicina familiar') || espLower.includes('medico familiar'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                    else if (espLower.includes('medicina general') || espLower.includes('general'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80';
-                    else if (espLower.includes('pediatr'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                    else if (espLower.includes('odontolog'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
-                    else if (espLower.includes('ginec')) {
-                        if (nombreMed.toLowerCase().includes('marcela') && nombreMed.toLowerCase().includes('pantoja')) {
-                            imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
-                        } else {
-                            imagenSrc = 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?q=80';
-                        }
+        _resolverImagenDirectorio(med, nombreMed) {
+            let imagenSrc = med.imagen_url;
+            if (nombreMed.toLowerCase().includes('verónica') && nombreMed.toLowerCase().includes('barahona')) {
+                imagenSrc = 'assets/img/veronica-barahona.jpg';
+            } else if (!imagenSrc) {
+                const espLower = (med.especialidad || '').toLowerCase();
+                if (espLower.includes('medicina familiar') || espLower.includes('medico familiar'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
+                else if (espLower.includes('medicina general') || espLower.includes('general'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80';
+                else if (espLower.includes('pediatr'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
+                else if (espLower.includes('odontolog'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
+                else if (espLower.includes('ginec')) {
+                    if (nombreMed.toLowerCase().includes('marcela') && nombreMed.toLowerCase().includes('pantoja')) {
+                        imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
+                    } else {
+                        imagenSrc = 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?q=80';
                     }
-                    else if (espLower.includes('dermatol'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80';
-                    else if (espLower.includes('radiolog') || espLower.includes('radiodiagn'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&q=80';
-                    else if (espLower.includes('urolog'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1637059824899-a441006a6875?q=80';
-                    else if (espLower.includes('endocrin'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1758691463582-11aea602cd4a?q=80';
-                    else if (espLower.includes('traumat') || espLower.includes('ortoped'))
-                        imagenSrc = 'https://images.unsplash.com/photo-1712215544003-af10130f8eb3?q=80';
-                    else if (espLower.includes('psicolog'))
-                        imagenSrc = 'https://plus.unsplash.com/premium_photo-1661580574627-9211124e5c3f?q=80';
-                    else if (espLower.includes('enfermer'))
-                        imagenSrc = 'https://plus.unsplash.com/premium_photo-1681996359725-06262b082c27?q=80';
-                    else if (espLower.includes('laboratorio'))
-                        imagenSrc = 'https://plus.unsplash.com/premium_photo-1682089874677-3eee554feb19?w=600';
-                    else
-                        imagenSrc = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80'; // fallback genérico
                 }
+                else if (espLower.includes('dermatol'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80';
+                else if (espLower.includes('radiolog') || espLower.includes('radiodiagn'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&q=80';
+                else if (espLower.includes('urolog'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1637059824899-a441006a6875?q=80';
+                else if (espLower.includes('endocrin'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1758691463582-11aea602cd4a?q=80';
+                else if (espLower.includes('traumat') || espLower.includes('ortoped'))
+                    imagenSrc = 'https://images.unsplash.com/photo-1712215544003-af10130f8eb3?q=80';
+                else if (espLower.includes('psicolog'))
+                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1661580574627-9211124e5c3f?q=80';
+                else if (espLower.includes('enfermer'))
+                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1681996359725-06262b082c27?q=80';
+                else if (espLower.includes('laboratorio'))
+                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1682089874677-3eee554feb19?w=600';
+                else
+                    imagenSrc = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80';
+            }
+            return imagenSrc;
+        },
 
-                const card = document.createElement('article');
-                card.className = 'directory-card';
-                card.innerHTML = `  
+        /** TR-111: tarjeta con listeners intactos (.directory-card__btn / __link). */
+        _crearTarjetaDirectorio(med) {
+            const nombreMed = med.doctor?.nombre_completo || '';
+            const imagenSrc = this._resolverImagenDirectorio(med, nombreMed);
+
+            const card = document.createElement('article');
+            card.className = 'directory-card';
+            card.innerHTML = `  
                     <img src="${imagenSrc}" alt="${nombreMed}" class="directory-card__img" tabindex="0" loading="lazy">
                     <h3 class="directory-card__name">${nombreMed}</h3>
                     <p class="directory-card__specialty">${med.especialidad}</p>
@@ -1535,22 +1540,52 @@ const app = {
                     </button>
                 `;
 
-                // Eventos
-                const img = card.querySelector('.directory-card__img');
-                const linkVerPerfil = card.querySelector('.directory-card__link');
-                const btnAgendar = card.querySelector('.directory-card__btn');
+            const img = card.querySelector('.directory-card__img');
+            const linkVerPerfil = card.querySelector('.directory-card__link');
+            const btnAgendar = card.querySelector('.directory-card__btn');
 
-                const abrirModalClick = () => this.abrirModal(med);
-                img.addEventListener('click', abrirModalClick);
-                img.addEventListener('keydown', (e) => { if (e.key === 'Enter') abrirModalClick(); });
-                linkVerPerfil.addEventListener('click', abrirModalClick);
+            const abrirModalClick = () => this.abrirModal(med);
+            img.addEventListener('click', abrirModalClick);
+            img.addEventListener('keydown', (e) => { if (e.key === 'Enter') abrirModalClick(); });
+            linkVerPerfil.addEventListener('click', abrirModalClick);
 
-                btnAgendar.addEventListener('click', () => {
-                    const idEsp = med.id_especialista || med.id;
-                    app.preseleccionarDoctor(idEsp, med.especialidad, nombreMed, med.imagen_url || imagenSrc);
-                });
+            btnAgendar.addEventListener('click', () => {
+                const idEsp = med.id_especialista || med.id;
+                app.preseleccionarDoctor(idEsp, med.especialidad, nombreMed, med.imagen_url || imagenSrc);
+            });
 
-                grid.appendChild(card);
+            return card;
+        },
+
+        renderizarTarjetas(listaMedicos) {
+            const grid = document.getElementById('specialists-directory-grid');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+
+            if (listaMedicos.length === 0) {
+                grid.innerHTML = '<p class="directory-empty-msg">No se encontraron médicos con ese criterio.</p>';
+                return;
+            }
+
+            const ordenados = this._ordenarMedicosDirectorioTR111(listaMedicos);
+            let especialidadActual = null;
+            let grupoActual = null;
+
+            ordenados.forEach(med => {
+                const esp = (med.especialidad || '').trim() || 'Sin especialidad';
+                if (esp !== especialidadActual) {
+                    especialidadActual = esp;
+                    const titulo = document.createElement('h3');
+                    titulo.className = 'directory-specialty-title';
+                    titulo.textContent = esp;
+                    grid.appendChild(titulo);
+
+                    grupoActual = document.createElement('div');
+                    grupoActual.className = 'directory-specialty-group';
+                    grid.appendChild(grupoActual);
+                }
+                grupoActual.appendChild(this._crearTarjetaDirectorio(med));
             });
         },
 

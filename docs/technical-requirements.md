@@ -841,3 +841,9 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
    - **Caso Nuevo:** Si la cédula no existe, se procederá con un `INSERT` tradicional asignando `es_invitado = false`.
    - **Caso Duplicado Real:** Si la cédula existe y posee `es_invitado = false`, se detendrá el flujo arrojando el mensaje de error: "Esta cédula ya tiene una cuenta activa".
    - **Caso Transmutación:** Si la cédula existe pero posee `es_invitado = true`, el sistema ejecutará un comando `UPDATE` sobre esa fila específica, actualizando los datos personales, guardando el hash de la contraseña (`password`) y cambiando de forma definitiva el flag a `es_invitado = false`.
+
+## TR-111: Matriz Categorizada de Especialistas M x 5 (Gestalt y Ordenamiento H8)
+1. **Agrupamiento y Jerarquía Semántica:** El contenedor `#specialists-directory-grid` dejará de ser una lista plana. El renderizador de JavaScript debe agrupar dinámicamente las tarjetas por su campo de especialidad, inyectando un encabezado semántico `<h3>` (con la clase `.directory-specialty-title`) antes de cada bloque de médicos.
+2. **Estructura de la Matriz Desktop:** Cada bloque de especialidad contendrá una sub-malla fluida que, en pantallas de escritorio (`min-width: 1200px`), se configurará rígidamente con `grid-template-columns: repeat(5, minmax(0, 1fr));` (Matriz M x 5), adaptándose de forma responsiva en breakpoints menores (Móvil: 1 col, Tablet: 3 cols).
+3. **Algoritmo de Ordenamiento Alfabético Dual:** El motor de renderizado y filtrado del buscador ordenarará incondicionalmente los datos bajo dos criterios secuenciales: Primero, por Especialidad de la A a la Z, y segundo, por Nombre del Médico de la A a la Z.
+4. **Preservación de Listeners:** La mutación estructural no debe alterar, sobreescribir ni romper la delegación global de eventos vinculada a los botones `.directory-card__btn` (Agendar) y `.directory-card__link` (Perfil).

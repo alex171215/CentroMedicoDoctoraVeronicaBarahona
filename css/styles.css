@@ -1699,24 +1699,55 @@ a[href^="mailto:"]:focus-visible,
 }
 
 /* =========================================
-   DIRECTORIO DE ESPECIALISTAS (view-especialistas)
+   DIRECTORIO DE ESPECIALISTAS (view-especialistas) — TR-111
    ========================================= */
 .directory-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
     margin-bottom: 40px;
 }
 
-@media (min-width: 768px) {
-    .directory-grid {
-        grid-template-columns: repeat(2, 1fr);
+.directory-empty-msg {
+    text-align: center;
+    color: #888;
+    margin: 0;
+}
+
+/* TR-111: título semántico por especialidad */
+.directory-specialty-title {
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: 0.02em;
+    border-bottom: 2px solid var(--action-color, #0da99f);
+}
+
+/* TR-111: sub-malla M x 5 por bloque de especialidad */
+.directory-specialty-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 480px) {
+    .directory-specialty-group {
+        grid-template-columns: 1fr;
     }
 }
 
-@media (min-width: 1024px) {
-    .directory-grid {
-        grid-template-columns: repeat(4, 1fr);
+@media (min-width: 768px) {
+    .directory-specialty-group {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .directory-specialty-group {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 }
 
