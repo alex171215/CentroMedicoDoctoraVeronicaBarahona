@@ -1852,27 +1852,141 @@ a[href^="mailto:"]:focus-visible,
     color: #0DA99F;
 }
 
-/* Mobile responsive fix for 6-step progress indicator */
+/* ==========================================================================
+   TR-106 | STEPPER RADIAL — DISEÑO RESPONSIVO DUAL
+   Linear (tablet/desktop) ↔ Radial (móvil ≤480px)
+   ========================================================================== */
+
+/* ── 1. Ocultar el stepper RADIAL en pantallas ≥481px (tablet/escritorio) ── */
+@media (min-width: 481px) {
+    #stepper-radial-mobile {
+        display: none !important;
+    }
+}
+
+/* ── 2. Componentes del stepper radial (base; activados en ≤480px) ── */
+
+/* Wrapper posicionador del anillo SVG + contador central */
+.radial-ring-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* SVG superpuesto sobre el contador */
+.radial-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 90px;
+    height: 90px;
+}
+
+/* Track: círculo de fondo (gris-teal claro) */
+.radial-track {
+    fill: none;
+    stroke: #d5eeec;
+    stroke-width: 9;
+}
+
+/* Arco de progreso teal animado */
+.radial-arc {
+    fill: none;
+    stroke: #0DA99F;
+    stroke-width: 9;
+    stroke-linecap: round;
+    /* 2π × 42 ≈ 263.89 */
+    stroke-dasharray: 263.89;
+    stroke-dashoffset: 263.89;   /* actualizado por el MutationObserver */
+    transform: rotate(-90deg);
+    transform-origin: 50px 50px; /* centro del viewBox 100×100 */
+    transition: stroke-dashoffset 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Texto central «X de Y» */
+.radial-counter {
+    position: relative;
+    z-index: 2;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #1a2747;
+    text-align: center;
+    line-height: 1.25;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* Panel textual derecho: título del paso + «Siguiente» */
+.radial-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Nombre del paso activo en negrita */
+.radial-step-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.08rem;
+    font-weight: 800;
+    color: #1a2747;
+    line-height: 1.2;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Etiqueta secundaria «Siguiente: NombrePaso» */
+.radial-step-next {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.82rem;
+    color: #6b7a99;
+    font-weight: 400;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── 3. Reglas móviles (≤480px): ocultar lineal, mostrar radial ── */
 @media (max-width: 480px) {
-    .citas-progress-container {
+
+    /* Ocultar TODOS los pasos del stepper lineal horizontal */
+    #citas-progress-indicator .citas-progress-step {
+        display: none !important;
+    }
+
+    /* Ocultar la línea de conexión horizontal (pseudo-elemento ::before) */
+    #citas-progress-indicator.citas-progress-container::before {
+        display: none !important;
+    }
+
+    /* El contenedor lineal queda como espaciador mínimo */
+    #citas-progress-indicator.citas-progress-container {
+        margin-bottom: 0 !important;
+        min-height: 0;
+        padding: 0;
+    }
+
+    /* ── Stepper RADIAL: activar y estilizar ── */
+    #stepper-radial-mobile {
+        display: flex !important;
+        align-items: center;
+        gap: 18px;
+        background: linear-gradient(135deg, #f0fbfa 0%, #e6f6f5 100%);
+        border-radius: 18px;
+        padding: 16px 20px;
+        margin: 0 auto 22px auto;
         max-width: 100%;
-        padding: 0 10px;
-    }
-
-    .citas-progress-step {
-        width: 32px;
-        height: 32px;
-        border-width: 2px;
-        font-size: 0.75rem;
-    }
-
-    .citas-progress-label {
-        font-size: 0.8rem;
-        top: 42px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 50px;
+        box-shadow: 0 3px 16px rgba(13, 169, 159, 0.13);
+        border: 1px solid rgba(13, 169, 159, 0.18);
     }
 }
 

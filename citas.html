@@ -83,6 +83,30 @@
                     <!-- Se inyecta por JS -->
                 </div>
 
+                <!-- TR-106 | STEPPER RADIAL MÓVIL — visible exclusivamente en ≤480px -->
+                <div id="stepper-radial-mobile"
+                     aria-live="polite" aria-atomic="true" role="status"
+                     style="display:none;">
+                    <!-- Anillo SVG de progreso circular -->
+                    <div class="radial-ring-wrap">
+                        <svg class="radial-svg" viewBox="0 0 100 100"
+                             width="90" height="90" aria-hidden="true">
+                            <!-- Track: fondo del anillo -->
+                            <circle class="radial-track" cx="50" cy="50" r="42" />
+                            <!-- Arco de progreso (stroke-dashoffset actualizado por JS observer) -->
+                            <circle class="radial-arc" id="radial-arc-path"
+                                    cx="50" cy="50" r="42" />
+                        </svg>
+                        <!-- Contador central: "X de Y" -->
+                        <span class="radial-counter" id="radial-counter-text">1 de 5</span>
+                    </div>
+                    <!-- Información textual del paso activo -->
+                    <div class="radial-info">
+                        <strong class="radial-step-title" id="radial-step-title">Especialidad</strong>
+                        <span class="radial-step-next" id="radial-step-next">Siguiente: Calendario</span>
+                    </div>
+                </div>
+
                 <div class="citas-step-container">
                     <!-- PASO 0: Especialidad -->
                     <div id="citas-step-0" class="citas-step" style="display: none;">
@@ -438,6 +462,99 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="js/data.js"></script>
     <script type="module" src="js/main.js"></script>
+
+    <!-- TR-106: MutationObserver — sincroniza el stepper radial con el lineal sin tocar citas.js -->
+    <script>
+    (function () {
+        'use strict';
+        /* Circunferencia del arco SVG: 2π × r = 2π × 42 ≈ 263.89 */
+        var CIRC = 2 * Math.PI * 42;
+
+        /**
+         * Lee el estado del stepper lineal inyectado por JS
+         * y actualiza todos los nodos del stepper radial.
+         */
+        function syncRadial() {
+            var indicator = document.getElementById('citas-progress-indicator');
+            var radial    = document.getElementById('stepper-radial-mobile');
+            if (!indicator || !radial) return;
+
+            var steps = indicator.querySelectorAll('.citas-progress-step');
+            var total = steps.length;
+            if (!total) return;
+
+            var activeIndex = -1;
+            var activeLabel = '';
+            var nextLabel   = '';
+
+            steps.forEach(function (step, i) {
+                if (step.classList.contains('active')) {
+                    activeIndex = i;
+                    var lbl = step.querySelector('.citas-progress-label');
+                    activeLabel = lbl ? lbl.textContent.trim() : '';
+                    if (i + 1 < total) {
+                        var nxt = steps[i + 1].querySelector('.citas-progress-label');
+                        nextLabel = nxt ? nxt.textContent.trim() : '';
+                    }
+                }
+            });
+
+            /* Fallback: si ningún paso tiene .active aún, usar el primero */
+            if (activeIndex < 0) {
+                activeIndex = 0;
+                var lbl0 = steps[0] && steps[0].querySelector('.citas-progress-label');
+                activeLabel = lbl0 ? lbl0.textContent.trim() : '';
+            }
+
+            var current  = activeIndex + 1;
+            var progress = current / total;
+            var offset   = CIRC * (1 - progress);
+
+            /* Actualizar contador central "X de Y" */
+            var counter = document.getElementById('radial-counter-text');
+            if (counter) counter.textContent = current + ' de ' + total;
+
+            /* Actualizar arco SVG vía stroke-dashoffset */
+            var arc = document.getElementById('radial-arc-path');
+            if (arc) arc.style.strokeDashoffset = offset.toFixed(3);
+
+            /* Actualizar título del paso activo */
+            var title = document.getElementById('radial-step-title');
+            if (title) title.textContent = activeLabel;
+
+            /* Actualizar etiqueta "Siguiente" */
+            var nextEl = document.getElementById('radial-step-next');
+            if (nextEl) {
+                nextEl.textContent = nextLabel
+                    ? 'Siguiente: ' + nextLabel
+                    : '¡Cita confirmada!';
+            }
+        }
+
+        /**
+         * Monta el MutationObserver sobre #citas-progress-indicator.
+         * Reintenta cada 150 ms si el nodo aún no existe.
+         */
+        function initObserver() {
+            var indicator = document.getElementById('citas-progress-indicator');
+            if (!indicator) { setTimeout(initObserver, 150); return; }
+
+            new MutationObserver(syncRadial).observe(indicator, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class']
+            });
+            syncRadial(); /* Sincronización inicial */
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initObserver);
+        } else {
+            initObserver();
+        }
+    })();
+    </script>
 
     <!-- Modal Cerrar Sesión -->
     <div id="modal-logout" class="modal-overlay" style="display: none;">
