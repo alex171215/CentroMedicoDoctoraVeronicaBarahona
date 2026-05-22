@@ -3602,6 +3602,21 @@ export function createCitas() {
                 // .input-rechazado si hubo caracteres rechazados.
                 // Este listener NO pinta errores ni toca otros campos.
                 el.addEventListener('input', () => {
+                    // ── TR-98: Limpieza inmediata de error en tiempo real ──────────────────
+                    // Se ejecuta ANTES de _sanitizarInput para garantizar que el mensaje
+                    // desaparece en la primera pulsación, aunque el sanitizador lance error.
+                    el.classList.remove('input-error', 'input-success'); // clases CSS de validación
+                    el.style.borderColor = '';                           // elimina override inline → estado nativo CSS
+                    const errorEl = document.getElementById(item.err);
+                    if (errorEl) {
+                        errorEl.style.display = 'none';
+                        errorEl.style.removeProperty('opacity'); // Limpia cualquier opacity inline
+                    }
+                    // ── Fin TR-98 ──────────────────────────────────────────────────────────
+
+                    // Sanitización real via helper centralizado (preserva posición del cursor).
+                    // app._sanitizarInput dispara .input-rechazado si hubo caracteres rechazados.
+                    // Este bloque NO pinta errores ni toca otros campos.
                     if (item.id === 'citas-nombres') {
                         // Solo letras latinas (con tildes/ñ) + un espacio simple
                         const REGEX_N = /[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g;
@@ -3612,11 +3627,6 @@ export function createCitas() {
                         app._sanitizarInput(el, /\D/g);
                         if (el.value.length > 10) el.value = el.value.slice(0, 10);
                     }
-
-                    // Devolvemos el campo a estado neutral mientras el usuario escribe
-                    el.style.borderColor = '#ccc';
-                    const errorEl = document.getElementById(item.err);
-                    if (errorEl) errorEl.style.display = 'none';
 
                     // Validación global SILENCIOSA: solo habilita/deshabilita el botón Siguiente
                     this.actualizarEstadoBotonSiguiente();

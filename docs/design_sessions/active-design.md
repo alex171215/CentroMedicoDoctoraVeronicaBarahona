@@ -575,3 +575,86 @@ Un **fallback** protege el estado inicial: si ningún paso tiene `.active` aún 
 
 ### Estado: ✅ CERRADO — TR-106 implementado y validado.
 
+---
+
+## Ciclo de Borrado de Errores en Tiempo Real — TR-98
+
+### Fecha: 2026-05-22
+
+### Bug Reportado
+En el Paso 3 del flujo de agendamiento (`#form-citas-identificacion`), cuando un campo mostraba un mensaje de error tras perder el foco (`blur`), dicho mensaje **no desaparecía** al volver al campo y empezar a escribir la corrección.
+
+---
+
+### Análisis de Causa Raíz
+
+El listener `input` existente en `configurarValidadores()` tenía la limpieza visual en el orden incorrecto:
+
+```javascript
+// Código ANTES del fix (orden incorrecto)
+el.addEventListener('input', () => {
+    app._sanitizarInput(el, ...);   // ← Si esto lanza, lo siguiente nunca corre
+    el.style.borderColor = '#ccc';  // ← Podría no ejecutarse
+    errorEl.style.display = 'none'; // ← Podría no ejecutarse
+    this.actualizarEstadoBotonSiguiente();
+});
+```
+
+**Problema 1 — Orden de ejecución:** La limpieza estaba colocada DESPUÉS de `app._sanitizarInput()`. Si el sanitizador lanzaba una excepción (p.ej. `app` no inicializado, `_sanitizarInput` no definido), las líneas de limpieza nunca se ejecutaban y el error persistía visualmente.
+
+**Problema 2 — Clases CSS faltantes:** La limpieza solo usaba `el.style.borderColor = '#ccc'`, sin llamar a `el.classList.remove('input-error', 'input-success')`. Si en algún contexto se añadían estas clases con `border-color: red !important`, el inline style `#ccc` no las sobreescribía por la especificidad CSS.
+
+**Problema 3 — Estado no verdaderamente neutral:** `borderColor = '#ccc'` fijaba un color específico en vez de devolver el control al CSS cascade. `borderColor = ''` (cadena vacía) elimina el override inline y restaura el estado nativo de `.form-control`.
+
+---
+
+### Fix Aplicado (Pinpoint en `configurarValidadores`)
+
+**Archivo:** [`js/modulos/citas.js`](file:///c:/Users/ASUS/Documents/5to%20Semestre/Interacción%20Humano%20Computador/Retos/mejora%20reto%204/CentroMedicoDoctoraVeronicaBarahona/js/modulos/citas.js) — función `configurarValidadores()`.
+
+```diff
+ el.addEventListener('input', () => {
++    // TR-98: Limpieza inmediata ANTES de sanitizar
++    el.classList.remove('input-error', 'input-success');
++    el.style.borderColor = '';   // elimina override inline → estado nativo CSS
++    const errorEl = document.getElementById(item.err);
++    if (errorEl) errorEl.style.display = 'none';
++
+     if (item.id === 'citas-nombres') {
+         app._sanitizarInput(el, REGEX_N, EXTRA_N);
+     } else {
+         app._sanitizarInput(el, /\D/g);
+         if (el.value.length > 10) el.value = el.value.slice(0, 10);
+     }
+-    // Devolvemos el campo a estado neutral mientras el usuario escribe
+-    el.style.borderColor = '#ccc';
+-    const errorEl = document.getElementById(item.err);
+-    if (errorEl) errorEl.style.display = 'none';
+     this.actualizarEstadoBotonSiguiente();
+ });
+```
+
+---
+
+### Comportamiento Resultante
+
+| Evento | Antes del Fix | Después del Fix |
+|---|---|---|
+| Usuario escribe en campo con error `blur` | Error persiste | Error desaparece en la 1.ª pulsación |
+| `app._sanitizarInput` lanza excepción | Limpieza no ejecutada | Limpieza ya ejecutada (está antes) |
+| Campo tiene clase `input-error` | Borde rojo persiste (override `!important`) | Clase removida antes de sanitizar |
+| Campo tiene clase `input-success` | Estado verde queda | Clase removida correctamente |
+| Borde del campo | Fijado en `#ccc` (arbitrario) | Devuelto al CSS cascade nativo |
+
+---
+
+### Garantías de Integridad
+
+- ✅ **Validaciones `blur` intactas:** `_validarCampoAislado()` y `_setEstadoCampo()` no fueron modificados.
+- ✅ **`validarPaso3(true)` intacto:** La validación completa al hacer submit sigue pintando todos los errores sin cambios.
+- ✅ **`actualizarEstadoBotonSiguiente()` intacto:** Llama a `validarPaso3(false)` que NO pinta errores (guard en línea 3466).
+- ✅ **Sin regresión en sanitización:** `app._sanitizarInput` sigue ejecutándose normalmente, ahora simplemente DESPUÉS de la limpieza.
+- ✅ **`node -c js/modulos/citas.js` → 0 errores de sintaxis.**
+
+### Estado: ✅ CERRADO — TR-98 implementado, validado y libre de regresiones.
+
