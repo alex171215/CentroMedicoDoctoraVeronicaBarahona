@@ -598,7 +598,7 @@ export function createCitas() {
             // ─── Paso 4: inyectar aviso si es modificación ───
             // ─── Paso 5: inyectar aviso si es modificación ───
             // ─── Paso 5: inyectar aviso si es modificación ───
-            if (nuevoPaso === 5 && sessionStorage.getItem('cita_modificacion')) {
+            if (nuevoPaso === 5 && this._esTunelReagendamientoTR100()) {
                 const step5 = document.getElementById('citas-step-5');
                 // Evitar duplicados
                 let alertInfo = step5.querySelector('.alert-info-mod');
@@ -705,8 +705,9 @@ export function createCitas() {
             }
         },
 
-        /** TR-100: túnel aislado de reagendamiento (3 pasos visibles). */
+        /** TR-100 / TR-104: túnel aislado de reagendamiento (3 pasos visibles). */
         _esTunelReagendamientoTR100() {
+            if (sessionStorage.getItem('modoModificacion') === 'true') return true;
             return !!this._leerContextoModificacion()?.modoModificacion;
         },
 
@@ -2370,14 +2371,17 @@ export function createCitas() {
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
             const proxyLinkContainer = document.getElementById('proxy-link-container');
 
-            // TR-102: bifurcación estricta por flag explícito modoModificacion === true.
-            const esReagendamiento = this._esModoModificacionEstricto();
+            // TR-102 / TR-105: reagendamiento por flag explícito o blob operativo (incl. legacy con id_cita).
+            const enTunelModificacion = this._esTunelReagendamientoTR100();
+            const esReagendamiento = this._esModoModificacionEstricto() || enTunelModificacion;
             const modCtxResumen = esReagendamiento ? this._leerContextoModificacion() : null;
 
-            // TR-101: proxy solo en agendamiento nuevo interactivo.
+            // TR-101 / TR-105: proxy solo en agendamiento nuevo interactivo.
             if (proxyLinkContainer) {
-                const mostrarProxy = estaLogueado && !this.modoProxy && !esReagendamiento;
+                const mostrarProxy = estaLogueado && !this.modoProxy && !enTunelModificacion;
                 proxyLinkContainer.style.display = mostrarProxy ? 'block' : 'none';
+                if (!mostrarProxy) proxyLinkContainer.classList.add('hidden');
+                else proxyLinkContainer.classList.remove('hidden');
             }
 
             if (esReagendamiento && modCtxResumen) {
@@ -2521,6 +2525,7 @@ export function createCitas() {
             let modCtx = null;
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { }
             const esModificacion = !!modCtx;
+            const eraTunelReagendamiento = this._esTunelReagendamientoTR100();
 
             const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
 
@@ -2602,6 +2607,9 @@ export function createCitas() {
                                 }
                             }
                         }
+                        if (eraTunelReagendamiento) {
+                            sessionStorage.setItem('modoModificacion', 'true');
+                        }
                         sessionStorage.removeItem('cita_modificacion');
                         this._reconstruirOcupadas();
                     } else {
@@ -2669,7 +2677,16 @@ export function createCitas() {
 
             this._citaTemporal = null;
             this.modoProxy = false;
+            if (eraTunelReagendamiento) {
+                sessionStorage.setItem('modoModificacion', 'true');
+            }
             sessionStorage.removeItem('cita_modificacion');
+
+            const proxyElConfirm = document.getElementById('proxy-link-container');
+            if (proxyElConfirm && eraTunelReagendamiento) {
+                proxyElConfirm.style.display = 'none';
+                proxyElConfirm.classList.add('hidden');
+            }
 
             document.getElementById('resumen-doctor-name').textContent = cita.medico;
             document.getElementById('resumen-doctor-specialty').textContent = cita.especialidad;
@@ -2796,8 +2813,13 @@ export function createCitas() {
                 let isCompleted = false;
 
                 if (this.pasoActual === 5) {
-                    isCompleted = !isConfirmacion;
-                    isActive = isConfirmacion;
+                    if (tunelReagendamiento) {
+                        isCompleted = true;
+                        isActive = false;
+                    } else {
+                        isCompleted = !isConfirmacion;
+                        isActive = isConfirmacion;
+                    }
                 } else {
                     if (ordActual < 0) {
                         isActive = index === 0 && this.pasoActual === 0;

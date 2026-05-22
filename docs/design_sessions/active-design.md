@@ -870,3 +870,78 @@ No elimina `STORAGE_AUTO_CONSULTA_INVITADO` ni `sanitas_abrir_detalle_id`.
 
 ### Estado: ✅ CERRADO — TR-103 hard-reset operativo en MPA y entry point de citas.
 
+---
+
+## Persistencia del Stepper y Ocultamiento Proxy en Confirmación TR-104 / TR-105
+
+### Fecha: 2026-05-22
+
+### Problema
+
+Usuario **con cuenta** en reagendamiento:
+
+1. **TR-104:** En el paso 5 (éxito), `#citas-progress-indicator` volvía al stepper de 6 pasos porque `confirmarCita()` eliminaba `cita_modificacion` antes de `mostrarPaso(5)` y `_esTunelReagendamientoTR100()` quedaba en falso.
+2. **TR-105:** En el paso 4 (revisión), `#proxy-link-container` seguía visible si el blob venía de `salud.prepararModificacion` sin `modoModificacion: true` explícito (solo `id_cita`), ya que `_esModoModificacionEstricto()` no normaliza legacy.
+
+### Fix (pinpoint en `js/modulos/citas.js`)
+
+| Requisito | Cambio |
+|-----------|--------|
+| TR-104 | `_esTunelReagendamientoTR100()` también lee `sessionStorage.modoModificacion === 'true'`. Antes de purgar `cita_modificacion`, `confirmarCita()` persiste ese flag si hubo túnel. `actualizarBarraProgreso()` en paso 5 con túnel marca los 3 hitos como `completed` (último con check de éxito). |
+| TR-105 | `_mostrarResumen()` oculta proxy con `_esTunelReagendamientoTR100()` (blob + flag); añade clase `.hidden`. Refuerzo en `confirmarCita()` tras éxito. Plantilla de reagendamiento si hay contexto operativo aunque el flag estricto falte. |
+| Paso 5 | Aviso «Identidad Mantenida» usa `_esTunelReagendamientoTR100()` en lugar de `cita_modificacion` crudo. |
+
+### Intacto
+
+- Promesas Supabase, `updateCitaSupabasePorIdCita`, calendario, colisiones, TR-106 radial, estructura del wizard.
+
+### Verificación
+
+- `node -c js/modulos/citas.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-104 y TR-105 aplicados en `citas.js`.
+
+---
+
+## Corrección de Visibilidad Estática del Modal en la MPA TR-106
+
+### Fecha: 2026-05-22
+
+### Problema
+
+En páginas secundarias de la MPA, el shell `#modal-consulta-invitado` / `#modal-consulta-invitado-body` quedaba en el flujo del documento sin ocultamiento inline. La clase `.modal-content` (fondo blanco, padding, sombra en `styles.css`) se pintaba debajo del footer antes de que `main.js` inyectara las reglas TR-90 de `.hidden`, contaminando el App Shell.
+
+### Causa
+
+El marcado secundario tenía `class="modal hidden"` pero carecía de `style="display: none;"` que sí usa `index.html` (`style="display:none;"` en el overlay). Sin atributo inline, el hijo `.modal-content` era visible en el layout estático.
+
+### Fix (solo HTML — sin tocar `main.js` ni `citas.js`)
+
+Se alineó el bloque final de cada página secundaria con la sintaxis segura del home:
+
+```html
+<div id="modal-consulta-invitado" class="modal hidden" role="dialog" aria-modal="true" style="display: none;">
+  <div id="modal-consulta-invitado-body" class="modal-content"></div>
+</div>
+```
+
+| Archivo | Estado |
+|---------|--------|
+| `citas.html` | ✅ `style="display: none;"` en contenedor raíz |
+| `especialistas.html` | ✅ (equivalente a «especialidades» en el inventario del proyecto) |
+| `mi-salud.html` | ✅ |
+| `farmacia.html` | ✅ |
+| `contacto.html` | ✅ |
+| `login.html` | ✅ |
+| `registro.html` | ✅ |
+
+Los IDs `#modal-consulta-invitado` y `#modal-consulta-invitado-body` se conservan para `_normalizarShellModalMPA()` y `abrirModalConsulta()`.
+
+### Verificación responsive (inspección estructural)
+
+- Contenedor raíz con `display: none` por defecto → el área bajo el footer no recibe caja `.modal-content` en paint inicial.
+- Al abrir desde el header, JS remueve `.hidden` y `display` inline (`abrirModalConsulta`) sin cambios en esta iteración.
+- `perfil.html` y `recuperar.html` no incluyen el modal (sin botón de consulta invitado en esas rutas).
+
+### Estado: ✅ CERRADO — TR-106 shell oculto en MPA secundaria.
+

@@ -814,3 +814,9 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-105: Inactivación Absoluta de Flujos Alternativos (Familiar/Proxy) en Resumen (H7)
 1. **Ocultamiento Incondicional:** El contenedor `#proxy-link-container` debe ser interceptado y forzado a `display: none !important` en el renderizado de revisión y confirmación para usuarios con cuenta siempre que la sesión opere bajo `modoModificacion: true`.
 2. **Inmutabilidad del Paciente:** La interfaz debe bloquear cualquier función que permita desviar el flujo de modificación hacia el registro de dependientes o familiares, garantizando que el titular original del registro médico no pueda ser alterado de forma retroactiva.
+
+
+## TR-106: Encapsulamiento y Ocultación del App Shell para Modales MPA (H8 - Minimalismo)
+1. **Persistencia Estática Invisible:** Todas las pantallas físicas de la MPA mantendrán la declaración estática del contenedor del modal justo antes del cierre del `</body>`.
+2. **Aislamiento del Layout Stream:** Para evitar el desborde visual o contaminación debajo del footer, el contenedor raíz del modal (`#modal-consulta-invitado`) deberá nacer configurado por defecto en estado invisible mediante el atributo estricto `style="display: none;"` o la clase responsiva `.hidden`.
+3. **Integridad del Selector:** Queda prohibido alterar o remover los ID `#modal-consulta-invitado` y `#modal-consulta-invitado-body` de los archivos HTML, ya que el motor global de JS requiere su existencia para la inyección dinámica de sub-vistas.
