@@ -191,6 +191,9 @@ const app = {
             if (!e.target || !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
 
             const inputEl = e.target;
+            // Heurística #9: al escribir, ocultar tooltip y flash sin esperar TTL ni blur.
+            this._limpiarFeedbackSanitizer(inputEl);
+
             let val = inputEl.value;
             let valorOriginal = val;
             const id = (inputEl.id || '').toLowerCase();
@@ -232,10 +235,7 @@ const app = {
                 } catch (err) { }
 
                 // TR-73: Prevención de Overlap — Oculta el error nativo mientras el tooltip flota
-                let errorNativo = null;
-                const ariaId = inputEl.getAttribute('aria-describedby');
-                if (ariaId) errorNativo = document.getElementById(ariaId);
-                if (!errorNativo) errorNativo = inputEl.parentNode.querySelector('span[id$="-error"], .error-text:not(.temp-error-span)');
+                const errorNativo = this._obtenerErrorNativoInput(inputEl);
                 if (errorNativo) errorNativo.style.setProperty('opacity', '0', 'important');
 
                 // Inyección de Tooltip Flotante (Evita romper Layouts como la Lupa)
@@ -255,15 +255,10 @@ const app = {
                     inputEl.insertAdjacentElement('afterend', tooltipWrapper);
                 }
 
-                // Temporizador 2.5s — restaura opacidad del nativo al expirar
-                if (!window.sanitizerTimers) window.sanitizerTimers = {};
-                if (window.sanitizerTimers[inputEl.id]) clearTimeout(window.sanitizerTimers[inputEl.id]);
-
-                window.sanitizerTimers[inputEl.id] = setTimeout(() => {
-                    const wrapperToRemove = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
-                    if (wrapperToRemove) wrapperToRemove.remove();
-                    // TR-73: Restaura el error nativo
-                    if (errorNativo) errorNativo.style.setProperty('opacity', '1', 'important');
+                // TTL 2.5s — fallback si el usuario deja de escribir sin blur
+                if (inputEl._sanitizerTooltipTimer) clearTimeout(inputEl._sanitizerTooltipTimer);
+                inputEl._sanitizerTooltipTimer = setTimeout(() => {
+                    this._limpiarFeedbackSanitizer(inputEl);
                 }, 2500);
             }
         }, { capture: true });
@@ -271,21 +266,7 @@ const app = {
         // TR-73: Limpiaparabrisas — destruye el Tooltip al perder el foco
         document.addEventListener('blur', (e) => {
             if (!e.target || !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-            const inputEl = e.target;
-
-            if (window.sanitizerTimers && window.sanitizerTimers[inputEl.id]) {
-                clearTimeout(window.sanitizerTimers[inputEl.id]);
-                delete window.sanitizerTimers[inputEl.id];
-
-                const wrapperToRemove = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
-                if (wrapperToRemove) wrapperToRemove.remove();
-
-                let errorNativo = null;
-                const ariaId = inputEl.getAttribute('aria-describedby');
-                if (ariaId) errorNativo = document.getElementById(ariaId);
-                if (!errorNativo) errorNativo = inputEl.parentNode.querySelector('span[id$="-error"], .error-text:not(.temp-error-span)');
-                if (errorNativo) errorNativo.style.setProperty('opacity', '1', 'important');
-            }
+            this._limpiarFeedbackSanitizer(e.target);
         }, { capture: true });
         if (document.querySelector('.hero__carousel')) {
             this.iniciarCarrusel();
@@ -528,6 +509,46 @@ const app = {
                 input.setAttribute('max', rangos.en2Meses);
             }
         });
+    },
+
+    // Resuelve el span de error nativo asociado a un input (aria-describedby o convención id).
+    _obtenerErrorNativoInput(inputEl) {
+        if (!inputEl) return null;
+        const ariaId = inputEl.getAttribute('aria-describedby');
+        if (ariaId) {
+            const byAria = document.getElementById(ariaId);
+            if (byAria) return byAria;
+        }
+        return inputEl.parentNode?.querySelector(
+            'span[id$="-error"], .error-text:not(.temp-error-span)'
+        ) || null;
+    },
+
+    // TR-72/TR-73: Destruye tooltip "Carácter no permitido", cancela TTL y flash .input-rechazado.
+    _limpiarFeedbackSanitizer(inputEl) {
+        if (!inputEl) return;
+
+        if (inputEl._sanitizerTooltipTimer) {
+            clearTimeout(inputEl._sanitizerTooltipTimer);
+            delete inputEl._sanitizerTooltipTimer;
+        }
+        const legacyId = inputEl.id;
+        if (legacyId && window.sanitizerTimers?.[legacyId]) {
+            clearTimeout(window.sanitizerTimers[legacyId]);
+            delete window.sanitizerTimers[legacyId];
+        }
+
+        const wrapper = inputEl.parentNode?.querySelector('.sanitizer-wrapper-zero');
+        if (wrapper) wrapper.remove();
+
+        const errorNativo = this._obtenerErrorNativoInput(inputEl);
+        if (errorNativo) errorNativo.style.removeProperty('opacity');
+
+        if (inputEl._rechazadoTimer) {
+            clearTimeout(inputEl._rechazadoTimer);
+            delete inputEl._rechazadoTimer;
+        }
+        inputEl.classList.remove('input-rechazado');
     },
 
     // ═══════════════════════════════════════════════════════════════════════

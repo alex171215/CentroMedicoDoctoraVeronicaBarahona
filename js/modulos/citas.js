@@ -3551,6 +3551,22 @@ export function createCitas() {
             }
         },
 
+        // TR-99.2 / TR-99.3: Limpieza efímera al escribir (Heurística #9).
+        // Oculta el span de error y devuelve el input a apariencia neutra sin
+        // invocar validadores ni alterar #btn-citas-siguiente.
+        _limpiarEstadoVisualInputTR99(input, errorId) {
+            if (!input) return;
+            input.classList.remove('input-error', 'input-success', 'input-rechazado');
+            input.style.removeProperty('border-color');
+            input.style.removeProperty('background-color');
+            input.style.removeProperty('box-shadow');
+            const errorEl = document.getElementById(errorId);
+            if (errorEl) {
+                errorEl.style.display = 'none';
+                errorEl.style.removeProperty('opacity');
+            }
+        },
+
         // Helper único: aplica borde de color y mensaje de error al campo.
         _setEstadoCampo(input, errorId, esValido, mensaje = '') {
             if (!input) return;
@@ -3602,17 +3618,8 @@ export function createCitas() {
                 // .input-rechazado si hubo caracteres rechazados.
                 // Este listener NO pinta errores ni toca otros campos.
                 el.addEventListener('input', () => {
-                    // ── TR-98: Limpieza inmediata de error en tiempo real ──────────────────
-                    // Se ejecuta ANTES de _sanitizarInput para garantizar que el mensaje
-                    // desaparece en la primera pulsación, aunque el sanitizador lance error.
-                    el.classList.remove('input-error', 'input-success'); // clases CSS de validación
-                    el.style.borderColor = '';                           // elimina override inline → estado nativo CSS
-                    const errorEl = document.getElementById(item.err);
-                    if (errorEl) {
-                        errorEl.style.display = 'none';
-                        errorEl.style.removeProperty('opacity'); // Limpia cualquier opacity inline
-                    }
-                    // ── Fin TR-98 ──────────────────────────────────────────────────────────
+                    // TR-99: limpieza inmediata ANTES de sanitizar (1.ª pulsación de tecla).
+                    this._limpiarEstadoVisualInputTR99(el, item.err);
 
                     // Sanitización real via helper centralizado (preserva posición del cursor).
                     // app._sanitizarInput dispara .input-rechazado si hubo caracteres rechazados.

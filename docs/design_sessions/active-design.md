@@ -658,3 +658,69 @@ el.addEventListener('input', () => {
 
 ### Estado: ✅ CERRADO — TR-98 implementado, validado y libre de regresiones.
 
+---
+
+## TR-99 — Ciclo de Vida Reactivo de Errores en `#form-citas-identificacion` (Heurística #9)
+
+### Fecha: 2026-05-22
+
+### Bug Reportado (Stale Error State)
+
+En el Paso 3 (`#form-citas-identificacion`), tras un `blur` inválido (p. ej. celular sin prefijo `09`), el contenedor `#error-celular` permanecía visible aunque el usuario borrara o corrigiera el valor, violando la Heurística #9 de Nielsen.
+
+### Implementación (Pinpoint en `js/modulos/citas.js`)
+
+**Helper dedicado** `_limpiarEstadoVisualInputTR99(input, errorId)` — cumple TR-99.2 y TR-99.3:
+
+- `errorEl.style.display = 'none'` sobre `#error-nombres`, `#error-cedula` o `#error-celular`.
+- Elimina clases `input-error`, `input-success`, `input-rechazado` y overrides inline (`border-color`, `background-color`, `box-shadow`) del input.
+- `removeProperty('opacity')` en el span para neutralizar residuos del sanitizador global (`main.js` TR-72).
+
+**Listeners `input`** en `configurarValidadores()` para `#citas-nombres`, `#citas-cedula` y `#citas-celular`:
+
+```javascript
+el.addEventListener('input', () => {
+    this._limpiarEstadoVisualInputTR99(el, item.err);
+    // … sanitización app._sanitizarInput …
+    this.actualizarEstadoBotonSiguiente();
+});
+```
+
+La validación semántica sigue exclusivamente en `blur` → `_validarCampoAislado()`.
+
+### Garantías de Integridad
+
+- ✅ **Sin cambios en HTML** (`citas.html` intacto).
+- ✅ **`blur` / `_setEstadoCampo` / `validarPaso3` intactos** — la validación diferida no se alteró.
+- ✅ **`avanzarPaso()`, Supabase, stepper radial móvil** — no modificados.
+- ✅ **`actualizarEstadoBotonSiguiente()`** — solo evalúa `validarPaso3(false)`; la limpieza visual no habilita el botón por sí sola.
+- ✅ **`node -c js/modulos/citas.js` → 0 errores de sintaxis.**
+
+### Estado: ✅ CERRADO — TR-99 (formulario identificación) implementado según `docs/technical-requirements.md` § TR-99.
+
+---
+
+## TR-72 / TR-73 — Cierre del tooltip «Carácter no permitido» al escribir (Heurística #9)
+
+### Fecha: 2026-05-22
+
+### Problema
+
+Tras rechazar un carácter, el tooltip flotante «Carácter no permitido» (`.sanitizer-wrapper-zero`) permanecía visible hasta que expiraba el TTL de 2,5 s o el usuario hacía `blur`, aunque ya estuviera corrigiendo el valor. El flash `.input-rechazado` de `_sanitizarInput` podía persistir el mismo tiempo.
+
+### Solución (`js/main.js`)
+
+- **`_obtenerErrorNativoInput(inputEl)`** — resuelve el span nativo vía `aria-describedby` o convención `id$="-error"`.
+- **`_limpiarFeedbackSanitizer(inputEl)`** — cancela `_sanitizerTooltipTimer`, elimina el wrapper, `removeProperty('opacity')` en el error nativo y quita `.input-rechazado` + `_rechazadoTimer`.
+- Listener **`input` (capture)** — invoca la limpieza al inicio de cada pulsación; si el evento vuelve a rechazar un carácter, recrea el tooltip y programa TTL como fallback.
+- Listener **`blur` (capture)** — delega en el mismo helper (sin duplicar lógica).
+
+### Garantías
+
+- ✅ Aplica a **todos** los `INPUT` / `TEXTAREA` del MPA (login, citas, widget invitado, registro, etc.).
+- ✅ **Sin cambios en HTML** ni en módulos locales (`citas.js`, `recuperacion.js`).
+- ✅ TTL 2,5 s conservado solo si el usuario deja de escribir con foco en el campo.
+- ✅ **`node -c js/main.js` → 0 errores de sintaxis.**
+
+### Estado: ✅ CERRADO — Tooltip y flash se ocultan en el primer `input`; TTL solo como red de seguridad.
+
