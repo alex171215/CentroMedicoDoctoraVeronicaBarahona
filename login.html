@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -31,6 +31,7 @@
                 <div class="header__top-links">
                 </div>
                 <div class="header__top-buttons">
+                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display: inline-block;" onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita</button>
                     <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
                         <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
                     </button>
@@ -95,7 +96,7 @@
                             <div class="login-field">
                                 <label for="login-cedula" class="login-field__label">Número de identificación</label>
                                 <input type="text" id="login-cedula" name="cedula" class="login-field__input"
-                                    placeholder="Cédula o pasaporte" autocomplete="username" inputmode="numeric"
+                                    placeholder="Cédula o pasaporte" autocomplete="off" inputmode="numeric"
                                     maxlength="13" aria-required="true" aria-describedby="login-cedula-error">
                                 <span id="login-cedula-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -305,6 +306,7 @@
         </div>
     </div>
 
+    <div id="modal-consulta-invitado" class="modal hidden" role="dialog" aria-modal="true"><div id="modal-consulta-invitado-body" class="modal-content"></div></div>
 </body>
 
 </html>

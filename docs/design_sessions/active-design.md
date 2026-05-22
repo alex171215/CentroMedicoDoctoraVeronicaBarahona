@@ -183,3 +183,284 @@ El sistema sufría una regresión de enrutamiento al hacer clic en "Cambiar Fech
    Se verificó que los datos inyectados por el Guard alimenten apropiadamente al renderizador `_mostrarResumen` manteniendo las reglas de "Solo lectura". Finalmente, al completar el ciclo (Paso 5) y presionar la acción principal (o salir), el sistema elimina `cita_modificacion` del Storage y ejecuta la directiva asíncrona existente `_guardarAutoConsultaInvitadoYIrHome()`, la cual traslada al invitado al `index.html` re-gatillando automáticamente la auto-consulta con la nueva fecha de cita sin afectar la integridad del paciente (Upsert + Update en Supabase).
 
 ### Estado: ✅ CERRADO — TR-96 resuelto, preservando la exclusión de MiSalud para invitados y blindando la edición fluida mediante el Widget.
+
+---
+
+## Unificación del App Shell y Sincronización de Consulta en la Arquitectura MPA (TR-87)
+
+### Fecha: 2026-05-21
+
+### Problema Detectado
+
+En la arquitectura MPA (Multi-Page Application) del centro médico, el botón `#btn-consultar-cita-header` solo existía en el DOM de `index.html`. Al navegar a cualquier otra sección (citas, especialistas, mi-salud, farmacia, contacto, login, registro), el botón desaparecía físicamente del header, rompiendo la consistencia visual del App Shell compartido. El usuario invitado perdía el acceso al widget de consulta de cita cada vez que cambiaba de pestaña.
+
+### Causa Raíz
+
+La arquitectura MPA implica que cada página carga su propio HTML estático. El botón había sido inyectado únicamente en `index.html` durante su implementación inicial (TR-93), sin replicarse en los demás archivos HTML del proyecto.
+
+### Solución Técnica Implementada
+
+#### 1. Réplica Estática en el DOM de cada página HTML
+
+Se inyectó el botón `#btn-consultar-cita-header` de forma **estática y quirúrgica** en el bloque `div.header__top-buttons` de los 7 archivos HTML restantes:
+
+| Archivo | Estado antes | Estado después |
+|---|---|---|
+| `citas.html` | ❌ Ausente | ✅ Inyectado |
+| `especialistas.html` | ❌ Ausente | ✅ Inyectado |
+| `mi-salud.html` | ❌ Ausente | ✅ Inyectado |
+| `farmacia.html` | ❌ Ausente | ✅ Inyectado |
+| `contacto.html` | ❌ Ausente | ✅ Inyectado |
+| `login.html` | ❌ Ausente | ✅ Inyectado |
+| `registro.html` | ❌ Ausente | ✅ Inyectado |
+| `index.html` | ✅ Ya existía | ✅ Sin cambios |
+
+Estructura inyectada en cada archivo (idéntica a la de `index.html`):
+
+```html
+<button id="btn-consultar-cita-header" class="btn btn--secundario"
+    style="display: inline-block;"
+    onclick="app.widgetInvitado.abrirModalConsulta()"
+    aria-label="Consultar Cita">
+    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita
+</button>
+```
+
+El atributo `style="display: inline-block;"` es un valor inicial HTML neutro. La visibilidad real la determina `iniciarSesionUsuario()` en `js/main.js` al ejecutarse en cada carga de página, evitando el parpadeo (FOUC) sin depender de JavaScript para la primera render.
+
+#### 2. Sincronización del Estado Global en `js/main.js`
+
+La función `iniciarSesionUsuario()` ya contenía la lógica TR-93 (líneas ~792-795). Se amplió su documentación interna para reflejar explícitamente la cobertura TR-87:
+
+**Regla de ocultamiento condicional aplicada en cada carga:**
+```javascript
+const btnConsultarHeader = document.getElementById('btn-consultar-cita-header');
+if (btnConsultarHeader) {
+    btnConsultarHeader.style.display = (usuarioLogueado === 'true') ? 'none' : 'inline-block';
+}
+```
+
+- `usuarioLogueado === 'true'` → `display: none` (usuario autenticado, accede desde Mi Salud)
+- Cualquier otro valor → `display: inline-block` (invitado, puede consultar su cita)
+
+Dado que `iniciarSesionUsuario()` es invocada desde `app.init()` —que se ejecuta en cada página del MPA— la sincronización es **automática, global e inmediata** en toda la aplicación.
+
+### Garantías de Integridad
+
+- ✅ **No se usaron scripts destructivos** (replace.js, git reset, etc.)
+- ✅ **Edición manual y quirúrgica**: cada archivo HTML fue modificado en exactamente 1 línea de inserción dentro del bloque `header__top-buttons`
+- ✅ **Paridad estructural**: la estructura del botón es idéntica en los 8 archivos HTML
+- ✅ **Sin regresión en `index.html`**: el botón pre-existente no fue modificado
+- ✅ **Sin duplicados de IDs**: el botón tiene el mismo `id` en todos los archivos porque el MPA garantiza una sola página activa a la vez en el navegador
+- ✅ **Compatibilidad con `widgetInvitado`**: el modal `#modal-consulta-invitado` existe en `index.html`; `app.widgetInvitado.abrirModalConsulta()` es la función pública que gestiona su apertura desde cualquier vista
+
+### Estado: ✅ CERRADO — TR-87 implementado. El botón "Consultar Cita" es ahora consistente en las 8 páginas del MPA y se sincroniza automáticamente con el estado de sesión del usuario en cada carga de página.
+
+---
+
+## Correcciones de UX en el Calendario de Citas y Widget de Invitados (TR-88, TR-89, TR-99)
+
+### Fecha: 2026-05-21
+
+---
+
+### TR-88 — Corrección de Autocompletado en #widget-cedula
+
+**Archivo:** `js/main.js` (función `_generarVistaAHTML`, línea ~3419)
+
+**Problema:** El navegador mostraba sugerencias de correos electrónicos en el campo de cédula del widget de consulta para invitados, porque el atributo `autocomplete="on"` era demasiado permisivo. El navegador infería que se trataba de un campo de usuario/email al no existir un `name` explícito.
+
+**Solución:** Se añadió el atributo `name="username"` y se cambió `autocomplete="on"` por `autocomplete="username"`. El valor `"username"` es la señal semántica estándar (WHATWG Autofill) que le indica al navegador que el campo espera un identificador de cuenta (cédula), **no** una dirección de correo.
+
+```diff
+- aria-describedby="widget-cedula-error" autocomplete="on" style="width: 100%;"
++ aria-describedby="widget-cedula-error" name="username" autocomplete="username" style="width: 100%;"
+```
+
+**Estado:** ✅ CERRADO
+
+---
+
+### TR-89 — Liberación de Slots por Abandono del Calendario
+
+**Archivo:** `js/modulos/citas.js` (función `irAtras()`, línea ~892)
+
+**Problema:** Cuando el usuario presionaba "Volver a Médicos" o "Volver a Especialidades" desde el paso del calendario (Paso 2), el slot de hora que había pre-seleccionado quedaba bloqueado en gris (`is-pending`) de forma permanente. Esto ocurría porque `bloquearHorario()` marcaba el slot en `sessionStorage` pero `irAtras()` no llamaba a `liberarHorario()` al destruir el contexto del calendario.
+
+**Solución:** Se añadió una llamada explícita a `this.liberarHorario(false)` dentro del bloque `if (this.pasoActual === 2)` en `irAtras()`, justo después de limpiar la imagen del doctor. La llamada con `isTimeout = false` limpia el `sessionStorage` de la reserva temporal sin disparar el modal de "Tiempo excedido".
+
+```diff
+  if (this.pasoActual === 2) {
+      const imgEl = document.getElementById('citas-doctor-img');
+      if (imgEl) imgEl.src = '';
++     // TR-89: Liberar slot temporal al abandonar el calendario.
++     this.liberarHorario(false);
+  }
+```
+
+**Estado:** ✅ CERRADO
+
+---
+
+### TR-99 — Estado Azul vs Gris al Regresar al Calendario
+
+**Archivo:** `js/modulos/citas.js` (función `generarCalendario()`, línea ~2815)
+
+**Problema:** Si el usuario seleccionaba una hora, avanzaba al Paso 4 (Revisión) y luego presionaba "Atrás" para regresar al calendario, el slot de su hora elegida se renderizaba con la clase `is-pending` y el atributo `disabled` (gris, no interactuable). Esto contradecía la Heurística H1 de Nielsen (Visibilidad del Estado del Sistema) porque el usuario no podía reconocer su progreso ni modificarlo.
+
+**Causa raíz:** `generarCalendario()` reconstruye el HTML del grid desde cero. Al llamar a `deshabilitarHorarios()` al final, el slot que tenía `reserva_temporal` en sessionStorage se convertía en `is-pending`. La lógica no distinguía entre "slot bloqueado por otro usuario" y "mi propio slot en curso".
+
+**Solución:** Se añadió una verificación en el bucle de renderizado de slots disponibles. Antes de escribir el botón HTML, se compara el `label` del slot con `this.horaSeleccionada`. Si coinciden, el botón se renderiza con la clase `time-slot--selected` (azul, habilitado) en lugar de la clase neutra `time-slot`, y `deshabilitarHorarios()` lo respeta gracias a la guardia ya existente en línea ~3163 (`if (btn.classList.contains('time-slot--selected')) return`).
+
+```diff
+- html += `<button class="time-slot" onclick="..."></button>`;
++ const estaSeleccionado = this.horaSeleccionada && label === this.horaSeleccionada;
++ const claseSlot = estaSeleccionado ? 'time-slot time-slot--selected' : 'time-slot';
++ html += `<button class="${claseSlot}" onclick="..."></button>`;
+```
+
+**Garantía de integridad:** La guardia en `deshabilitarHorarios()` (línea ~3163) ya existía con la condición `if (btn.classList.contains('time-slot--selected')) return`, lo que significa que el slot azul no será sobreescrito a gris por esa rutina. No fue necesario modificarla.
+
+**Estado:** ✅ CERRADO
+
+---
+
+## Ciclo de vida MPA, autofill de login y pre-reservas de calendario (TR-90, TR-91, TR-92)
+
+### Fecha: 2026-05-21
+
+---
+
+### TR-90 — Estabilización del widget de consulta en la MPA (App Shell)
+
+**Archivo:** `js/main.js` (métodos de apertura del widget: `abrirModalConsulta`, `cerrarModalConsulta`, `restaurarVistaA` y helpers `_normalizarShellModalMPA`, `_asegurarUtilidadHidden`)
+
+**Problema:** En páginas secundarias (`citas.html`, `login.html`, etc.) el modal `#modal-consulta-invitado` se abría vacío o inerte porque:
+1. `#modal-consulta-invitado-body` nacía sin HTML de captura.
+2. El markup MPA usaba `class="modal hidden"` sin `modal-overlay`, por lo que el contenedor no se posicionaba como overlay.
+3. La utilidad `.hidden` no tenía regla CSS activa en el proyecto, impidiendo el toggle visual consistente.
+
+**Solución (quirúrgica, solo en métodos de apertura):**
+1. **`_normalizarShellModalMPA()`**: Reestructura el DOM degenerado de la MPA (body hijo directo con clase `modal-content`) envolviéndolo en `.modal-content.modal-consulta__content`, inyecta botón cerrar y añade `modal-overlay modal-consulta` al contenedor raíz.
+2. **`_asegurarUtilidadHidden()`**: Inserta reglas mínimas para que `.hidden` oculte y `:not(.hidden)` muestre el overlay con `display: flex`.
+3. **`abrirModalConsulta()`**: Normaliza shell → evalúa ausencia de `#widget-cedula` → invoca `restaurarVistaA()` o re-enlaza con `_bindVistaA()` → remueve `.hidden` (sin depender de `display` inline).
+4. **`cerrarModalConsulta()`**: Añade `.hidden` y `display: none` para compatibilidad con `index.html`.
+5. **`_bindVistaA()`**: Usa `oninput`/`onclick` idempotentes para evitar listeners duplicados que dejaban el botón Consultar inerte.
+
+**Estado:** ✅ CERRADO — Widget operativo en todas las páginas del App Shell compartido.
+
+---
+
+### TR-91 — Ruptura de autofill de correo en `#login-cedula`
+
+**Archivo:** `login.html` (input `#login-cedula`)
+
+**Problema:** `autocomplete="username"` forzaba a Chrome a sugerir correos electrónicos guardados en un campo destinado exclusivamente a cédula o pasaporte.
+
+**Solución:** Reemplazo por `autocomplete="off"` manteniendo `type="text"` e `inputmode="numeric"`.
+
+```diff
+- autocomplete="username"
++ autocomplete="off"
+```
+
+**Estado:** ✅ CERRADO
+
+---
+
+### TR-92 — Gestión de ciclo de vida de pre-reservas del calendario (CERRADO)
+
+**Archivo:** `js/modulos/citas.js`
+
+**Claves de almacenamiento rastreadas:**
+| Clave | Rol |
+|-------|-----|
+| `reserva_temporal` | Soft-lock TTL (10 min) al hacer clic en un slot |
+| `cita_hora_seleccionada` | Label de hora comprometida (solo tras `#btn-confirmar-cita`) |
+| `cita_fecha_iso` | Fecha ISO asociada a la hora comprometida |
+| `cita_hora_confirmada` | Flag `'true'` = commit point TR-92.2 cumplido |
+| `STORAGE_CITA_EN_PROGRESO` | Blob con `horaSeleccionada` / `fechaISOSeleccionada` (progreso wizard) |
+
+**TR-92.1 — Purga total por deserción:**
+- Nueva rutina `_purgaSeleccionHorario()`: elimina todas las claves anteriores, limpia memoria, quita clases `.time-slot--selected` / `.is-pending` y bloquea `#btn-confirmar-cita`.
+- Invocada en: `mostrarPaso()` (2→0/1), `irAtras()` desde paso 2, `seleccionarDoctorParaCita()`, `evaluarEspecialidad()` (médico único y lista múltiple), `gestionarConflicto()`.
+- `_liberarSoftLockHorario()` solo libera `reserva_temporal` (p. ej. tras `confirmarCita()` definitivo).
+
+**TR-92.2 — Commit point (`#btn-confirmar-cita` → `avanzarPaso`):**
+- `seleccionarHora()` ya no escribe `cita_hora_seleccionada` en storage (solo memoria + soft-lock).
+- `_commitHorarioAlAvanzar()` persiste hora, fecha y `cita_hora_confirmada` al avanzar desde paso 2.
+
+**TR-92.3 — Discriminación visual azul vs. gris:**
+- `_horaActivaSesion()`: devuelve la hora comprometida o la selección en curso en paso 2.
+- `generarCalendario()` y `deshabilitarHorarios()`: slot propio → `time-slot--selected` (azul, sin `disabled` ni `.is-pending`); otros locks → gris.
+- `mostrarPaso(2)` al regresar desde pasos 3/4: re-hidrata con `_seleccionarSlotVisual()` + `deshabilitarHorarios()`.
+
+**Validación:** `node -c js/modulos/citas.js` — sin errores de sintaxis.
+
+**Estado:** ✅ CERRADO — Pre-reservas con ciclo de vida completo según TR-92.
+
+---
+
+### TR-93 — Purga del almacenamiento por deserción de ruta (Navbar / Especialistas)
+
+**Archivos:** `js/modulos/citas.js`, `js/main.js` (App Shell)
+
+**Problema:** Si el usuario elegía un horario en `citas.html` sin pulsar `#btn-confirmar-cita` y navegaba a **Especialistas** por el navbar, `reserva_temporal` (y claves afines) permanecían en `sessionStorage`. Al volver al mismo médico, el slot aparecía gris (`is-pending`) e inaccesible.
+
+**Claves purgadas (solo si `cita_hora_confirmada` ≠ `'true'`):**
+`reserva_temporal`, `cita_hora_seleccionada`, `cita_fecha_iso`, `cita_hora_confirmada`, campos `horaSeleccionada`/`fechaISOSeleccionada` en `STORAGE_CITA_EN_PROGRESO`, más estado en memoria y clases del grid.
+
+**Solución:**
+1. **`purgaHorarioPorDesercionRuta()`** en `citas.js`: delega en `_purgaSeleccionHorario()` salvo que la hora ya esté comprometida (TR-92.2 / commit en `avanzarPaso`).
+2. **`iniciarPurgaDesercionRutaTR93()`** en `main.js`: listener global en fase capture sobre `.header__nav-link` (ignora enlaces con `preventDefault`, p. ej. Agendar en la misma vista).
+3. **`directorio.inicializar()`**: invoca la purga al cargar `especialistas.html` (`#specialists-directory-grid`).
+
+**Validación:** `node -c js/modulos/citas.js` — OK.
+
+**Estado:** ✅ CERRADO — Sin fuga de soft-lock al abandonar el wizard por ruta externa.
+
+---
+
+### TR-94 — Inicialización limpia del calendario (estado inicial cero)
+
+**Archivo:** `js/modulos/citas.js` (`generarCalendario`, `_horaActivaParaRenderTR94`, `deshabilitarHorarios`)
+
+**Problema:** Tras abrir un médico desde **Agendar Cita** en el directorio, el grid heredaba `reserva_temporal` o selecciones no consolidadas y pintaba slots en gris (`is-pending` + `disabled`) sin ocupación real en Supabase.
+
+**Solución (pinpoint en el renderizador):**
+1. **`_horaActivaParaRenderTR94()`**: solo devuelve hora si `cita_hora_confirmada === 'true'` (retorno wizard pasos 3/4) o si hay `horaSeleccionada` en memoria en paso 2 (sesión actual); ignora claves huérfanas del storage.
+2. **`generarCalendario()`** inicio: si no hay hora consolidada, `_liberarSoftLockHorario()` antes de pintar.
+3. **Bucle de slots**: usa `_horaActivaParaRenderTR94()` para la clase azul; `disabled` solo en `yaPaso` o `estaOcupada` (caché `sanitas_citas_ocupadas`).
+4. **Post-render**: `deshabilitarHorarios()` solo si hay hora renderizable; si no, `_bloquearConfirmar()` sin aplicar bloqueo gris.
+5. **`deshabilitarHorarios()`**: retorno temprano si no hay hora consolidada ni selección en memoria.
+
+**Validación:** `node -c js/modulos/citas.js` — OK.
+
+**Estado:** ✅ CERRADO — Calendario limpio al agendar desde directorio; azul solo en retorno wizard confirmado o selección activa.
+
+---
+
+### TR-95 — Reseteo absoluto de selección por deserción de ruta (sin fuga azul)
+
+**Archivo:** `js/modulos/citas.js`
+
+**Problema:** Tras elegir hora con el Médico A sin confirmar, ir a **Especialistas** por el navbar y volver a **Agendar Cita** sobre el mismo médico, el slot seguía en azul por `horaSeleccionada` en memoria/blob o por `_horaActivaParaRenderTR94()` (rama paso 2 sin confirmar).
+
+**Solución:**
+1. **`ingresarCalendarioDesdeDirectorio(med)`**: punto de entrada del directorio; `_purgaSeleccionHorario()` + `_abrirCalendarioMedico()`.
+2. **`iniciarFlujo()`**: purga anticipada si existe `reservaCita_preseleccion` y no hay `cita_hora_confirmada`; el blob solo recupera hora si está confirmada.
+3. **`_horaActivaParaRenderTR94()`**: azul en HTML **únicamente** con `cita_hora_confirmada === 'true'`.
+4. **`mostrarPaso(2)`**: re-hidratación visual solo con hora confirmada.
+5. Refactor **`_abrirCalendarioMedico()`** compartido por `seleccionarDoctorParaCita` e ingreso desde directorio.
+
+**Validación:** `node -c js/modulos/citas.js` — OK.
+
+**Estado:** ✅ CERRADO — Flujo nuevo desde directorio sin preselección azul residual.
+
+**Refuerzo (fuga azul persistente):**
+- `purgaHorarioEntradaFresca()` elimina también `STORAGE_CITA_EN_PROGRESO` para impedir que `_recuperarEstadoCita` reabra el paso 2 con hora vieja.
+- `_persistirProgresoCita` ya no guarda `horaSeleccionada` en el blob hasta `cita_hora_confirmada === 'true'`.
+- `_irAPaso(2)` y `_recuperarEstadoCita` solo restauran hora visual si está confirmada.
+- `generarCalendario` anula `horaSeleccionada` en memoria cuando no hay confirmación.
+- `preseleccionarDoctor` / `agendarCitaGeneral` en `main.js` invocan `purgaHorarioEntradaFresca()` antes de navegar a `citas.html`.
+
