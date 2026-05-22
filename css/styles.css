@@ -1725,6 +1725,30 @@ a[href^="mailto:"]:focus-visible,
     color: #0DA99F;
 }
 
+/* Mobile responsive fix for 6-step progress indicator */
+@media (max-width: 480px) {
+    .citas-progress-container {
+        max-width: 100%;
+        padding: 0 10px;
+    }
+
+    .citas-progress-step {
+        width: 32px;
+        height: 32px;
+        border-width: 2px;
+        font-size: 0.75rem;
+    }
+
+    .citas-progress-label {
+        font-size: 0.8rem;
+        top: 42px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 50px;
+    }
+}
+
 /* Especialidades (Minimalistas) */
 .citas-specialty-grid {
     display: grid;
