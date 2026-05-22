@@ -820,3 +820,8 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Persistencia Estática Invisible:** Todas las pantallas físicas de la MPA mantendrán la declaración estática del contenedor del modal justo antes del cierre del `</body>`.
 2. **Aislamiento del Layout Stream:** Para evitar el desborde visual o contaminación debajo del footer, el contenedor raíz del modal (`#modal-consulta-invitado`) deberá nacer configurado por defecto en estado invisible mediante el atributo estricto `style="display: none;"` o la clase responsiva `.hidden`.
 3. **Integridad del Selector:** Queda prohibido alterar o remover los ID `#modal-consulta-invitado` y `#modal-consulta-invitado-body` de los archivos HTML, ya que el motor global de JS requiere su existencia para la inyección dinámica de sub-vistas.
+
+
+## TR-107: Sanitización y Vaciado de Campos por Clausura de Modal (Privacidad y H5)
+1. **Destrucción de Datos Residuales:** El método encargado de ocultar el modal de consultas (`cerrarModalConsulta()` o equivalente en `js/main.js`) debe limpiar de forma obligatoria el valor del input `#widget-cedula` asignándole una cadena vacía (`value = ''`).
+2. **Reinicio de Mensajes de Alerta:** Durante la misma rutina de cierre, el contenedor de errores indexado (`#widget-cedula-error`) debe ser forzado a `style.display = 'none'` y vaciado de cualquier microcopy de error, asegurando que el formulario nazca en un estado estético e higiénico neutral en la próxima apertura.
