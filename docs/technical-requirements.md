@@ -727,3 +727,38 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Persistencia de Contexto Operativo:** La activación de `prepararModificacion(idCita)` almacenará en `sessionStorage` las propiedades de control: `modoModificacion = true` e `idCitaModificar = idCita`.
 2. **Omitir Formulario Friccional:** Durante el flujo de modificación, al validar la selección de un slot en el Paso 2 (Calendario), la acción de confirmación saltará de forma directa al Paso 4 (Resumen), omitiendo la renderización y captura del Paso 3 (Formulario de Datos).
 3. **Inmutabilidad de Datos Personales:** Los datos de identidad del paciente se extraerán del registro preexistente en la base de datos, mapeándolos en modo de lectura en la pantalla de confirmación final.
+
+
+## TR-88: Control de Autocompletado Predictivo en Identificación (H5, WCAG 1.3.5)
+1. **Atributo Semántico:** El campo de entrada `#widget-cedula` debe implementar rígidamente los atributos `name="username"`, `autocomplete="username"` e `inputmode="numeric"`. Queda prohibido el uso de nombres que confundan los heurísticos del navegador con campos de correo electrónico.
+
+## TR-89: Gestión de Ciclo de Vida de Soft-Locks en Horarios (H3, H4)
+1. **Purga Contextual por Abandono:** Al invocar acciones de cambio de contexto en el wizard de citas (como el botón 'Volver a Médicos' o al descargar módulos MPA), el sistema liberará inmediatamente cualquier slot retenido en el estado efímero del usuario.
+2. **Discriminación Visual del Lock Propio:** Durante el renderizado del grid de horarios, si un slot posee un estado pendiente cuyo token de reserva pertenezca a la sesión activa del usuario, el elemento se renderizará con la clase activa de selección (Color Azul), omitiendo el estado `disabled` para permitir la confirmación o el cambio de estado del control.
+
+## TR-90: Consistencia Operativa del Modal de Consulta en la MPA (App Shell Compartido)
+1. **Inicialización Forzada por Apertura:** El método `abrirModalConsulta()` en `js/main.js` debe verificar, de forma obligatoria y en tiempo de ejecución, si el nodo interno `#modal-consulta-invitado-body` carece de contenido interactivo (está vacío o no muestra el input de la cédula).
+2. **Hidratación Dinámica:** Si la condición se cumple (el modal está vacío por estar en una página secundaria de la MPA), el método invocará de inmediato la subrutina interna encargada de pintar y enlazar el formulario de captura inicial (`_generarVistaAHTML` o `restaurarVistaA`), garantizando que la interfaz esté operativa en cualquier ventana de la aplicación.
+3. **Control Visual Absoluto:** El cambio de visibilidad del modal se gestionará removiendo e incluyendo la clase `.hidden` de forma limpia sobre el contenedor principal `#modal-consulta-invitado`.
+
+## TR-91: Mitigación de Autocompletado Predictivo Erróneo (Heurística #5 - Prevención de Errores)
+1. **Ruptura de Heurística de Llaveros:** Los campos de identidad nacional (`#login-cedula` y `#widget-cedula`) deben configurarse con propiedades semánticas que impidan al navegador identificarlos como un campo de inicio de sesión tradicional de tipo "usuario/correo".
+2. **Atributos de Control:** Se modificará el atributo `name` de ambos inputs hacia identificadores puramente médicos (evitando palabras genéricas como 'username', 'user' o 'email') y se forzará el comportamiento mediante configuraciones de aislamiento de contraseñas de los navegadores modernos.
+
+## TR-92: Gestión de Ciclo de Vida de Pre-reservas en el Calendario (H3, H4 - Control y Libertad)
+1. **Purga Total por Deserción o Navegación:** Siempre que el usuario retroceda en el asistente de pasos a un nivel inferior al Paso 2, cambie de especialista, modifique la especialidad, cambie de pantalla o abandone la sección activa del calendario en la MPA, el sistema eliminará de forma explícita del `sessionStorage` o `localStorage` cualquier clave temporal que retenga la hora o slot seleccionado.
+2. **Punto de Bloqueo Seguro (Commit Point):** La hora seleccionada solo se considerará confirmada y persistente en el estado de la aplicación una vez que se presione explícitamente el botón definitivo de confirmar (`#btn-confirmar-cita`), habilitando el paso a los formularios posteriores.
+3. **Discriminación Visual Estricta en Retorno:** Si el usuario regresa al Paso 2 (Calendario) desde pantallas posteriores (Pasos 3 o 4) utilizando los controles de navegación interna ('Atrás' del wizard), el renderizador del grid evaluará si el slot guardado pertenece a la sesión de reserva activa. De ser así, se omitirá incondicionalmente el atributo `disabled` y la clase visual de bloqueo `.is-pending` (Gris), renderizándose en su lugar con la clase de selección activa (Color Azul) para preservar la interactividad, la legibilidad y el modelo mental del usuario.
+
+## TR-93: Purga del Almacenamiento por Deserción de Ruta (H3 - Libertad de Navegación)
+1. **Detección de Salida:** El sistema debe limpiar de forma obligatoria cualquier rastro de la hora preseleccionada en el `sessionStorage` o `localStorage` siempre que el usuario abandone el flujo de agendamiento sin haber presionado el botón definitivo `#btn-confirmar-cita`.
+2. **Eventos de Limpieza:** Esta purga se ejecutará incondicionalmente en dos escenarios:
+   - Al hacer clic en cualquier enlace de la barra de navegación (`.header__nav-link`).
+   - Al cargar la lista de médicos especialistas desde el directorio (`especialistas.html`).
+
+## TR-94: Inicialización Limpia del Calendario (H4 - Consistencia)
+1. **Estado Inicial Cero:** Al inicializar o pintar el calendario de cualquier médico desde el botón 'Agendar Cita', el componente de horarios debe nacer completamente limpio, ignorando reservas anteriores, a menos que el flujo provenga explícitamente de una navegación controlada de retorno ('Atrás') desde los pasos 3 o 4 del wizard de citas confirmadas.
+
+## TR-95: Ciclo de Vida y Reseteo Absoluto de Selección de Citas por Deserción (H3, H4)
+1. **Destrucción de Estado por Deserción:** Si el usuario abandona la pantalla del calendario interactivo haciendo clic en cualquier enlace del menú global (`.header__nav-link`) o reingresa al flujo de un especialista desde el botón "Agendar Cita" del directorio (`especialistas.html`), el sistema ejecutará un reseteo total de las claves de almacenamiento efímero asociadas a la hora (`reserva_temporal`, `cita_hora_seleccionada`, etc.).
+2. **Comportamiento del Renderizador:** Al invocar la función `generarCalendario()`, si el token de confirmación transaccional `cita_hora_confirmada` no es explícitamente `'true'`, el grid de horas se renderizará en su estado por defecto (Blanco/Interactivo), garantizando que ninguna hora aparezca preseleccionada en color Azul para flujos nuevos.

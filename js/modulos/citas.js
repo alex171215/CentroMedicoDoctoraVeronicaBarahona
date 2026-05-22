@@ -81,6 +81,12 @@ export function createCitas() {
             }
             // --- FIN INSERCIÓN TR-96 ---
 
+            // TR-95: reingreso fresco — sin hora confirmada, purga total (evita recuperar paso 2 con slot azul).
+            const entradaDirectorio = sessionStorage.getItem('reservaCita_preseleccion');
+            if (entradaDirectorio && sessionStorage.getItem('cita_hora_confirmada') !== 'true') {
+                this.purgaHorarioEntradaFresca();
+            }
+
             await this._esperarDatosEspecialistas();
             this._montarSalidasPaso5();
 
@@ -96,7 +102,8 @@ export function createCitas() {
                 (blob.citaConfirmada && blob.resumenTicket && typeof blob.paso === 'number' && blob.paso === 5)
                 || (typeof blob.paso === 'number' && blob.paso >= 1)
                 || !!blob.citaTemporal
-                || !!(blob.horaSeleccionada || blob.fechaISOSeleccionada)
+                || (!!(blob.horaSeleccionada || blob.fechaISOSeleccionada)
+                    && sessionStorage.getItem('cita_hora_confirmada') === 'true')
             ));
 
             let legacyTieneTicketPaso5 = false;
@@ -153,7 +160,10 @@ export function createCitas() {
             if (citaDesdeLogin === 'true' && preCita && preCita.medico) {
                 if (!this.horaSeleccionada) {
                     const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada');
-                    if (horaGuardada) this.horaSeleccionada = horaGuardada;
+                    if (horaGuardada) {
+                        this.horaSeleccionada = horaGuardada;
+                        sessionStorage.setItem('cita_hora_confirmada', 'true');
+                    }
                 }
 
                 if (this.horaSeleccionada) {
@@ -165,6 +175,9 @@ export function createCitas() {
             }
 
             if (preCita && preCita.medico) {
+                if (sessionStorage.getItem('cita_hora_confirmada') !== 'true') {
+                    this.purgaHorarioEntradaFresca();
+                }
                 const esp = preEspecialidad || preCita.especialidad;
                 let db;
                 try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
@@ -216,11 +229,8 @@ export function createCitas() {
                 // semanas residuales de una selección previa.
                 this.fechaBaseCalendario = new Date();
                 this.diaSeleccionadoMobile = 0;
-                // TR-80.4: Purga de pre-selecciones efímeras del médico anterior.
-                sessionStorage.removeItem('cita_hora_seleccionada');
-                sessionStorage.removeItem('cita_fecha_iso');
-                this.horaSeleccionada = null;
-                this.fechaISOSeleccionada = null;
+                // TR-80.4 + TR-92.1: purga de hora/slot al cambiar de especialidad (médico único).
+                this._purgaSeleccionHorario();
 
                 // Guardar pre-selección para que el login sepa que hay cita en curso
                 sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
@@ -233,6 +243,7 @@ export function createCitas() {
                 this.mostrarPaso(2);
                 this.generarCalendario(true);
             } else if (medicos.length > 1) {
+                this._purgaSeleccionHorario();
                 this.mostrarPaso(1);
                 this.renderizarPasoDoctores(especialidad, medicos);
             } else {
@@ -388,26 +399,41 @@ export function createCitas() {
                 btn.addEventListener('click', () => {
                     const idx = parseInt(btn.getAttribute('data-med-index'), 10);
                     const med = this._medicosPaso1List && this._medicosPaso1List[idx];
-                    if (med) this.seleccionarDoctorParaCita(med);
+                    if (med) this.ingresarCalendarioDesdeDirectorio(med);
                 });
             });
         },
 
+        /**
+         * TR-95: Punto de entrada al calendario desde la tarjeta «Agendar Cita» del directorio.
+         * Resetea por completo hora/slot no confirmados antes de abrir el paso 2.
+         */
+        ingresarCalendarioDesdeDirectorio(med) {
+            this.purgaHorarioEntradaFresca();
+            this._abrirCalendarioMedico(med);
+        },
+
+        /** TR-95/TR-93: Purga absoluta de hora/slot al reingresar desde directorio o navbar (flujo nuevo). */
+        purgaHorarioEntradaFresca() {
+            this._purgaSeleccionHorario();
+            sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
+        },
+
         seleccionarDoctorParaCita(med) {
+            if (sessionStorage.getItem('cita_hora_confirmada') !== 'true') {
+                this._purgaSeleccionHorario();
+            }
+            this._abrirCalendarioMedico(med);
+        },
+
+        _abrirCalendarioMedico(med) {
             const nombre = med.doctor.nombre_completo;
             const especialidad = med.especialidad;
             const img = this.obtenerImagenMedico(nombre, especialidad, med.imagen_url);
 
             // TR-80.1 + TR-80.4: Reseteo de contexto temporal al cambiar de médico.
-            // La fecha base vuelve a hoy para que el Smart Jump parta del instante actual
-            // y no herede la semana de una selección previa. Se purga también la hora y
-            // fecha guardadas para evitar affordances falsos del slot anterior.
             this.fechaBaseCalendario = new Date();
             this.diaSeleccionadoMobile = 0;
-            sessionStorage.removeItem('cita_hora_seleccionada');
-            sessionStorage.removeItem('cita_fecha_iso');
-            this.horaSeleccionada = null;
-            this.fechaISOSeleccionada = null;
 
             sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                 medico: nombre,
@@ -422,6 +448,11 @@ export function createCitas() {
         },
 
         mostrarPaso(nuevoPaso) {
+            // TR-92.1: purga total al abandonar el calendario (paso 2 → 0/1).
+            if (this.pasoActual === 2 && nuevoPaso !== 2 && nuevoPaso < 2) {
+                this._purgaSeleccionHorario();
+            }
+
             if (this.pasoActual !== nuevoPaso && !this._suppressHistorialPush) {
                 if (this.historialPasos[this.historialPasos.length - 1] !== this.pasoActual) {
                     this.historialPasos.push(this.pasoActual);
@@ -557,6 +588,20 @@ export function createCitas() {
                     if (prevDom === 1) label = 'Volver a Médicos';
                     else if (prevDom === 0) label = 'Volver a Especialidades';
                     backBtnPaso2.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${label}`;
+                }
+
+                // TR-95: re-hidratar slot azul solo si la hora fue confirmada con #btn-confirmar-cita.
+                const horaGuardada = sessionStorage.getItem('cita_hora_confirmada') === 'true'
+                    ? (this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada') || '').trim()
+                    : '';
+                if (horaGuardada) {
+                    if (!this.horaSeleccionada) this.horaSeleccionada = horaGuardada;
+                    const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
+                    if (fechaISO) this.fechaISOSeleccionada = fechaISO;
+                    requestAnimationFrame(() => {
+                        this._seleccionarSlotVisual(horaGuardada, fechaISO);
+                        this.deshabilitarHorarios();
+                    });
                 }
             }
 
@@ -849,6 +894,8 @@ export function createCitas() {
             sessionStorage.removeItem('especialidad_seleccionada');
             sessionStorage.removeItem('cita_hora_seleccionada');
             sessionStorage.removeItem('cita_fecha_iso');
+            sessionStorage.removeItem('cita_hora_confirmada');
+            sessionStorage.removeItem('reserva_temporal');
             sessionStorage.removeItem('_citaTemporal_respaldo');
             sessionStorage.removeItem('citas_login_restore');
             // TR-86: limpiar flags del modo modificación al terminar el flujo
@@ -901,6 +948,8 @@ export function createCitas() {
             if (this.pasoActual === 2) {
                 const imgEl = document.getElementById('citas-doctor-img');
                 if (imgEl) imgEl.src = '';
+                // TR-92.1: purga total al retroceder desde el calendario (Volver a Médicos / Especialidades).
+                this._purgaSeleccionHorario();
             }
 
             this._suppressHistorialPush = true;
@@ -917,6 +966,13 @@ export function createCitas() {
 
         async avanzarPaso() {
             if (this.pasoActual === 2) {
+                // TR-92.2: commit point — la hora solo persiste tras #btn-confirmar-cita (avanzarPaso).
+                if (!this.horaSeleccionada) {
+                    alert('Por favor seleccione un horario disponible antes de continuar.');
+                    return;
+                }
+                this._commitHorarioAlAvanzar();
+
                 const estaLogueado = localStorage.getItem('usuarioLogueado');
 
                 // ── TR-86: Smart Jump ── Si estamos en modo modificación de invitado,
@@ -1452,11 +1508,14 @@ export function createCitas() {
                     } catch (_) { citaBackup = null; }
                 }
 
+                const horaConsolidada = sessionStorage.getItem('cita_hora_confirmada') === 'true';
                 const payload = {
                     paso: this.pasoActual,
                     modoProxy: !!this.modoProxy,
-                    horaSeleccionada: this.horaSeleccionada,
-                    fechaISOSeleccionada: this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso'),
+                    horaSeleccionada: horaConsolidada ? this.horaSeleccionada : null,
+                    fechaISOSeleccionada: horaConsolidada
+                        ? (this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso'))
+                        : null,
                     reservaCita_preseleccion: preSel,
                     especialidad_seleccionada: esp,
                     citaTemporal: citaBackup,
@@ -1548,11 +1607,16 @@ export function createCitas() {
                 } else if (merged.resumenTicket?.especialidad) {
                     sessionStorage.setItem('especialidad_seleccionada', merged.resumenTicket.especialidad);
                 }
-                if (merged.horaSeleccionada) {
+                const horaConsolidadaRec = sessionStorage.getItem('cita_hora_confirmada') === 'true'
+                    || merged.cita_hora_confirmada === true;
+                if (horaConsolidadaRec && merged.horaSeleccionada) {
                     sessionStorage.setItem('cita_hora_seleccionada', merged.horaSeleccionada);
+                    sessionStorage.setItem('cita_hora_confirmada', 'true');
                     this.horaSeleccionada = merged.horaSeleccionada;
                 }
-                const fiso = merged.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso');
+                const fiso = horaConsolidadaRec
+                    ? (merged.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso'))
+                    : null;
                 if (fiso) {
                     sessionStorage.setItem('cita_fecha_iso', fiso);
                     this.fechaISOSeleccionada = fiso;
@@ -1673,12 +1737,14 @@ export function createCitas() {
                 this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, preCita.id_especialista);
                 this.mostrarPaso(2);
                 this.generarCalendario(true);
-                const horaGuardada = sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada;
-                const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
-                if (horaGuardada) {
-                    this.horaSeleccionada = horaGuardada;
-                    if (fechaISO) this.fechaISOSeleccionada = fechaISO;
-                    this._seleccionarSlotVisual(horaGuardada, fechaISO);
+                if (sessionStorage.getItem('cita_hora_confirmada') === 'true') {
+                    const horaGuardada = (sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada || '').trim();
+                    const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
+                    if (horaGuardada) {
+                        this.horaSeleccionada = horaGuardada;
+                        if (fechaISO) this.fechaISOSeleccionada = fechaISO;
+                        this._seleccionarSlotVisual(horaGuardada, fechaISO);
+                    }
                 }
                 return;
             }
@@ -1755,13 +1821,7 @@ export function createCitas() {
         },
 
         gestionarConflicto(codigo, cedula, fechaISO, idCita) {
-            // 1. Limpiar flujo actual (igual que antes)
-            this.horaSeleccionada = null;
-            this.fechaISOSeleccionada = null;
-            sessionStorage.removeItem('cita_hora_seleccionada');
-            sessionStorage.removeItem('cita_fecha_iso');
-            document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
-            this._bloquearConfirmar();
+            this._purgaSeleccionHorario();
 
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
 
@@ -2145,7 +2205,7 @@ export function createCitas() {
 
         // Guarda la cita en Supabase (y caché local para widget / ocupadas) y muestra éxito
         async confirmarCita() {
-            this.liberarHorario(false);
+            this._liberarSoftLockHorario();
             let cita = this._citaTemporal;
             if (!cita) {
                 try {
@@ -2633,6 +2693,12 @@ export function createCitas() {
             const grid = document.getElementById('citas-calendar-grid');
             if (!grid) return;
 
+            // TR-94/TR-95: sin hora confirmada, calendario en blanco (sin memoria ni soft-lock residual).
+            if (sessionStorage.getItem('cita_hora_confirmada') !== 'true') {
+                this._liberarSoftLockHorario();
+                this.horaSeleccionada = null;
+                this.fechaISOSeleccionada = null;
+            }
 
             // Obtener datos del médico seleccionado
             const doc = this._doctorActual;
@@ -2815,7 +2881,11 @@ export function createCitas() {
                                 if (yaPaso || estaOcupada) {
                                     html += `<button class="time-slot time-slot--past" disabled>${horaStr}</button>`;
                                 } else {
-                                    html += `<button class="time-slot" onclick="app.citas.seleccionarHora(this, '${label}', '${fechaISO}')">${horaStr}</button>`;
+                                    // TR-94: solo azul si hora consolidada (wizard) o selección viva en paso 2; nunca por storage huérfano.
+                                    const horaActiva = this._horaActivaParaRenderTR94();
+                                    const estaSeleccionado = horaActiva && label === horaActiva;
+                                    const claseSlot = estaSeleccionado ? 'time-slot time-slot--selected' : 'time-slot';
+                                    html += `<button class="${claseSlot}" onclick="app.citas.seleccionarHora(this, '${label}', '${fechaISO}')">${horaStr}</button>`;
                                 }
                                 slotCount++;
                             }
@@ -2827,7 +2897,19 @@ export function createCitas() {
 
             grid.innerHTML = html || '<p style="text-align:center; padding:20px;">No hay horarios disponibles esta semana.</p>';
 
-            this.deshabilitarHorarios();
+            // TR-94: no aplicar .is-pending/disabled por reserva_temporal si no hay hora consolidada ni selección activa.
+            const horaRenderTR94 = this._horaActivaParaRenderTR94();
+            if (horaRenderTR94) {
+                this.deshabilitarHorarios();
+                const btnConfirmar = document.getElementById('btn-confirmar-cita');
+                if (btnConfirmar) {
+                    btnConfirmar.style.opacity = '1';
+                    btnConfirmar.style.pointerEvents = 'auto';
+                    btnConfirmar.disabled = false;
+                }
+            } else {
+                this._bloquearConfirmar();
+            }
 
             // ── TR-81 + C1 UI: Cálculo de límites de visibilidad para botones de navegación ──
             // Usa visibility:hidden (no display:none) para mantener el layout Flexbox estable.
@@ -2885,8 +2967,6 @@ export function createCitas() {
                     btnDiaSiguiente.style.visibility = diaSiguienteMobile > limiteMaximoNorm ? 'hidden' : 'visible';
                 }
             }
-
-            this._bloquearConfirmar();
         },
 
         cambiarSemana(direccion) {
@@ -3094,6 +3174,105 @@ export function createCitas() {
             this.generarCalendario(false);
         },
 
+        /**
+         * TR-95: Azul en el grid solo si cita_hora_confirmada === 'true' (retorno wizard pasos 3/4).
+         * Reingreso desde directorio o menú nunca pre-pinta hora en azul.
+         */
+        _horaActivaParaRenderTR94() {
+            if (sessionStorage.getItem('cita_hora_confirmada') !== 'true') {
+                return '';
+            }
+            return (this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada') || '').trim();
+        },
+
+        /** Soft-lock visual en la misma sesión (clic en slot); no aplica tras deserción de ruta. */
+        _horaParaSoftLockVisual() {
+            if (sessionStorage.getItem('cita_hora_confirmada') === 'true') {
+                return this._horaActivaParaRenderTR94();
+            }
+            if (sessionStorage.getItem('reserva_temporal') && this.horaSeleccionada) {
+                return String(this.horaSeleccionada).trim();
+            }
+            return '';
+        },
+
+        /**
+         * TR-92: Hora efectiva para render (selección en paso 2 o comprometida tras #btn-confirmar-cita).
+         */
+        _horaActivaSesion() {
+            const confirmada = sessionStorage.getItem('cita_hora_confirmada') === 'true';
+            if (confirmada) {
+                const h = (this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada') || '').trim();
+                if (h) return h;
+            }
+            if (this.pasoActual === 2 && this.horaSeleccionada) {
+                return String(this.horaSeleccionada).trim();
+            }
+            return '';
+        },
+
+        /** TR-92.2: Persiste la hora solo al pulsar #btn-confirmar-cita (avanzarPaso desde paso 2). */
+        _commitHorarioAlAvanzar() {
+            if (!this.horaSeleccionada) return;
+            sessionStorage.setItem('cita_hora_seleccionada', this.horaSeleccionada);
+            if (this.fechaISOSeleccionada) {
+                sessionStorage.setItem('cita_fecha_iso', this.fechaISOSeleccionada);
+            }
+            sessionStorage.setItem('cita_hora_confirmada', 'true');
+            this._persistirProgresoCita();
+        },
+
+        /**
+         * TR-92.1: Elimina todas las claves efímeras de hora/slot del storage y del estado en memoria.
+         * Claves: reserva_temporal, cita_hora_seleccionada, cita_fecha_iso, cita_hora_confirmada,
+         *         horaSeleccionada/fechaISO en STORAGE_CITA_EN_PROGRESO.
+         */
+        _purgaSeleccionHorario() {
+            this._liberarSoftLockHorario();
+            sessionStorage.removeItem('cita_hora_seleccionada');
+            sessionStorage.removeItem('cita_fecha_iso');
+            sessionStorage.removeItem('cita_hora_confirmada');
+            try {
+                const raw = sessionStorage.getItem(STORAGE_CITA_EN_PROGRESO);
+                if (raw) {
+                    const blob = JSON.parse(raw);
+                    if (blob && (blob.horaSeleccionada || blob.fechaISOSeleccionada)) {
+                        delete blob.horaSeleccionada;
+                        delete blob.fechaISOSeleccionada;
+                        sessionStorage.setItem(STORAGE_CITA_EN_PROGRESO, JSON.stringify(blob));
+                    }
+                }
+            } catch (_) { /* noop */ }
+            this.horaSeleccionada = null;
+            this.fechaISOSeleccionada = null;
+            document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => {
+                el.classList.remove('time-slot--selected');
+            });
+            this._bloquearConfirmar();
+        },
+
+        /**
+         * TR-93: Purga por deserción de ruta (navbar MPA o carga de especialistas.html).
+         * Conserva el storage si el usuario ya comprometió la hora con #btn-confirmar-cita (TR-92.2).
+         */
+        purgaHorarioPorDesercionRuta() {
+            if (sessionStorage.getItem('cita_hora_confirmada') === 'true') return;
+            this.purgaHorarioEntradaFresca();
+        },
+
+        /** Libera únicamente el soft-lock TTL (reserva_temporal), sin borrar la hora comprometida. */
+        _liberarSoftLockHorario() {
+            sessionStorage.removeItem('reserva_temporal');
+            if (this._ttlTimer) {
+                clearTimeout(this._ttlTimer);
+                this._ttlTimer = null;
+            }
+            document.querySelectorAll('#citas-calendar-grid .time-slot.is-pending').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('is-pending');
+            });
+        },
+
         bloquearHorario(especialistaId, fechaISO, labelHora) {
             const reserva = { especialistaId, fechaISO, labelHora, timestamp: Date.now() };
             sessionStorage.setItem('reserva_temporal', JSON.stringify(reserva));
@@ -3107,19 +3286,14 @@ export function createCitas() {
         },
 
         liberarHorario(isTimeout = false) {
-            sessionStorage.removeItem('reserva_temporal');
-            if (this._ttlTimer) {
-                clearTimeout(this._ttlTimer);
-                this._ttlTimer = null;
-            }
             if (isTimeout) {
+                this._purgaSeleccionHorario();
                 let ttlModal = document.getElementById('modal-ttl');
                 if (!ttlModal) {
                     ttlModal = document.createElement('div');
                     ttlModal.id = 'modal-ttl';
                     ttlModal.className = 'modal-overlay';
                     ttlModal.style.zIndex = '9999';
-                    // Reutilizar la estructura de modales existente
                     ttlModal.innerHTML = `
                         <div class="modal-content" style="text-align: center;">
                             <button class="modal-close" onclick="window.location.href='index.html'">&times;</button>
@@ -3132,30 +3306,35 @@ export function createCitas() {
                 }
                 ttlModal.style.display = 'flex';
             } else {
-                document.querySelectorAll('#citas-calendar-grid .time-slot.is-pending').forEach(btn => {
-                    btn.disabled = false;
-                    btn.classList.remove('is-pending');
-                });
+                this._liberarSoftLockHorario();
             }
         },
 
         deshabilitarHorarios() {
             const reservaStr = sessionStorage.getItem('reserva_temporal');
 
-            // Limpia todos los visuales pendientes primero por si el usuario cambió de slot
             document.querySelectorAll('#citas-calendar-grid .time-slot.is-pending').forEach(btn => {
                 btn.disabled = false;
                 btn.classList.remove('is-pending');
             });
+
+            // TR-94: sin hora consolidada ni selección en memoria, no bloquear slots por soft-lock residual.
+            if (sessionStorage.getItem('cita_hora_confirmada') !== 'true' && !this.horaSeleccionada) {
+                return;
+            }
 
             if (!reservaStr) return;
             let reserva;
             try { reserva = JSON.parse(reservaStr); } catch (e) { return; }
             const ahora = Date.now();
             if ((ahora - reserva.timestamp) > 600000) {
-                this.liberarHorario(false);
+                this._liberarSoftLockHorario();
                 return;
             }
+
+            // TR-95: azul en soft-lock solo con hora confirmada o selección activa en esta sesión (reserva_temporal).
+            const horaPropia = this._horaParaSoftLockVisual();
+
             document.querySelectorAll('#citas-calendar-grid .time-slot').forEach(btn => {
                 const clickAttr = btn.getAttribute('onclick') || '';
 
@@ -3165,6 +3344,13 @@ export function createCitas() {
                 }
 
                 if (clickAttr.includes(reserva.labelHora) && clickAttr.includes(reserva.fechaISO)) {
+                    const esReservaPropia = horaPropia && reserva.labelHora === horaPropia;
+                    if (esReservaPropia) {
+                        btn.disabled = false;
+                        btn.classList.remove('is-pending');
+                        btn.classList.add('time-slot--selected');
+                        return;
+                    }
                     btn.disabled = true;
                     btn.classList.add('is-pending');
                 }
@@ -3183,8 +3369,8 @@ export function createCitas() {
             const idEsp = doc.id_especialista || doc.id || 'desconocido';
             this.bloquearHorario(idEsp, fechaISO, label);
 
-            sessionStorage.setItem('cita_hora_seleccionada', label);
-            if (fechaISO) sessionStorage.setItem('cita_fecha_iso', fechaISO);
+            // TR-92.2: la hora en sessionStorage solo se escribe tras #btn-confirmar-cita (_commitHorarioAlAvanzar).
+            if (fechaISO) this.fechaISOSeleccionada = fechaISO;
             const btnConfirmar = document.getElementById('btn-confirmar-cita');
             if (btnConfirmar) {
                 btnConfirmar.style.opacity = '1';
@@ -3195,7 +3381,6 @@ export function createCitas() {
         },
 
         _bloquearConfirmar() {
-            this.horaSeleccionada = null;
             const btnConfirmar = document.getElementById('btn-confirmar-cita');
             if (btnConfirmar) {
                 btnConfirmar.style.opacity = '0.5';

@@ -184,6 +184,7 @@ const app = {
         }
 
         this.iniciarMenuMovil();
+        this.iniciarPurgaDesercionRutaTR93();
 
         // TR-72: Sanitizador Global con Floating Tooltips (OWASP / H1 / H4)
         document.addEventListener('input', (e) => {
@@ -788,11 +789,37 @@ const app = {
         }
 
 
-        // TR-93: Boton Consultar Cita en header: visible solo para usuarios no logueados.
+        // TR-93 / TR-87: Botón "Consultar Cita" en el header — sincronización global MPA.
+        // El botón #btn-consultar-cita-header existe estáticamente en TODOS los archivos HTML
+        // (index, citas, especialistas, mi-salud, farmacia, contacto, login, registro).
+        // Regla de ocultamiento condicional:
+        //   · usuarioLogueado === 'true'  → display: none   (el usuario ya tiene acceso desde Mi Salud)
+        //   · cualquier otro valor        → display: inline-block  (invitado puede consultar su cita)
+        // Esta función se llama en cada carga de página (init()), garantizando consistencia visual
+        // sin importar qué ruta del MPA esté activa.
         const btnConsultarHeader = document.getElementById('btn-consultar-cita-header');
         if (btnConsultarHeader) {
             btnConsultarHeader.style.display = (usuarioLogueado === 'true') ? 'none' : 'inline-block';
         }
+    },
+
+    /**
+     * TR-93: Al salir del flujo de citas vía navbar, purga hora/slot no confirmados
+     * (reserva_temporal, cita_hora_*, etc.) antes de la navegación MPA.
+     */
+    iniciarPurgaDesercionRutaTR93() {
+        if (this._tr93NavPurgeBound) return;
+        this._tr93NavPurgeBound = true;
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('.header__nav-link');
+            if (!link) return;
+            if (e.defaultPrevented) return;
+            const onclick = link.getAttribute('onclick') || '';
+            if (/preventDefault/i.test(onclick)) return;
+            if (app.citas && typeof app.citas.purgaHorarioPorDesercionRuta === 'function') {
+                app.citas.purgaHorarioPorDesercionRuta();
+            }
+        }, true);
     },
 
     iniciarMenuMovil: function () {
@@ -1288,24 +1315,26 @@ const app = {
 
     // NUEVA FUNCIÓN: Para cuando hacen clic en botones generales del Home
     agendarCitaGeneral: function () {
-        // Vaciamos la memoria de citas anteriores (El mata-fantasmas)
+        if (app.citas && typeof app.citas.purgaHorarioEntradaFresca === 'function') {
+            app.citas.purgaHorarioEntradaFresca();
+        }
         sessionStorage.removeItem('reservaCita_preseleccion');
         sessionStorage.removeItem('especialidad_seleccionada');
-        sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
         sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
         this.navegar('citas');
     },
 
     preseleccionarDoctor: function (id_especialista, especialidad, medico, imagen_url) {
+        if (app.citas && typeof app.citas.purgaHorarioEntradaFresca === 'function') {
+            app.citas.purgaHorarioEntradaFresca();
+        }
         sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
             id_especialista: id_especialista,
             especialidad: especialidad,
             medico: medico,
             imagen_url: imagen_url
         }));
-        // Limpiamos al médico anterior, pero guardamos la nueva especialidad
         sessionStorage.setItem('especialidad_seleccionada', especialidad);
-        sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
         sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
         this.navegar('citas');
     },
@@ -1328,6 +1357,11 @@ const app = {
         medicosCache: [],
 
         inicializar() {
+            // TR-93: Al cargar el directorio de especialistas, liberar slots preseleccionados no confirmados.
+            if (app.citas && typeof app.citas.purgaHorarioPorDesercionRuta === 'function') {
+                app.citas.purgaHorarioPorDesercionRuta();
+            }
+
             try {
                 const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
                 if (db && db.cartera_especialistas) {
@@ -3411,7 +3445,7 @@ const app = {
                     <label for="widget-cedula" class="widget-invitado__label">C\u00e9dula</label>
                     <input type="text" id="widget-cedula" class="widget-invitado__input form-control"
                         placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" aria-required="true"
-                        aria-describedby="widget-cedula-error" autocomplete="on" style="width: 100%;"
+                        aria-describedby="widget-cedula-error" name="username" autocomplete="off" style="width: 100%;"
                         value="${this._cedulaConsultada || ''}">
                     <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
                         style="display:none; color: #d32f2f; font-size: 0.85rem; margin-top: 5px;"></span>
@@ -3422,19 +3456,91 @@ const app = {
             </div>`;
         },
 
-        abrirModalConsulta() {
+        /** TR-90: Garantiza que .hidden oculte/muestre el modal en toda la MPA. */
+        _asegurarUtilidadHidden() {
+            if (document.getElementById('tr90-modal-consulta-hidden-css')) return;
+            const style = document.createElement('style');
+            style.id = 'tr90-modal-consulta-hidden-css';
+            style.textContent = [
+                '#modal-consulta-invitado.hidden{display:none!important;}',
+                '#modal-consulta-invitado.modal-overlay:not(.hidden){display:flex!important;align-items:center;justify-content:center;}'
+            ].join('');
+            document.head.appendChild(style);
+        },
+
+        /**
+         * TR-90: Normaliza el shell del modal en páginas secundarias (sin modal-overlay ni botón cerrar).
+         * Devuelve referencias al contenedor raíz y al body de inyección de vistas.
+         */
+        _normalizarShellModalMPA() {
+            this._asegurarUtilidadHidden();
             const modal = document.getElementById('modal-consulta-invitado');
-            if (modal) {
-                history.pushState({ vista: 'widget-invitado-input' }, '', '');
-                modal.style.display = 'flex';
-                this.restaurarVistaA();
+            if (!modal) return null;
+
+            if (!modal.classList.contains('modal-overlay')) {
+                modal.classList.add('modal-overlay', 'modal-consulta');
             }
+
+            let body = document.getElementById('modal-consulta-invitado-body');
+            const shellNormalizado = modal.querySelector('.modal-consulta__content');
+
+            if (!shellNormalizado && body && body.parentElement === modal) {
+                const contenidoPrevio = body.innerHTML;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'modal-content modal-consulta__content';
+                wrapper.style.maxWidth = '400px';
+                wrapper.style.padding = '30px';
+
+                const closeBtn = document.createElement('button');
+                closeBtn.type = 'button';
+                closeBtn.className = 'modal-close';
+                closeBtn.setAttribute('aria-label', 'Cerrar modal');
+                closeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+                closeBtn.addEventListener('click', () => this.cerrarModalConsulta());
+
+                const nuevoBody = document.createElement('div');
+                nuevoBody.id = 'modal-consulta-invitado-body';
+                nuevoBody.setAttribute('role', 'region');
+                nuevoBody.setAttribute('aria-live', 'polite');
+                nuevoBody.innerHTML = contenidoPrevio;
+
+                wrapper.appendChild(closeBtn);
+                wrapper.appendChild(nuevoBody);
+                modal.replaceChildren(wrapper);
+                body = nuevoBody;
+            }
+
+            return { modal, body: document.getElementById('modal-consulta-invitado-body') };
+        },
+
+        abrirModalConsulta() {
+            const shell = this._normalizarShellModalMPA();
+            if (!shell || !shell.modal) return;
+
+            const { modal, body } = shell;
+
+            // TR-90: Hidratación forzada si el body está vacío o carece del input de captura.
+            const faltaCaptura = !body
+                || !body.innerHTML.trim()
+                || !body.querySelector('#widget-cedula');
+            if (faltaCaptura) {
+                this.restaurarVistaA();
+            } else {
+                this._bindVistaA();
+            }
+
+            history.pushState({ vista: 'widget-invitado-input' }, '', '');
+            modal.classList.remove('hidden');
+            modal.style.removeProperty('display');
+            modal.setAttribute('aria-hidden', 'false');
         },
 
         cerrarModalConsulta() {
             const modal = document.getElementById('modal-consulta-invitado');
             if (modal) {
+                modal.classList.add('hidden');
                 modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
                 if (history.state && history.state.vista === 'widget-invitado-input') {
                     history.back();
                 }
@@ -3443,9 +3549,9 @@ const app = {
         },
 
         restaurarVistaA() {
+            this._normalizarShellModalMPA();
             const body = document.getElementById('modal-consulta-invitado-body');
             if (body) {
-                // TR-84: usa el generador dinámico para rehidratar la cédula persistida
                 body.innerHTML = this._generarVistaAHTML();
                 this._bindVistaA();
             }
@@ -3456,25 +3562,31 @@ const app = {
             const btnConsultar = document.getElementById('btn-consultar-cita');
 
             if (inputCedula) {
-                inputCedula.addEventListener('input', (e) => {
+                inputCedula.oninput = (e) => {
                     e.target.value = e.target.value.replace(/\D/g, '');
                     inputCedula.classList.remove('input-error');
                     const errorSpan = document.getElementById('widget-cedula-error');
                     if (errorSpan) errorSpan.style.display = 'none';
-                });
+                };
             }
 
             if (btnConsultar) {
-                btnConsultar.addEventListener('click', () => {
+                btnConsultar.onclick = () => {
                     this.consultar();
-                });
+                };
             }
         },
 
         inicializar() {
             if (this._validadoresIniciados) return;
-            
+
             this._validadoresIniciados = true;
+
+            // TR-90: Pre-sembrar Vista A en páginas MPA cuyo modal nace con body vacío.
+            const body = document.getElementById('modal-consulta-invitado-body');
+            if (body && (!body.innerHTML.trim() || !body.querySelector('#vista-consulta-input'))) {
+                body.innerHTML = this._generarVistaAHTML();
+            }
             this._bindVistaA();
 
             // TR-85: Delegación de Eventos Inmortal en document
