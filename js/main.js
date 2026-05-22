@@ -1900,6 +1900,63 @@ const app = {
         _countdownInterval: null,
         _regexNombre: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
 
+        /** TR-112: desactiva heurísticas de Credential Management en pasos intermedios. */
+        _neutralizarCampoPasswordTR112() {
+            const pwd = document.getElementById('reg-password');
+            if (!pwd) return;
+            pwd.type = 'text';
+            pwd.value = '';
+            pwd.removeAttribute('name');
+            pwd.setAttribute('autocomplete', 'off');
+            pwd.setAttribute('autocapitalize', 'off');
+            pwd.setAttribute('autocorrect', 'off');
+            pwd.setAttribute('spellcheck', 'false');
+            pwd.setAttribute('data-lpignore', 'true');
+            pwd.setAttribute('data-1p-ignore', '');
+            pwd.setAttribute('data-form-type', 'other');
+        },
+
+        /** TR-112: modo edición Paso 2 sin disparar autosave al ocultar el contenedor. */
+        _prepararCampoPasswordPaso2TR112() {
+            const pwd = document.getElementById('reg-password');
+            if (!pwd) return;
+            pwd.type = 'text';
+            pwd.removeAttribute('name');
+            pwd.setAttribute('autocomplete', 'off');
+            pwd.setAttribute('data-lpignore', 'true');
+            pwd.setAttribute('data-1p-ignore', '');
+            pwd.setAttribute('data-form-type', 'other');
+            const guardada = sessionStorage.getItem('temp_pass');
+            if (guardada) pwd.value = guardada;
+        },
+
+        _onPasswordFocusTR112() {
+            if (this._pasoActual !== 2) return;
+            const pwd = document.getElementById('reg-password');
+            if (!pwd) return;
+            pwd.type = 'password';
+        },
+
+        _asegurarPasswordFueraAntesPaso3TR112() {
+            const pwdInput = document.getElementById('reg-password');
+            if (!pwdInput) return;
+            const val = pwdInput.value || sessionStorage.getItem('temp_pass') || '';
+            if (val) sessionStorage.setItem('temp_pass', val);
+            this._neutralizarCampoPasswordTR112();
+        },
+
+        /** TR-112: activa credencial nativa solo en el commit real (previo a Supabase). */
+        _activarCredencialesCommitTR112(pwdInput, plainValue) {
+            if (!pwdInput) return;
+            pwdInput.type = 'password';
+            pwdInput.name = 'password';
+            pwdInput.setAttribute('autocomplete', 'new-password');
+            pwdInput.removeAttribute('data-lpignore');
+            pwdInput.removeAttribute('data-1p-ignore');
+            pwdInput.removeAttribute('data-form-type');
+            pwdInput.value = plainValue || '';
+        },
+
         // ------------------------------------------------------------------
         // 10.1 Inicialización: bloqueos de input + on-blur + fecha max
         // ------------------------------------------------------------------
@@ -2014,6 +2071,12 @@ const app = {
                 regPwd.removeEventListener('blur', regPwd._blurHandler);
                 regPwd._blurHandler = () => this._validarCampo('reg-password');
                 regPwd.addEventListener('blur', regPwd._blurHandler);
+
+                regPwd.removeEventListener('focus', regPwd._focusTr112Handler);
+                regPwd._focusTr112Handler = () => this._onPasswordFocusTR112();
+                regPwd.addEventListener('focus', regPwd._focusTr112Handler);
+
+                this._neutralizarCampoPasswordTR112();
             }
 
             // — Fecha de nacimiento: solo 'change' (no input en todos los browsers) —
@@ -2185,6 +2248,11 @@ const app = {
                 if (el) el.style.display = (i === n) ? 'flex' : 'none';
             }
             this._pasoActual = n;
+            if (n === 2) {
+                this._prepararCampoPasswordPaso2TR112();
+            } else {
+                this._neutralizarCampoPasswordTR112();
+            }
             if (n === 3) {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => this._emitirOTPAlEntrarPaso3());
@@ -2309,18 +2377,8 @@ const app = {
                     }
                 }
 
-                // ── TR-34++: Hack de evasión de Chrome (nivel definitivo) ────────────
-                // Secuencia obligatoria antes de ocultar el Paso 2:
-                // 1. Guardar el valor en sessionStorage (para recuperarlo en el OTP/ghost-form).
-                // 2. Vaciar el DOM — Chrome deja de ver la contraseña en el campo.
-                // 3. Cambiar type a 'text' — Chrome no sabe que era un campo de contraseña
-                //    cuando se oculta el contenedor, eliminando el prompt al 100%.
-                const pwdInput = document.getElementById('reg-password');
-                if (pwdInput) {
-                    sessionStorage.setItem('temp_pass', pwdInput.value); // paso 1
-                    pwdInput.value = '';                                  // paso 2
-                    pwdInput.type = 'text';                              // paso 3 — mata el prompt
-                }
+                // TR-112 + TR-34: candado antisave antes de ocultar Paso 2 (evita Credential Prompt).
+                this._asegurarPasswordFueraAntesPaso3TR112();
             }
 
             this._irAPaso(pasoActual + 1);
@@ -2656,6 +2714,9 @@ const app = {
 
             const filaPacienteSupabase = pacienteDesdeRegistroLocal(nuevoUsuario);
 
+            const pwdInputCommit = document.getElementById('reg-password');
+            this._activarCredencialesCommitTR112(pwdInputCommit, finalPass);
+
             let filaInsertada;
             try {
                 filaInsertada = await conCargaGlobal(
@@ -2861,7 +2922,7 @@ const app = {
         togglePasswordReg() {
             const input = document.getElementById('reg-password');
             const icon = document.getElementById('reg-eye-icon');
-            if (!input) return;
+            if (!input || this._pasoActual !== 2) return;
             if (input.type === 'password') {
                 input.type = 'text';
                 icon?.classList.replace('fa-eye', 'fa-eye-slash');
