@@ -3563,6 +3563,18 @@ const app = {
         },
 
         cerrarModalConsulta() {
+            // TR-107: sanitizar captura de cédula solo al clausurar el modal (no durante listados activos).
+            const inputCedula = document.getElementById('widget-cedula');
+            if (inputCedula) {
+                inputCedula.value = '';
+                inputCedula.classList.remove('input-error', 'input-success');
+            }
+            const errorCedula = document.getElementById('widget-cedula-error');
+            if (errorCedula) {
+                errorCedula.textContent = '';
+                errorCedula.style.display = 'none';
+            }
+
             const modal = document.getElementById('modal-consulta-invitado');
             if (modal) {
                 modal.classList.add('hidden');

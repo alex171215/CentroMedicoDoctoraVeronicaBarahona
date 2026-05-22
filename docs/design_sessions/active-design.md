@@ -945,3 +945,32 @@ Los IDs `#modal-consulta-invitado` y `#modal-consulta-invitado-body` se conserva
 
 ### Estado: ✅ CERRADO — TR-106 shell oculto en MPA secundaria.
 
+---
+
+## Sanitización del Formulario de Consulta por Clausura de Modal TR-107
+
+### Fecha: 2026-05-22
+
+### Problema
+
+En el widget de consulta de invitados, si el usuario escribía su cédula en `#widget-cedula` y cerraba el modal sin consultar, el valor permanecía en el DOM y reaparecía al reabrir — fuga visual de datos personales (TR-107).
+
+### Fix (pinpoint en `js/main.js` → `cerrarModalConsulta()`)
+
+Al **inicio** del cierre (antes de ocultar el overlay):
+
+1. `#widget-cedula` → `value = ''` y limpieza de clases `input-error` / `input-success`.
+2. `#widget-cedula-error` → `textContent = ''` y `style.display = 'none'`.
+
+La limpieza solo corre en clausura/cancelación del modal. No interviene mientras el usuario navega listados o detalle dentro del modal abierto (`_resultadosActuales` sigue intacto hasta el cierre, donde ya se vaciaba).
+
+### Intacto
+
+- Calendario, blur de citas, Supabase, `abrirModalConsulta()`, `consultar()`, `restaurarVistaA()`.
+
+### Verificación
+
+- `node -c js/main.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-107 sanitización en cierre de modal invitado.
+
