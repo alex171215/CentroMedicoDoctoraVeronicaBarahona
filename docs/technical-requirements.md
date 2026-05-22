@@ -762,3 +762,15 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-95: Ciclo de Vida y Reseteo Absoluto de Selección de Citas por Deserción (H3, H4)
 1. **Destrucción de Estado por Deserción:** Si el usuario abandona la pantalla del calendario interactivo haciendo clic en cualquier enlace del menú global (`.header__nav-link`) o reingresa al flujo de un especialista desde el botón "Agendar Cita" del directorio (`especialistas.html`), el sistema ejecutará un reseteo total de las claves de almacenamiento efímero asociadas a la hora (`reserva_temporal`, `cita_hora_seleccionada`, etc.).
 2. **Comportamiento del Renderizador:** Al invocar la función `generarCalendario()`, si el token de confirmación transaccional `cita_hora_confirmada` no es explícitamente `'true'`, el grid de horas se renderizará en su estado por defecto (Blanco/Interactivo), garantizando que ninguna hora aparezca preseleccionada en color Azul para flujos nuevos.
+
+
+## TR-96: Escalado Dinámico del Indicador de Progreso (Responsividad)
+1. **Reducción Tipográfica:** En dispositivos con ancho inferior a 480px, la fuente de los elementos `.citas-progress-label` se reducirá a un tamaño legible pero compacto (ej. 0.7rem).
+2. **Optimización de Espaciado:** Se reducirá el `padding` o `margin` entre los pasos para evitar el desborde horizontal.
+3. **Truncamiento Semántico:** Si el texto sigue siendo demasiado largo, se aplicará `text-overflow: ellipsis` para evitar el solapamiento, garantizando que el diseño no se rompa visualmente.
+
+
+## TR-97: Estabilización de Carrusel en Viewport de Tablet (768px - 1023px)
+1. **Reseteo de Posicionamiento:** En el media query de tablet, se eliminarán los valores absolutos de `top` o `bottom` que causan superposiciones, sustituyéndolos por un contenedor flex centrado.
+2. **Prioridad Visual (z-index):** El contenedor de botones tendrá un `z-index` superior (ej. `z-index: 10`) a los indicadores de paginación (dots) para evitar que el botón quede oculto.
+3. **Jerarquía Tipográfica:** Se aplicará una escala tipográfica menor para los textos del carrusel en tablets para evitar que el contenido "salga" de la diapositiva o se encime con otros elementos.
