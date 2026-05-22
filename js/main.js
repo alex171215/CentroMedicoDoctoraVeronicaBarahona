@@ -837,8 +837,12 @@ const app = {
             if (e.defaultPrevented) return;
             const onclick = link.getAttribute('onclick') || '';
             if (/preventDefault/i.test(onclick)) return;
-            if (app.citas && typeof app.citas.purgaHorarioPorDesercionRuta === 'function') {
-                app.citas.purgaHorarioPorDesercionRuta();
+            if (app._mpaVistaDesdePathname() === 'citas' && app.citas) {
+                if (typeof app.citas.purgaHorarioPorDesercionRuta === 'function') {
+                    app.citas.purgaHorarioPorDesercionRuta();
+                } else if (typeof app.citas.hardResetCitas === 'function') {
+                    app.citas.hardResetCitas();
+                }
             }
         }, true);
     },
@@ -942,9 +946,14 @@ const app = {
         // No limpiar snapshot de cita confirmada al ir a login: el usuario debe recuperar el paso 5 al volver (TR ticket inmunidad).
         if (vistaId !== 'citas' && vistaId !== 'login') {
             sessionStorage.removeItem('temp_datos_recuperacion');
-            if (app.citas) app.citas.modoProxy = false;
-            if (app.citas && typeof app.citas.limpiarSessionFlujoCitas === 'function') {
-                app.citas.limpiarSessionFlujoCitas(true);
+            if (app.citas) {
+                app.citas.modoProxy = false;
+                const saliendoDeCitas = this._mpaVistaDesdePathname() === 'citas';
+                if (saliendoDeCitas && typeof app.citas.hardResetCitas === 'function') {
+                    app.citas.hardResetCitas();
+                } else if (typeof app.citas.limpiarSessionFlujoCitas === 'function') {
+                    app.citas.limpiarSessionFlujoCitas(true);
+                }
             }
         }
 
@@ -1336,18 +1345,15 @@ const app = {
 
     // NUEVA FUNCIÓN: Para cuando hacen clic en botones generales del Home
     agendarCitaGeneral: function () {
-        if (app.citas && typeof app.citas.purgaHorarioEntradaFresca === 'function') {
-            app.citas.purgaHorarioEntradaFresca();
+        if (app.citas && typeof app.citas.hardResetCitas === 'function') {
+            app.citas.hardResetCitas();
         }
-        sessionStorage.removeItem('reservaCita_preseleccion');
-        sessionStorage.removeItem('especialidad_seleccionada');
-        sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
         this.navegar('citas');
     },
 
     preseleccionarDoctor: function (id_especialista, especialidad, medico, imagen_url) {
-        if (app.citas && typeof app.citas.purgaHorarioEntradaFresca === 'function') {
-            app.citas.purgaHorarioEntradaFresca();
+        if (app.citas && typeof app.citas.hardResetCitas === 'function') {
+            app.citas.hardResetCitas();
         }
         sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
             id_especialista: id_especialista,
@@ -1362,11 +1368,11 @@ const app = {
 
     // CORRECCIÓN: Para cuando hacen clic en el carrusel de especialidades
     seleccionarEspecialidad: function (especialidad) {
-        // Limpiamos al médico anterior, pero guardamos la nueva especialidad
+        if (app.citas && typeof app.citas.hardResetCitas === 'function') {
+            app.citas.hardResetCitas();
+        }
         sessionStorage.removeItem('reservaCita_preseleccion');
         sessionStorage.setItem('especialidad_seleccionada', especialidad);
-        sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
-        sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
         this.navegar('citas');
     },
 

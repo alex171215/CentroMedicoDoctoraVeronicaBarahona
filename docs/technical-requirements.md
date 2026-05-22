@@ -785,3 +785,38 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Validación Diferida Activa:** Los inputs pertenecientes al formulario `#form-citas-identificacion` (`#citas-nombres`, `#citas-cedula`, `#citas-celular`) mantendrán sus subrutinas de comprobación y renderizado de alertas estrictamente supeditadas al evento de pérdida de foco (`blur`).
 2. **Ocultamiento Inmediato por Entrada de Datos (Input Event):** Se asociará manualmente un escuchador al evento nativo `input` en cada una de las tres cajas de texto. Al detectar la primera pulsación de tecla o alteración de la cadena de texto por parte del usuario, el sistema ocultará inmediatamente el contenedor de error indexado (`#error-nombres`, `#error-cedula`, o `#error-celular`) aplicando `style.display = 'none'`.
 3. **Restauración Estética Neutral:** El evento `input` removerá los estilos en línea de alerta visual (como la propiedad `border-color` roja o alterada) devolviendo el control al estado estético neutro predeterminado mientras el usuario digita. Queda prohibido alterar las funciones core de sumisión del formulario o el estado del botón `#btn-citas-siguiente`.
+
+## TR-100: Túnel Aislado de Reagendamiento para Usuarios e Invitados (H3, H7, H8)
+1. **Bifurcación del Wizard de Pasos:** Cuando el sistema detecte que `modoModificacion === true` (almacenado en el contexto operativo de `sessionStorage`), el asistente de citas mutará dinámicamente su estructura visual hacia un flujo acotado de 3 pasos lineales autónomos.
+2. **Reconfiguración del Stepper Responsivo:** En modo reagendamiento, el indicador `#citas-progress-indicator` (radial en celular o lineal en desktop) se re-renderizará omitiendo los pasos históricos invariables. La barra reflejará exclusivamente el micro-progreso: 
+   - Paso 1: "Nuevo Horario" (Mapeado internamente al Paso del Calendario).
+   - Paso 2: "Revisión" (Mapeado al Paso de Confirmación).
+   - Paso 3: "Finalizado" (Mapeado a la Pantalla de Éxito).
+3. **Bloqueo Retroactivo y Redirección de Salida:** Queda prohibido permitir la navegación hacia atrás a los pasos de selección de especialidad o médicos durante una modificación. El botón `.btn-back-minimalist` mutará su comportamiento: en lugar de invocar `irAtras()`, actuará como un botón de abortar/cancelar, limpiando los tokens de modificación del storage y devolviendo al usuario de forma segura a su panel de consulta original (modal de invitados o dashboard "Mi Salud" según corresponda).
+
+
+## TR-101: Inmutabilidad de Identidad del Paciente en Reagendamiento Autenticado (H4, H7)
+1. **Restricción de Contexto de Reserva:** El control alternativo de asignación familiar o proxy (`#proxy-link-container`) se mantendrá estrictamente oculto (`display: none !important` o clase `.hidden`) durante toda la ejecución del Paso de Resumen/Revisión si la bandera `modoModificacion` es activa en el `sessionStorage`.
+2. **Aislamiento de Estado:** La condición de usuario logueado (`usuarioLogueado === true`) no tendrá precedencia sobre el estado transaccional de modificación, garantizando que un paciente autenticado no pueda alterar el titular original del registro médico en medio de un cambio de fecha/hora.
+
+
+## TR-102: Bifurcación Estricta de Contenedores de Resumen (Agendamiento vs Reagendamiento)
+1. **Aislamiento de Interfaces:** Queda estrictamente prohibido que el flujo de agendamiento nuevo y el túnel de reagendamiento compartan el mismo bloque HTML de renderizado final para la revisión de datos.
+2. **Condicional Transaccional:** El método de renderizado del resumen evaluará el flag `modoModificacion`. Si es falso, pintará la interfaz interactiva normal (con opciones proxy y captura de datos); si es verdadero, inyectará exclusivamente el contenedor protegido de solo lectura (`.smart-jump-banner`).
+
+## TR-103: Ciclo de Vida y Hard-Reset de Navegación del App Shell (H3, H4)
+1. **Limpieza por Reingreso:** Al inicializar la carga de `citas.html` desde cualquier enlace global del Navbar o al presionar el trigger fresco de "Agendar Cita", el sistema ejecutará un método de limpieza absoluta (`hardResetCitas()`).
+2. **Destrucción de Memoria Huérfana:** Este método purgará todas las variables de estado intermedio de pasos, selecciones de horas viejas y bloqueará el wizard para que inicie incondicionalmente en el Paso 0 (Especialidad), garantizando un entorno en cero para el usuario.
+
+## TR-104: Persistencia del Stepper Radial/Lineal en Confirmación (H4 - Consistencia)
+1. **Ciclo de Vida Extendido:** La reconfiguración visual de 3 pasos del indicador `#citas-progress-indicator` debe mantenerse activa y persistente de forma obligatoria incluso en la pantalla final de éxito o confirmación de la cita si el flag `modoModificacion` es verdadero. Queda prohibido el re-renderizado del stepper de 6 pasos tradicional en cualquier etapa del reagendamiento.
+
+## TR-105: Inactivación Absoluta de Flujos Alternativos (Familiar/Proxy) en Resumen (H7)
+1. **Ocultamiento Incondicional:** El contenedor `#proxy-link-container` debe ser interceptado y forzado a `display: none !important` en el renderizado de revisión y confirmación para usuarios con cuenta siempre que la sesión opere bajo `modoModificacion: true`.
+2. **Inmutabilidad del Paciente:** La interfaz debe bloquear cualquier función que permita desviar el flujo de modificación hacia el registro de dependientes o familiares, garantizando que el titular original del registro médico no pueda ser alterado de forma retroactiva.
+
+
+## TR-106: Encapsulamiento y Ocultación del App Shell para Modales MPA (H8 - Minimalismo)
+1. **Persistencia Estática Invisible:** Todas las pantallas físicas de la MPA mantendrán la declaración estática del contenedor del modal justo antes del cierre del `</body>`.
+2. **Aislamiento del Layout Stream:** Para evitar el desborde visual o contaminación debajo del footer, el contenedor raíz del modal (`#modal-consulta-invitado`) deberá nacer configurado por defecto en estado invisible mediante el atributo estricto `style="display: none;"` o la clase responsiva `.hidden`.
+3. **Integridad del Selector:** Queda prohibido alterar o remover los ID `#modal-consulta-invitado` y `#modal-consulta-invitado-body` de los archivos HTML, ya que el motor global de JS requiere su existencia para la inyección dinámica de sub-vistas.
