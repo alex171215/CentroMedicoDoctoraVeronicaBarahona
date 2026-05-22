@@ -975,6 +975,133 @@ a[href^="mailto:"]:focus-visible,
     background-color: var(--white);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   TABLET HERO CAROUSEL FIX — @media (min-width: 768px) and (max-width: 1023px)
+   Objetivo: corregir overflow y superposición ÚNICAMENTE en tablets.
+   NO modifica móvil (max-width: 767px) ni desktop (min-width: 1024px).
+   ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) and (max-width: 1023px) {
+
+    /* 1. Altura del carrusel: suficiente para el contenido pero controlada */
+    .hero__carousel {
+        height: 480px;
+        overflow: hidden;
+    }
+
+    /* 2. DOTS: fijados al fondo con z-index alto para que nunca queden tapados */
+    .hero__carousel-indicators {
+        position: absolute;
+        bottom: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 20;
+    }
+
+    /* 3. Cada slide usa flex para centrar verticalmente su contenido */
+    .hero__slide {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    /* 4. Contenedor de texto y botón:
+          - padding-bottom: 70px garantiza que el botón nunca baje hasta la zona de los dots
+          - paddings laterales ajustados para tablet (sin el exceso del desktop)
+          - display flex en columna para flujo natural vertical */
+    .hero__content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 30px 24px 70px 60px !important;
+        max-width: 85% !important;
+        margin: 0 !important;
+    }
+
+    /* 5. Reducción tipográfica del título (~25% menos que los 2.5rem del breakpoint 768px+) */
+    .hero__title {
+        font-size: 1.85rem !important;
+        line-height: 1.25 !important;
+        margin-bottom: 16px !important;
+    }
+
+    /* 6. Subtítulo: tamaño ligeramente menor */
+    .hero__subtitle {
+        font-size: 0.8rem !important;
+        margin-bottom: 10px !important;
+    }
+
+    /* 7. Features (iconos): reducir tipografía y gap para no consumir tanto espacio */
+    .hero__features {
+        gap: 12px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .hero__feature {
+        font-size: 0.78rem !important;
+    }
+
+    .hero__feature-icon {
+        font-size: 1.25rem !important;
+    }
+
+    /* 8. Botón CTA: siempre visible por encima de fondos/imágenes, debajo de los dots */
+    .hero__btn {
+        position: relative;
+        z-index: 10;
+        align-self: flex-start;
+        margin-top: 4px;
+        margin-bottom: 0;
+    }
+
+    /* ── Overrides por diapositiva ── */
+
+    /* Slide 1 (Inicio): reducir el padding-left excesivo del breakpoint genérico */
+    .hero__slide:nth-child(1) .hero__content {
+        padding-left: 60px !important;
+        max-width: 90% !important;
+    }
+
+    /* Slide 1 (features en 2 columnas en tablet, no 4) */
+    .hero__slide:nth-child(1) .hero__features {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Slide 2 (Especialidades): ajuste de padding */
+    .hero__slide:nth-child(2) .hero__content {
+        padding-left: 60px !important;
+        max-width: 80% !important;
+    }
+
+    /* Slide 3 (Historial Digital): quitar el padding-top excesivo de desktop */
+    .hero__slide:nth-child(3) .hero__content {
+        padding-top: 30px !important;
+        padding-left: 60px !important;
+        max-width: 80% !important;
+    }
+
+    /* Slide 4 (Política 24h): el contenido está alineado a la derecha en desktop;
+       en tablet lo centramos para evitar overflow */
+    .hero__slide--policy .hero__content {
+        margin-left: auto !important;
+        margin-right: 24px !important;
+        text-align: right !important;
+        max-width: 75% !important;
+        padding-right: 40px !important;
+    }
+
+    .hero__slide--policy .hero__features {
+        justify-content: flex-end !important;
+    }
+
+    /* Slide 3 (registro): cancelar el top:-100px que aplica en desktop */
+    .hero__slide--registro .hero__content {
+        top: auto !important;
+        position: relative !important;
+        max-width: 80% !important;
+    }
+}
+/* FIN TABLET HERO CAROUSEL FIX */
+
 /* Doctors Section */
 .doctors {
     padding: 60px 0;
