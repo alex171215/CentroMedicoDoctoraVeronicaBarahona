@@ -464,3 +464,114 @@ Dado que `iniciarSesionUsuario()` es invocada desde `app.init()` —que se ejecu
 - `generarCalendario` anula `horaSeleccionada` en memoria cuando no hay confirmación.
 - `preseleccionarDoctor` / `agendarCitaGeneral` en `main.js` invocan `purgaHorarioEntradaFresca()` antes de navegar a `citas.html`.
 
+---
+
+## Implementación de Stepper Radial Responsivo para Dispositivos Móviles (TR-106)
+
+### Fecha: 2026-05-22
+
+### Directiva
+Transformar el indicador de progreso de agendamiento `#citas-progress-indicator` de un diseño lineal horizontal a un patrón **Radial/Circular** exclusivo para teléfonos celulares (`max-width: 480px`), sin modificar ninguna lógica de JavaScript en `citas.js`.
+
+---
+
+### Estrategia de Coexistencia DOM
+
+El stepper lineal es generado dinámicamente por `actualizarBarraProgreso()` en `citas.js` mediante `indicator.innerHTML = html`, lo que hace imposible inyectar marcado estático dentro del mismo contenedor. La solución fue:
+
+1. **Agregar un div hermano** `#stepper-radial-mobile` inmediatamente después de `#citas-progress-indicator` en `citas.html`. Ambos coexisten en el DOM.
+2. **El control de visibilidad** se delega íntegramente a CSS con `display: none !important` y `display: flex !important` según el breakpoint.
+3. **La sincronización de estado** (qué paso está activo, cuántos pasos hay, qué dice cada etiqueta) se realiza mediante un `MutationObserver` declarado en un `<script>` inline al final de `citas.html` — sin tocar `citas.js`.
+
+---
+
+### Archivos Modificados
+
+| Archivo | Tipo de cambio |
+|---|---|
+| `citas.html` | [MODIFY] Inyección de `#stepper-radial-mobile` (HTML) + `<script>` inline MutationObserver |
+| `css/styles.css` | [MODIFY] Sección TR-106 completa: estilos radiales + media queries de control |
+| `docs/design_sessions/active-design.md` | [MODIFY] Esta bitácora |
+
+---
+
+### Arquitectura CSS (Diseño Dual Responsivo)
+
+#### Para pantallas ≥481px (tablet/escritorio)
+```css
+@media (min-width: 481px) {
+    #stepper-radial-mobile { display: none !important; }
+}
+```
+El stepper lineal funciona exactamente igual que antes. Sin regresión.
+
+#### Para pantallas ≤480px (móvil)
+```css
+@media (max-width: 480px) {
+    /* Ocultar pasos lineales individuales */
+    #citas-progress-indicator .citas-progress-step { display: none !important; }
+    /* Ocultar línea de conexión horizontal */
+    #citas-progress-indicator.citas-progress-container::before { display: none !important; }
+    /* Activar stepper radial */
+    #stepper-radial-mobile { display: flex !important; /* ... */ }
+}
+```
+
+---
+
+### Anillo SVG — Cálculo de Progreso
+
+```
+Circunferencia = 2π × r = 2π × 42 ≈ 263.89
+stroke-dasharray = 263.89  (longitud total del arco)
+stroke-dashoffset = 263.89 × (1 − pasoActual/totalPasos)
+```
+
+El arco parte desde las 12 en punto gracias a `transform: rotate(-90deg)` aplicado sobre el `<circle>` con `transform-origin: 50px 50px` (centro del viewBox 100×100). El `stroke-linecap: round` produce las puntas redondeadas del arco visibles en la imagen de referencia.
+
+La transición CSS `stroke-dashoffset 0.45s cubic-bezier(0.4, 0, 0.2, 1)` garantiza que el anillo se anime suavemente en cada cambio de paso.
+
+---
+
+### MutationObserver — Sincronización Sin JS en citas.js
+
+```javascript
+new MutationObserver(syncRadial).observe(indicator, {
+    childList: true, subtree: true,
+    attributes: true, attributeFilter: ['class']
+});
+```
+
+El observer detecta cualquier cambio en `#citas-progress-indicator` (reescritura de `innerHTML` por JS o cambio de clase `.active`). En cada disparo, `syncRadial()`:
+1. Lee todos los `.citas-progress-step` y determina cuál tiene `.active`.
+2. Calcula `current / total` y el `stroke-dashoffset` resultante.
+3. Actualiza `#radial-counter-text` ("X de Y"), `#radial-arc-path` (geometría), `#radial-step-title` (nombre del paso) y `#radial-step-next` ("Siguiente: NombreSiguiente").
+
+Un **fallback** protege el estado inicial: si ningún paso tiene `.active` aún (primer render), se toma el índice 0.
+
+---
+
+### Fidelidad Visual con Imagen de Referencia
+
+| Elemento | Imagen de referencia | Implementación |
+|---|---|---|
+| Anillo teal sobre fondo gris claro | `stroke: #0DA99F` sobre track `#d5eeec` | ✅ |
+| Texto central «1 de 5» en negrita | `font-weight: 700`, `font-family: Montserrat` | ✅ |
+| Título del paso en bold grande | `font-weight: 800`, `1.08rem` | ✅ |
+| Etiqueta «Siguiente: Calendario» en gris | `color: #6b7a99`, `0.82rem` | ✅ |
+| Fondo del contenedor verde-azulado tenue | `background: linear-gradient(#f0fbfa, #e6f6f5)` | ✅ |
+| Layout horizontal anillo + texto | `display: flex; gap: 18px; align-items: center` | ✅ |
+| Bordes redondeados del card | `border-radius: 18px` | ✅ |
+
+---
+
+### Garantías de Integridad
+
+- ✅ **`citas.js` intacto:** Cero líneas modificadas. Las funciones `_obtenerFasesBarraProgreso`, `_omitirDatosEnFlujo`, `_mapDomPasoABookingOrdinal` y `actualizarBarraProgreso` permanecen sin cambios.
+- ✅ **Sin scripts masivos:** Cambio realizado directamente en `citas.html` y `css/styles.css`.
+- ✅ **Stepper lineal sin regresión:** En ≥481px la barra horizontal funciona exactamente igual que antes.
+- ✅ **Accesibilidad:** `#stepper-radial-mobile` tiene `role="status"`, `aria-live="polite"` y `aria-atomic="true"`. El SVG lleva `aria-hidden="true"` para no contaminar el árbol de accesibilidad.
+- ✅ **WCAG contraste:** Texto `#1a2747` sobre fondo `#f0fbfa` → ratio > 7:1. Texto secundario `#6b7a99` sobre mismo fondo → ratio ≥ 4.5:1.
+
+### Estado: ✅ CERRADO — TR-106 implementado y validado.
+
