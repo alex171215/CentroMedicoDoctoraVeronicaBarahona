@@ -774,3 +774,8 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Reseteo de Posicionamiento:** En el media query de tablet, se eliminarán los valores absolutos de `top` o `bottom` que causan superposiciones, sustituyéndolos por un contenedor flex centrado.
 2. **Prioridad Visual (z-index):** El contenedor de botones tendrá un `z-index` superior (ej. `z-index: 10`) a los indicadores de paginación (dots) para evitar que el botón quede oculto.
 3. **Jerarquía Tipográfica:** Se aplicará una escala tipográfica menor para los textos del carrusel en tablets para evitar que el contenido "salga" de la diapositiva o se encime con otros elementos.
+
+## TR-98: Ciclo de Vida y Mitigación de Mensajes de Error en Tiempo Real (Heurística #9)
+1. **Validación Diferida y Reactividad:** Los campos del formulario `#form-citas-identificacion` (`#citas-nombres`, `#citas-cedula`, `#citas-celular`) mantendrán sus validaciones semánticas restrictivas en el evento de pérdida de foco (`blur`).
+2. **Limpieza Inmediata por Entrada de Texto:** Se implementará un escuchador del evento nativo `input` en cada uno de los tres campos de texto. Al detectar la primera pulsación de tecla o entrada de datos, el sistema ocultará inmediatamente el contenedor de error indexado (`#error-nombres`, `#error-cedula`, `#error-celular`) modificando su propiedad a `style.display = 'none'` y removerá los estilos visuales de alerta o bordes de error del input afectado.
+3. **Preservación de Estados Relacionados:** Esta limpieza efímera no alterará las validaciones finales ni afectará las propiedades de habilitación del botón `#btn-citas-siguiente`, las cuales seguirán respondiendo al validador de formulario completo.
