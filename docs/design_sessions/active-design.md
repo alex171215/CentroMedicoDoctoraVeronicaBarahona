@@ -1111,3 +1111,35 @@ Reestructurar `#specialists-directory-grid` de lista plana a bloques por especia
 
 ### Estado: ✅ CERRADO — TR-111 directorio segmentado y matriz M×5.
 
+---
+
+## Mitigación de Activación Prematura del Credential Management Prompt TR-112
+
+### Fecha: 2026-05-22
+
+### Problema
+
+Al avanzar del Paso 2 al Paso 3 del registro, Chrome/Edge interpretaban el ocultamiento de `#reg-password` (`type="password"`, `autocomplete="new-password"`) como fin de sumisión y disparaban el **Credential Management Prompt** antes de crear la cuenta en Supabase.
+
+### Fix (`js/main.js` → `app.registro` — sin `registro.js` separado)
+
+| Helper | Función |
+|--------|---------|
+| `_neutralizarCampoPasswordTR112()` | `type="text"`, vacía valor, quita `name`, `autocomplete="off"`, flags anti-autofill. |
+| `_prepararCampoPasswordPaso2TR112()` | Modo edición Paso 2; restaura `temp_pass` si el usuario retrocede. |
+| `_onPasswordFocusTR112()` | Solo en Paso 2: `type="password"` al enfocar. |
+| `_asegurarPasswordFueraAntesPaso3TR112()` | Persiste en `temp_pass` y neutraliza al salir del Paso 2. |
+| `_activarCredencialesCommitTR112()` | En `validarCodigo()`, **justo antes** de `registrarPacienteCondicionalTR110`: `type="password"`, `name="password"`, `autocomplete="new-password"`. |
+
+Integración: `inicializar()`, `_irAPaso()`, `siguientePaso(2)`, `validarCodigo()`. Ghost Form TR-31 permanece **después** del éxito en backend.
+
+### Intacto
+
+- CSS stepper radial, header TR-108/109, validaciones blur, Supabase TR-110, directorio TR-111.
+
+### Verificación
+
+- `node -c js/main.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-112 candado antisave en wizard de registro.
+
