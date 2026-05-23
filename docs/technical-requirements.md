@@ -864,3 +864,29 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Colapso Anticipado de Navegación:** El menú horizontal de escritorio `.header__nav-wrapper` colapsará dentro del componente interactivo de hamburguesa `.header__menu-toggle` a partir de viewports inferiores o iguales a 1023px (abarcando vistas de móvil y tablet completa).
 2. **Jerarquía en Bloque Tablet:** En el rango de 768px a 1023px, el contenedor principal del encabezado distribuirá el espacio equitativamente, posicionando el logo a la izquierda, reteniendo los dos botones de acción con texto completo en el bloque derecho, y anexando el gatillo de hamburguesa al extremo final.
 3. **Preservación de Estilos Desktop:** Las vistas de laptop y computadora de escritorio (min-width: 1024px) mantendrán la visualización extendida paralela de la lista de navegación sin alteraciones.
+
+## TR-115: Optimización de Cabecera Móvil y Consistencia Cromática (H4, H7)
+1. **Disponibilidad del Trigger de Consulta:** En pantallas móviles (max-width: 767px), el botón `#btn-consultar-cita-header` o su representación móvil compacta se forzará a estar visible en la barra principal del encabezado.
+2. **Reordenamiento Estructural (Flex-Order):** Se reajustará el orden del flex-box para que los elementos se distribuyan simétricamente de izquierda a derecha: Logotipo ➔ Botón Consultar Cita ➔ Botón de Perfil/Auth Móvil ➔ Control de Hamburguesa.
+3. **Consistencia Cromática de Autenticación:** El botón de acceso móvil (`#btn-auth-mobile` o clase correspondiente) mutará su propiedad de color de fondo (`background-color`), sustituyendo la variable `--action-color` por `--accent-color` para estandarizar la identidad visual de la sesión en toda la MPA.
+
+
+## TR-116: Arquitectura de Tres Bloques Simétricos en Header (min-width: 1024px)
+1. **Layout Unificado en Fila:** El contenedor principal del encabezado (`.header__main-container`) se reconfigurará como un contenedor flex unidimensional rígido en modo fila (`flex-direction: row`).
+2. **Distribución de Impacto Visual:** Se dividirá el espacio horizontal de forma automática en tres zonas aisladas e independientes mediante alineación simétrica:
+   - Extremo Izquierdo: `.header__logo` (Módulo de identidad médica).
+   - Eje Central/Izquierdo: `.header__nav-wrapper` (Menú de enlaces extendido paralelo).
+   - Extremo Derecho: Bloque agrupador de botones de utilidades (`#btn-consultar-cita-header` y `#btn-auth`).
+3. **Preservación Incondicional de Interactividad:** Los botones conservarán sus identidades tipográficas nativas, contrastes WCAG y llamados lógicos funcionales intactos.
+
+
+## TR-117: Layout Ultra-Compacto de Cabecera Móvil en una Sola Fila (max-width: 767px)
+1. **Restricción de Envoltura (No-Wrap):** El contenedor `.header__main-container` en el breakpoint móvil prohibirá la ruptura de línea mediante `flex-wrap: nowrap !important` y `overflow: hidden`.
+2. **Escalado Proporcional:** Para garantizar la coexistencia horizontal de los 4 bloques (Logo, Consultar Cita, Perfil y Hamburguesa), se reducirán los paddings internos y tamaños de fuente de los botones de la cabecera en celulares.
+3. **Estilo del Botón de Consulta Móvil:** El botón `#btn-consultar-cita-header` adaptará su tamaño de forma compacta (paddings reducidos, ej: 6px 12px, y fuente de 0.8rem), asegurando que el texto y el ícono quepan perfectamente en una sola línea sin deformar la altura del header.
+
+
+## TR-118: Ciclo de Vida y Reinicio de Temporizador OTP (Heurística #1, WCAG 2.2.1)
+1. **Clausura de Relojes Huérfanos:** El método `_renovarOTP()` en `js/modulos/registro.js` debe invocar de forma mandatoria la instrucción `clearInterval()` sobre el puntero o ID del temporizador activo antes de iniciar un nuevo ciclo de conteo.
+2. **Restauración de Estado y UI:** Tras limpiar el hilo anterior, re-hidratará la variable de control de tiempo al límite original (120 segundos / 02:00 minutos) e iniciará de forma determinista el bucle cronometrado actualizando el nodo delDOM (`aria-live="polite"`).
+3. **Simulación de Canal Asíncrono:** La función disparará en paralelo la subrutina encargada de refrescar el token OTP simulado y emitir el microcopy de asistencia: "Código reenviado con éxito".
