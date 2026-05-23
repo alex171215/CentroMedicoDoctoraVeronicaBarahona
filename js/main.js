@@ -208,7 +208,7 @@ const app = {
             if (id === 'login-cedula') {
                 val = val.replace(/[^a-zA-Z0-9]/g, '');
             }
-            else if (id === 'widget-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
+            else if (id === 'widget-cedula' || id === 'citas-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
                 val = val.replace(/[^0-9]/g, '');
             }
             else if (id === 'buscador-especialistas' || id.includes('nombre') || id.includes('apellido')) {
