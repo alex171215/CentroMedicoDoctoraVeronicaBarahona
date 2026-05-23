@@ -1226,3 +1226,115 @@ En tablet (768px–1023px), el menú horizontal seguía visible junto al logo y 
 
 ### Estado: ✅ CERRADO — TR-114 breakpoint de navegación en header.
 
+---
+
+## Optimización de Cabecera Móvil y Unificación Cromática TR-115
+
+### Fecha: 2026-05-22
+
+### Objetivo
+
+En `max-width: 767px`, exponer el trigger de consulta de invitados en la barra principal, reordenar el flex del header según la imagen de referencia y alinear el círculo de sesión móvil con el naranja corporativo del botón «Iniciar Sesión» de escritorio (`--accent-color`).
+
+### Cambios (`css/styles.css` únicamente)
+
+| Requisito TR-115 | Implementación |
+|------------------|----------------|
+| Consultar visible | `.header__action-buttons` pasa de `display: none` a `display: flex`; `#btn-auth` sigue oculto en móvil; `#btn-consultar-cita-header` **sin** `display: !important` para respetar el inline style de `iniciarSesionUsuario()` |
+| Flex-order | Logo (1) → CTAs consultar (2) → `#btn-auth-mobile` (3, `margin-left: auto`) → hamburguesa (4) |
+| Formato compacto | Botón secundario reducido (`0.72rem`, `max-width: 118px`); en `≤380px` solo ícono de lupa |
+| Cromática auth móvil | `.auth-mobile-avatar` y `#btn-auth-mobile` en móvil: `--action-color` → `--accent-color` |
+| Páginas sin consultar | `.header__action-buttons:not(:has(#btn-consultar-cita-header))` oculto (`perfil`, `recuperar`) |
+
+### Intacto
+
+- Cero cambios en HTML y JavaScript.
+- IDs, `onclick` y listeners de modal/autenticación preservados.
+- Tablet (768–1023) y desktop (≥1024) sin regresión (reglas TR-114 intactas).
+
+### Verificación (inspector, 320px–767px)
+
+- Invitado: `[Logo][Consultar…][○ perfil][☰]` sin solapamiento.
+- Logueado: consultar oculto por JS; `[Logo][○ perfil][☰]`.
+- Círculo de perfil en naranja `#FDAD34`, coherente con `.btn--accion`.
+
+### Estado: ✅ CERRADO — TR-115 cabecera móvil y color de auth unificados.
+
+---
+
+## Arquitectura de Tres Bloques Simétricos en Header TR-116
+
+### Fecha: 2026-05-22
+
+### Problema
+
+Tras TR-113/TR-114, el encabezado en **≥1024px** quedaba distorsionado: controles móviles intercalados en el DOM, `flex-order` residual y la nav compitiendo con los CTAs por el mismo eje.
+
+### Solución
+
+**HTML (10 páginas MPA)** — Reordenación manual del DOM en `.header__main-container`:
+
+1. `.header__logo`
+2. `.header__nav-wrapper`
+3. `.header__action-buttons` (`#btn-consultar-cita-header` + `#btn-auth`)
+4. `#btn-auth-mobile` + `.header__menu-toggle` (solo móvil/tablet ≤1023px)
+
+**CSS (`styles.css`)** — Bloque `@media (min-width: 1024px)`:
+
+| Zona | Regla |
+|------|--------|
+| Contenedor | `display: flex; flex-direction: row; justify-content: space-between; align-items: center; width: 100%` |
+| Logo | `flex: 0 0 auto` — extremo izquierdo |
+| Nav | `flex: 1 1 auto`, `padding-left` fluido, enlaces `nowrap` — eje central/izquierdo |
+| CTAs | `.header__action-buttons` compacto — extremo derecho |
+| Franja muerta | `.header__top { display: none !important }` |
+| Móvil/tablet | `#btn-auth-mobile`, `.header__menu-toggle` ocultos en desktop |
+
+### Intacto
+
+- JavaScript, IDs, `onclick`, listeners y visibilidad de consultar vía `iniciarSesionUsuario()`.
+- TR-114 (≤1023px hamburguesa) y TR-115 (móvil) sin regresión.
+
+### Verificación
+
+- **1024px+**: una fila limpia — logo | Inicio…Contacto | Consultar + Iniciar Sesión.
+- **768px**: layout tablet TR-114 conservado.
+
+### Estado: ✅ CERRADO — TR-116 header desktop de tres bloques.
+
+---
+
+## Layout Ultra-Compacto de Cabecera Móvil TR-117 (réplica visual 2 filas)
+
+### Fecha: 2026-05-22
+
+### Objetivo visual
+
+Replicar fielmente la maqueta móvil de referencia (WhatsApp): **dos filas** estables, no una sola línea comprimida.
+
+| Fila | Izquierda | Derecha |
+|------|-----------|---------|
+| 1 | Logo + «Centro Médico Familiar / Dra. Verónica Barahona» | `#btn-auth-mobile` (círculo naranja `--accent-color`) |
+| 2 | `#btn-consultar-cita-header` (píldora ancha, borde turquesa `--action-color`, fondo blanco) | `.header__menu-toggle` (barras `--text-main`) |
+
+### Solución (solo `css/styles.css`)
+
+- `.header__main-container` → **CSS Grid** `grid-template-columns: minmax(0, 1fr) auto` × 2 filas.
+- `.header__nav-wrapper` fuera del flujo (`display: none`).
+- Consultar: `width: 100%`, `border-radius: 100px`, `min-height: 44px`, texto e ícono visibles hasta 360px.
+- Perfil: 44×44px, `border-radius: 50%`, `background-color: var(--accent-color)`.
+- Nombre de la doctora en logo: `strong` con `color: var(--action-color)` (turquesa).
+
+### Intacto (blindaje)
+
+- Cero cambios en HTML y JavaScript.
+- Visibilidad de consultar vía `iniciarSesionUsuario()` (sin `display: !important` en el botón).
+- Tablet/desktop sin regresión.
+
+### Verificación (inspector)
+
+- **360px–767px**: rejilla 2×2 como la imagen; sin solapamientos.
+- Invitado: ambas filas completas; logueado: fila 2 oculta el bloque consultar vía `:has(display: none)`.
+
+### Estado: ✅ CERRADO — TR-117 cabecera móvil alineada a maqueta de referencia (2 filas).
+
