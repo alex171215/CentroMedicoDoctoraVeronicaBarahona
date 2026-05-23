@@ -1894,6 +1894,8 @@ export function createCitas() {
         },
 
         async _irAPaso(paso) {
+            this._suppressHistorialPush = true;
+            try {
             const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
 
             if (paso === 0) {
@@ -2022,6 +2024,9 @@ export function createCitas() {
                     return;
                 }
                 await this._irAPaso(2);
+            }
+            } finally {
+                this._suppressHistorialPush = false;
             }
         },
 
