@@ -2954,21 +2954,37 @@ const app = {
                     if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
                 });
 
-            // Sanitización en tiempo real: bloquea espacios al inicio y dobles espacios en campos de texto
+            // Sanitización en tiempo real: bloquea espacios al inicio y dobles espacios en campos de texto.
+            // Usa la misma clase .input-rechazado del sistema para el feedback visual de parpadeo.
             ['edit-nombre1', 'edit-nombre2', 'edit-apellido1', 'edit-apellido2'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el || el.dataset.sanitizadorActivo) return;
                 el.dataset.sanitizadorActivo = '1';
+
+                const _flashRechazado = (inputEl) => {
+                    if (inputEl._rechazadoTimer) clearTimeout(inputEl._rechazadoTimer);
+                    inputEl.classList.add('input-rechazado');
+                    inputEl._rechazadoTimer = setTimeout(() => inputEl.classList.remove('input-rechazado'), 300);
+                };
+
+                // Bloquea espacios al inicio y colapsa dobles espacios → parpadeo si hubo cambio
                 el.addEventListener('input', function () {
-                    const pos = this.selectionStart;
                     const original = this.value;
-                    // No permitir espacio al inicio; colapsar espacios consecutivos
                     const sanitizado = original.replace(/^ +/, '').replace(/ {2,}/g, ' ');
                     if (sanitizado !== original) {
+                        const pos = this.selectionStart;
                         this.value = sanitizado;
-                        // Restaurar posición del cursor ajustada
                         const diff = original.length - sanitizado.length;
                         this.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+                        _flashRechazado(this);
+                    }
+                });
+
+                // Parpadeo al intentar escribir cuando ya se alcanzó el maxlength
+                el.addEventListener('keydown', function (e) {
+                    const max = parseInt(this.getAttribute('maxlength') || '0', 10);
+                    if (max && this.value.length >= max && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        _flashRechazado(this);
                     }
                 });
             });
@@ -3344,6 +3360,10 @@ const app = {
             }
             if (nueva.length < 6) {
                 this._mostrarErrorPass('pass-nueva', 'La contraseña debe tener al menos 6 caracteres.');
+                return;
+            }
+            if (nueva === actual) {
+                this._mostrarErrorPass('pass-nueva', 'La nueva contraseña debe ser diferente a la actual.');
                 return;
             }
             if (!repetir) {
