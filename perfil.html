@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <script>if(localStorage.getItem('usuarioLogueado')==='true')document.documentElement.classList.add('logueado');</script>
+    <script src="js/anti-fouc.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Centro Médico Familiar Dra. Verónica Barahona - Servicios médicos integrales">
     <link rel="icon" type="image/png" href="assets/img/Logo.png">
@@ -362,6 +362,9 @@
             <!-- Cuerpo -->
             <div class="modal-body">
                 <form id="form-cambiar-password" onsubmit="event.preventDefault(); app.perfil.cambiarPasswordUsuario();">
+
+                    <!-- Campo oculto de usuario para el gestor de contraseñas del navegador -->
+                    <input type="text" id="pass-username-hint" style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;overflow:hidden;" autocomplete="username" tabindex="-1" aria-hidden="true" readonly>
 
                     <!-- Campo 1: Contraseña Actual -->
                     <div class="login-field">

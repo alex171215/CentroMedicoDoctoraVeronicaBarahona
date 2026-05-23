@@ -3264,6 +3264,12 @@ const app = {
             if (!modal) return;
             // Limpiar campos y errores al abrir (privacidad + estado limpio)
             this._limpiarModalPassword();
+            // Rellenar el hint de usuario con la cédula para el gestor de contraseñas del navegador
+            try {
+                const u = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+                const hint = document.getElementById('pass-username-hint');
+                if (hint) hint.value = u.cedula || u.identificacion || '';
+            } catch (e) {}
             modal.style.display = 'flex';
             // TR-53: ancla en historial para que Atrás nativo cierre el modal
             history.pushState({ tipo: 'modal', id: 'modal-password' }, '', '#modal');
@@ -3288,6 +3294,8 @@ const app = {
                 const sp = document.getElementById(`${id}-error`);
                 if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
             });
+            const hint = document.getElementById('pass-username-hint');
+            if (hint) hint.value = '';
             // Ocultar mensaje de éxito interno si quedó visible
             const ok = document.getElementById('pass-success-msg');
             if (ok) ok.style.display = 'none';
