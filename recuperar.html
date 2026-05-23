@@ -25,18 +25,6 @@
 
     <!-- Encabezado / Header -->
     <header class="header" role="banner">
-        <div class="header__top">
-            <div class="header__top-container">
-                <div class="header__top-links"></div>
-                <div class="header__top-buttons">
-                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión"
-                        onclick="window.location.href='login.html'">
-                        <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <nav class="header__main" aria-label="Navegación principal">
             <div class="header__main-container">
                 <a href="index.html" class="header__logo" aria-label="Inicio">
@@ -62,6 +50,13 @@
                         <li class="header__nav-item"><a href="citas.html" class="header__nav-link">Agendar Cita</a></li>
                         <li class="header__nav-item"><a href="contacto.html" class="header__nav-link">Contacto</a></li>
                     </ul>
+                </div>
+
+                <div class="header__action-buttons">
+                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión"
+                        onclick="window.location.href='login.html'">
+                        <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
+                    </button>
                 </div>
             </div>
         </nav>
