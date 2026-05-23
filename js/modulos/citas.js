@@ -222,62 +222,46 @@ export function createCitas() {
             }
         },
 
-        // Nueva función auxiliar para obtener la imagen exacta
-        obtenerImagenMedico(nombreMed, especialidad, imgUrl) {
-            if (imgUrl) return imgUrl; // Si ya viene de la tarjeta
+        /**
+         * TR-122 — Slug WebP normalizado (espejo de _generarSlugImagen en app.directorio).
+         * Transforma nombre_completo de Supabase al kebab-case del archivo WebP local.
+         *
+         * Cadena:  toLowerCase → strip prefijo → NFD normalize → strip diacríticos → kebab
+         * @param {string} nombreCompleto  Ej: 'Dra. Verónica Del Pilar Barahona Charfuelan'
+         * @returns {string}               Ej: 'veronica-del-pilar-barahona-charfuelan'
+         */
+        _generarSlugImagenCitas(nombreCompleto) {
+            return String(nombreCompleto || '')
+                .toLowerCase()
+                .replace(/^(dra\.|dr\.|psic\.|lic\.|odont\.)\s+/, '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .replace(/\s+/g, '-');
+        },
 
-            let imagenSrc = "";
-            const nombreLower = (nombreMed || '').toLowerCase();
-            const espLower = (especialidad || '').toLowerCase();
-
-            if (nombreLower.includes('verónica') && nombreLower.includes('barahona')) {
-                imagenSrc = 'assets/img/veronica-barahona.jpg';
-            } else {
-                if (espLower.includes('medicina familiar') || espLower.includes('medico familiar'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('medicina general') || espLower.includes('general'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80';
-                else if (espLower.includes('pediatr'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('odontolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
-                else if (espLower.includes('ginec')) {
-                    if (nombreLower.includes('marcela') && nombreLower.includes('pantoja')) {
-                        imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
-                    } else {
-                        imagenSrc = 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?q=80';
-                    }
-                }
-                else if (espLower.includes('dermatol'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80';
-                else if (espLower.includes('radiolog') || espLower.includes('radiodiagn'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&q=80';
-                else if (espLower.includes('urolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1637059824899-a441006a6875?q=80';
-                else if (espLower.includes('endocrin'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1758691463582-11aea602cd4a?q=80';
-                else if (espLower.includes('traumat') || espLower.includes('ortoped'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1712215544003-af10130f8eb3?q=80';
-                else if (espLower.includes('psicolog'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1661580574627-9211124e5c3f?q=80';
-                else if (espLower.includes('enfermer'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1681996359725-06262b082c27?q=80';
-                else if (espLower.includes('laboratorio'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1682089874677-3eee554feb19?w=600';
-                else
-                    imagenSrc = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80';
-            }
-            return imagenSrc;
+        // TR-122: Alias de compatibilidad — resuelve src WebP; llamado desde _abrirCalendarioMedico
+        // y otros puntos que aún pasan imgUrl por sessionStorage (puede llegar como slug antiguo).
+        // Retorna la ruta WebP local; el onerror en la <img> cubre discrepancias de disco.
+        obtenerImagenMedico(nombreMed) {
+            const slug = this._generarSlugImagenCitas(nombreMed);
+            return 'assets/img/especialistas/webp/' + slug + '.webp';
         },
 
         prepararResumenMedico(medicoNombre, especialidad, imgUrl, idEspecialista) {
             document.getElementById('citas-doctor-name').textContent = medicoNombre;
             document.getElementById('citas-doctor-specialty').textContent = especialidad || '';
-            const imagenCorrecta = this.obtenerImagenMedico(medicoNombre, especialidad, imgUrl);
+            // TR-122: slug WebP dinámico — imgUrl ignorado (ya no contiene rutas Unsplash)
+            const webpSrc = 'assets/img/especialistas/webp/' + this._generarSlugImagenCitas(medicoNombre) + '.webp';
             const imgDoctor = document.getElementById('citas-doctor-img');
             if (imgDoctor) {
                 imgDoctor.loading = 'lazy';
-                imgDoctor.src = imagenCorrecta;
+                imgDoctor.src = webpSrc;
+                // H5 — Prevención de errores: fallback a avatar neutro si el archivo no existe en disco.
+                imgDoctor.onerror = function () {
+                    this.onerror = null;
+                    this.src = 'assets/img/especialistas/placeholder-doctor.webp';
+                };
             }
 
             const db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
@@ -344,12 +328,18 @@ export function createCitas() {
             html += `<div class="specialists-directory-grid">`;
 
             medicos.forEach((med, idx) => {
-                const img = this.obtenerImagenMedico(med.doctor.nombre_completo, med.especialidad, med.imagen_url);
+                // TR-122: slug WebP dinámico para tarjetas del Paso 1 (selección de médico)
+                const slugMed = this._generarSlugImagenCitas(med.doctor.nombre_completo);
+                const imgWebp = 'assets/img/especialistas/webp/' + slugMed + '.webp';
 
                 html += `
                     <div class="doctor-card-dir">
                         <div class="doctor-card-dir__header">
-                            <img src="${img}" alt="${med.doctor.nombre_completo}" class="doctor-card-dir__img" loading="lazy">
+                            <img src="${imgWebp}"
+                                 alt="${med.doctor.nombre_completo}"
+                                 class="doctor-card-dir__img"
+                                 loading="lazy"
+                                 onerror="this.onerror=null; this.src='assets/img/especialistas/placeholder-doctor.webp';">
                         </div>
                         <div class="doctor-card-dir__body">
                             <h3 class="doctor-card-dir__name">${med.doctor.nombre_completo}</h3>

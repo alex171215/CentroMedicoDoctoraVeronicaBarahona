@@ -812,17 +812,19 @@ const app = {
         }
 
 
-        // TR-93 / TR-87: Botón "Consultar Cita" en el header — sincronización global MPA.
-        // El botón #btn-consultar-cita-header existe estáticamente en TODOS los archivos HTML
-        // (index, citas, especialistas, mi-salud, farmacia, contacto, login, registro).
-        // Regla de ocultamiento condicional:
-        //   · usuarioLogueado === 'true'  → display: none   (el usuario ya tiene acceso desde Mi Salud)
-        //   · cualquier otro valor        → display: inline-block  (invitado puede consultar su cita)
-        // Esta función se llama en cada carga de página (init()), garantizando consistencia visual
-        // sin importar qué ruta del MPA esté activa.
+        // TR-93 / TR-87 / TR-124: Botón "Consultar Cita" en el header — sincronización global MPA.
+        // El botón #btn-consultar-cita-header nace visible en el HTML (display:inline-block).
+        // TR-124: JavaScript solo lo oculta si hay sesión activa; jamás lo muestra con retraso.
+        // Regla de ocultamiento condicional (lectura de localStorage, sin esperar Supabase):
+        //   · usuarioLogueado === 'true'  → display: none   (el usuario accede desde Mi Salud)
+        //   · cualquier otro valor        → preservar display:inline-block del HTML estático
         const btnConsultarHeader = document.getElementById('btn-consultar-cita-header');
         if (btnConsultarHeader) {
-            btnConsultarHeader.style.display = (usuarioLogueado === 'true') ? 'none' : 'inline-block';
+            if (usuarioLogueado === 'true') {
+                btnConsultarHeader.style.display = 'none';
+            }
+            // Si NO está logueado: no tocar el display — el HTML ya lo tiene en inline-block.
+            // Esto elimina el lag visual (FOUC) causado por asignar 'inline-block' desde JS.
         }
     },
 
@@ -1302,32 +1304,39 @@ const app = {
             }
         });
 
-        // Mapa de imágenes representativas por especialidad (Unsplash reales y enfocadas)
+        // TR-123: Mapa de imágenes WebP locales — erradicación de peticiones externas (Pexels/Unsplash).
+        // Las imágenes residen en assets/img/carrusel/webp/ y fueron convertidas al 80% de calidad.
         const imagenesEspecialidad = {
-            "MEDICINA FAMILIAR": "https://images.pexels.com/photos/7579831/pexels-photo-7579831.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "MEDICINA GENERAL": "https://images.pexels.com/photos/40568/medical-appointment-doctor-healthcare-40568.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "RADIODIÁGNOSTICO": "https://images.pexels.com/photos/3825527/pexels-photo-3825527.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "DERMATOLOGÍA": "https://images.pexels.com/photos/3762871/pexels-photo-3762871.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "UROLOGÍA": "https://images.pexels.com/photos/6627663/pexels-photo-6627663.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "ENDOCRINOLOGÍA": "https://images.pexels.com/photos/6940861/pexels-photo-6940861.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "TRAUMATOLOGÍA": "https://images.pexels.com/photos/5473182/pexels-photo-5473182.jpeg?auto=compress&cs=tinysrgb&w=600", // Sesión de fisioterapia y rehabilitación
-            "PSICOLOGÍA": "https://images.pexels.com/photos/5699419/pexels-photo-5699419.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "ODONTOLOGÍA": "https://images.pexels.com/photos/3845806/pexels-photo-3845806.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "ENFERMERÍA": "https://images.pexels.com/photos/339620/pexels-photo-339620.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "LABORATORIO": "https://images.pexels.com/photos/2280571/pexels-photo-2280571.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "GINECOLOGÍA": "https://images.pexels.com/photos/3845129/pexels-photo-3845129.jpeg?auto=compress&cs=tinysrgb&w=600" // Doctora revisando vientre/ecografía
+            "MEDICINA FAMILIAR":  "assets/img/carrusel/webp/medicina-familiar.webp",
+            "MEDICINA GENERAL":   "assets/img/carrusel/webp/medicina-general.webp",
+            "RADIODIÁGNOSTICO":   "assets/img/carrusel/webp/radiodiagnostico.webp",
+            "DERMATOLOGÍA":       "assets/img/carrusel/webp/dermatologia.webp",
+            "UROLOGÍA":           "assets/img/carrusel/webp/urologia.webp",
+            "ENDOCRINOLOGÍA":     "assets/img/carrusel/webp/endocrinologia.webp",
+            "TRAUMATOLOGÍA":      "assets/img/carrusel/webp/traumatologia.webp",
+            "PSICOLOGÍA":         "assets/img/carrusel/webp/psicologia.webp",
+            "ODONTOLOGÍA":        "assets/img/carrusel/webp/odontologia.webp",
+            "ENFERMERÍA":         "assets/img/carrusel/webp/enfermeria.webp",
+            "LABORATORIO":        "assets/img/carrusel/webp/laboratorio.webp",
+            "GINECOLOGÍA":        "assets/img/carrusel/webp/ginecologia.webp"
         };
+        const imagenDefault = "assets/img/carrusel/webp/medicina-general.webp";
 
         // 3. Generar HTML Dinámicamente
+        // TR-123: Primera tarjeta → fetchpriority="high" (LCP); siguientes → loading="lazy".
         let html = '';
-        especialidadesUnicas.forEach(esp => {
-            const imagen = imagenesEspecialidad[esp] || "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=500&q=80"; // Imagen por defecto
+        especialidadesUnicas.forEach((esp, idx) => {
+            const imagen = imagenesEspecialidad[esp] || imagenDefault;
+            // Primer elemento visible: carga inmediata con alta prioridad de red (FCP/LCP)
+            const prioridad = idx === 0
+                ? 'fetchpriority="high"'
+                : 'loading="lazy"';
 
             html += `
                 <article class="doctor-card" onclick="app.seleccionarEspecialidad('${esp}')" style="cursor: pointer;" title="Ver especialistas en ${esp}">
                     <div class="doctor-card__img-container" style="position: relative; height: 200px;">
                         <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(59, 73, 163, 0.9), rgba(59, 73, 163, 0.3)); z-index: 1;"></div>
-                        <img src="${imagen}" alt="${esp}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
+                        <img src="${imagen}" alt="${esp}" ${prioridad} style="width: 100%; height: 100%; object-fit: cover;">
                         <h3 style="position: absolute; bottom: 20px; left: 20px; color: #ffffff; z-index: 2; margin: 0; font-size: 1.2rem; font-weight: 700;">${esp}</h3>
                     </div>
                     <div class="doctor-card__content">
@@ -1481,6 +1490,30 @@ const app = {
             });
         },
 
+        /**
+         * TR-121 — Mapeo dinámico WebP por slug de nombre.
+         * Toma el campo nombre_completo que devuelve Supabase y genera
+         * el nombre de archivo correspondiente en assets/img/especialistas/webp/.
+         *
+         * Pasos de transformación:
+         *   1. Minúsculas
+         *   2. Elimina prefijos médicos: 'dra.', 'dr.', 'psic.', 'lic.', 'odont.'
+         *   3. Elimina acentos / diacríticos (NFD + strip combining chars)
+         *   4. Reemplaza espacios por guiones medios
+         *
+         * @param {string} nombreCompleto — Ej: 'Dra. Verónica Del Pilar Barahona Charfuelan'
+         * @returns {string}              — Ej: 'veronica-del-pilar-barahona-charfuelan'
+         */
+        _generarSlugImagen(nombreCompleto) {
+            return String(nombreCompleto || '')
+                .toLowerCase()
+                .replace(/^(dra\.|dr\.|psic\.|lic\.|odont\.)\s+/, '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .replace(/\s+/g, '-');
+        },
+
         _resolverImagenDirectorio(med, nombreMed) {
             let imagenSrc = med.imagen_url;
             if (nombreMed.toLowerCase().includes('verónica') && nombreMed.toLowerCase().includes('barahona')) {
@@ -1529,10 +1562,19 @@ const app = {
             const nombreMed = med.doctor?.nombre_completo || '';
             const imagenSrc = this._resolverImagenDirectorio(med, nombreMed);
 
+            // TR-121: slug WebP dinámico desde nombre_completo de Supabase
+            const slugImagen = this._generarSlugImagen(med.doctor?.nombre_completo || '');
+            const webpSrc = `assets/img/especialistas/webp/${slugImagen}.webp`;
+
             const card = document.createElement('article');
             card.className = 'directory-card';
             card.innerHTML = `  
-                    <img src="${imagenSrc}" alt="${nombreMed}" class="directory-card__img" tabindex="0" loading="lazy">
+                    <img src="${webpSrc}"
+                         alt="${nombreMed}"
+                         class="directory-card__img"
+                         tabindex="0"
+                         loading="lazy"
+                         onerror="this.onerror=null; this.src='assets/img/especialistas/placeholder-doctor.webp';">
                     <h3 class="directory-card__name">${nombreMed}</h3>
                     <p class="directory-card__specialty">${med.especialidad}</p>
                     <button class="btn btn--secundario directory-card__link" aria-label="Ver perfil de ${nombreMed}">Ver perfil y servicios</button>
@@ -1594,53 +1636,17 @@ const app = {
             document.getElementById('modal-doc-name').textContent = medico.doctor.nombre_completo || 'Médico';
             document.getElementById('modal-doc-specialty').textContent = medico.especialidad || '';
 
-            // Imagen del Modal
-            const imgModal = document.getElementById('modal-doc-img');
+            // Imagen del Modal — TR-122: WebP dinámico via _generarSlugImagen (H4 + H5)
             const nombreMed = medico.doctor.nombre_completo || '';
-            let imagenSrc = medico.imagen_url;
-
-            if (nombreMed.toLowerCase().includes('verónica') && nombreMed.toLowerCase().includes('barahona')) {
-                imagenSrc = 'assets/img/veronica-barahona.jpg'; // Imagen específica guardada localmente
-            } else if (!imagenSrc) {
-                const espLower = medico.especialidad.toLowerCase(); // <-- CORREGIDO: "medico", no "med"
-                if (espLower.includes('medicina familiar') || espLower.includes('medico familiar'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('medicina general') || espLower.includes('general'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80';
-                else if (espLower.includes('pediatr'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('odontolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
-                else if (espLower.includes('ginec')) {
-                    if (nombreMed.toLowerCase().includes('marcela') && nombreMed.toLowerCase().includes('pantoja')) {
-                        imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
-                    } else {
-                        imagenSrc = 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?q=80';
-                    }
-                }
-                else if (espLower.includes('dermatol'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80';
-                else if (espLower.includes('radiolog') || espLower.includes('radiodiagn'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&q=80';
-                else if (espLower.includes('urolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1637059824899-a441006a6875?q=80';
-                else if (espLower.includes('endocrin'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1758691463582-11aea602cd4a?q=80';
-                else if (espLower.includes('traumat') || espLower.includes('ortoped'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1712215544003-af10130f8eb3?q=80';
-                else if (espLower.includes('psicolog'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1661580574627-9211124e5c3f?q=80';
-                else if (espLower.includes('enfermer'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1681996359725-06262b082c27?q=80';
-                else if (espLower.includes('laboratorio'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1682089874677-3eee554feb19?w=600';
-                else
-                    imagenSrc = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80'; // fallback genérico
-            }
-
+            const imgModal = document.getElementById('modal-doc-img');
             if (imgModal) {
+                const slugModal = this._generarSlugImagen(nombreMed);
                 imgModal.loading = 'lazy';
-                imgModal.src = imagenSrc;
+                imgModal.src = 'assets/img/especialistas/webp/' + slugModal + '.webp';
+                imgModal.onerror = function () {
+                    this.onerror = null;
+                    this.src = 'assets/img/especialistas/placeholder-doctor.webp';
+                };
             }
 
             const list = document.getElementById('modal-doc-activities');
