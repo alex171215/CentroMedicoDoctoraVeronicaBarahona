@@ -1398,3 +1398,34 @@ Cumplir WCAG 2.1.1 (teclado) y H7: la tecla **Enter** en campos clave ejecuta la
 
 ### Estado: ✅ CERRADO — TR-119 aceleradores Enter en widget, citas paso 3 y login.
 
+---
+
+## Aislamiento de Modales y Estabilidad de Header TR-120
+
+### Fecha: 2026-05-23
+
+### Problemas Reportados
+
+1. **Bug 1 (Modal Consulta Invitado):** Al cerrar el modal `#modal-consulta-invitado`, se disparaba un evento de navegación que alteraba el estado del wizard de citas (retrocedía un paso).
+2. **Bug 2 (Menú de Navegación):** El menú principal (`.header__nav-list`) desapareció por completo del header en las resoluciones de escritorio y tablet.
+
+### Solución
+
+**Fijación del Modal (`js/main.js`):**
+
+- **Eliminación de `history.back()`:** En la función `cerrarModalConsulta()`, se removió la llamada condicional a `history.back()`. Anteriormente, esta llamada disparaba el manejador global `popstate`, el cual a su vez invocaba `app.citas.irAtras()` e interfería con el formulario multi-paso.
+- **Eliminación de `history.pushState()`:** De manera simétrica, se retiró el `history.pushState()` en `abrirModalConsulta()` para evitar dejar entradas huérfanas en el historial del navegador.
+- El cierre del modal ahora es puramente atómico y visual (añadiendo la clase `.hidden` y `style.display = 'none'`), preservando el estado de la Single Page Application sin afectar el flujo de la sesión activa.
+
+**Fijación del Menú (`css/styles.css`):**
+
+- **Corrección de la Cascada CSS:** El selector base `.header__nav-wrapper` (línea 841) definía `display: none` globalmente, sobrescribiendo (por orden de fuente y misma especificidad) la regla de despliegue en bloque para escritorio (`@media (min-width: 1024px)`).
+- **Alcance de la Regla:** La ocultación por defecto `display: none` se reubicó exclusivamente dentro del bloque `@media (max-width: 1023px)`, asegurando que en dispositivos móviles y tabletas el menú permanezca oculto hasta que el usuario accione el botón "hamburguesa" (agregando la clase `.active`), y que en pantallas grandes el menú flex fluya correctamente según su propio media query.
+
+### Verificación
+
+- `node -c js/main.js` → 0 errores de sintaxis.
+- La navegación en escritorio muestra el menú correctamente.
+- Cerrar el modal `#modal-consulta-invitado` ya no desencadena eventos de retroceso en la historia del navegador ni afecta al wizard de citas.
+
+### Estado: ✅ CERRADO — TR-120 aislamiento de modal de invitado y visibilidad responsiva de la navegación.
