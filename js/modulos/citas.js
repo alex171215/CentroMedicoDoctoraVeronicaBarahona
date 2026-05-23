@@ -531,11 +531,12 @@ export function createCitas() {
                     this._sincronizarEtiquetaVolverPaso4();
                 } else {
                     // Si no hay datos, volver al paso 2 por seguridad
+                    const _prevSuppress = this._suppressHistorialPush;
                     this._suppressHistorialPush = true;
                     try {
                         this.mostrarPaso(2);
                     } finally {
-                        this._suppressHistorialPush = false;
+                        this._suppressHistorialPush = _prevSuppress;
                     }
                     return;
                 }

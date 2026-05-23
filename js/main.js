@@ -4016,10 +4016,6 @@ const app = {
             sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
             sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
             app.navegar('citas');
-            setTimeout(() => {
-                // TR-86: posicionarse en Paso 2 (Calendario) ya con el médico preseleccionado.
-                app.citas.mostrarPaso(2);
-            }, 100);
         },
 
         _normalizarCitaInvitado(idStr) {
