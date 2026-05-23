@@ -256,11 +256,13 @@ export function createCitas() {
             const imgDoctor = document.getElementById('citas-doctor-img');
             if (imgDoctor) {
                 imgDoctor.loading = 'lazy';
+                imgDoctor.style.objectPosition = 'top center';
                 imgDoctor.src = webpSrc;
                 // H5 — Prevención de errores: fallback a avatar neutro si el archivo no existe en disco.
                 imgDoctor.onerror = function () {
                     this.onerror = null;
-                    this.src = 'assets/img/especialistas/placeholder-doctor.webp';
+                    this.style.objectPosition = '50% 50%';
+                    this.src = 'assets/img/especialistas/webp/placeholder-doctor.webp';
                 };
             }
 
