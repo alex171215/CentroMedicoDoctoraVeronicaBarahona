@@ -851,3 +851,16 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-112: Control del Credential Management Prompt en Wizards Multi-paso (H5 - Prevención de Errores)
 1. **Neutralización de Heurísticas de Ocultamiento:** Se prohibirá que el campo de contraseña del formulario de registro permanezca expuesto como un input activo de tipo credencial nativa mientras ocurren transiciones de visibilidad entre pasos intermedios.
 2. **Mutación Dinámica en Commit Point:** El campo de entrada de la contraseña se manejará dinámicamente en `js/modulos/registro.js` (o archivo de autenticación). Sus propiedades nativas de guardado o su tipo `type="password"` solo se activarán mediante JavaScript en el milisegundo previo a la ejecución de la promesa final de inserción en la base de datos, impidiendo que el navegador dispare el aviso de gestión de credenciales al cambiar del Paso 2 al Paso 3.
+
+
+## TR-113: Línea de Navegación Unificada en Escritorio y Tablet (min-width: 768px)
+1. **Clausura de la Franja Superior:** La sección `.header__top` se configurará con `display: none !important` en viewports superiores o iguales a 768px para erradicar espacios en blanco redundantes.
+2. **Coexistencia en Bloque Principal:** El contenedor de botones `#btn-consultar-cita-header` y `#btn-auth` se integrará directamente al extremo derecho del `.header__main-container`.
+3. **Flujo de Alineación Flexbox:** Se aplicará `display: flex; justify-content: space-between; align-items: center;` sobre el contenedor principal del cabezal, desplazando la lista de navegación hacia la izquierda y reteniendo los disparadores interactivos a la derecha de manera simétrica.
+4. **Preservación Completa de Identidades:** Queda prohibido alterar los ID de los botones o modificar sus listeners internos de JavaScript (`abrirModalConsulta()`), salvaguardando la operatividad omnipresente lograda en las sesiones previas.
+
+
+## TR-114: Ajuste Adaptativo del Breakpoint de Navegación (Heurística #4 y #8)
+1. **Colapso Anticipado de Navegación:** El menú horizontal de escritorio `.header__nav-wrapper` colapsará dentro del componente interactivo de hamburguesa `.header__menu-toggle` a partir de viewports inferiores o iguales a 1023px (abarcando vistas de móvil y tablet completa).
+2. **Jerarquía en Bloque Tablet:** En el rango de 768px a 1023px, el contenedor principal del encabezado distribuirá el espacio equitativamente, posicionando el logo a la izquierda, reteniendo los dos botones de acción con texto completo en el bloque derecho, y anexando el gatillo de hamburguesa al extremo final.
+3. **Preservación de Estilos Desktop:** Las vistas de laptop y computadora de escritorio (min-width: 1024px) mantendrán la visualización extendida paralela de la lista de navegación sin alteraciones.

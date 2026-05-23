@@ -1143,3 +1143,86 @@ Integración: `inicializar()`, `_irAPaso()`, `siguientePaso(2)`, `validarCodigo(
 
 ### Estado: ✅ CERRADO — TR-112 candado antisave en wizard de registro.
 
+---
+
+## Línea de Navegación Unificada y Consolidación del App Shell TR-113
+
+### Fecha: 2026-05-22
+
+### Objetivo
+
+Unificar el cabezal en **una sola fila** en tablet y escritorio (`min-width: 768px`), según la imagen de referencia y TR-113: logo a la izquierda, enlaces de navegación en zona central-izquierda, y los CTAs `#btn-consultar-cita-header` + `#btn-auth` al extremo derecho de `.header__main-container`.
+
+### Cambios HTML (10 páginas MPA)
+
+| Archivo | Botones reubicados |
+|---------|-------------------|
+| `index.html`, `citas.html`, `especialistas.html`, `mi-salud.html`, `farmacia.html`, `contacto.html`, `login.html`, `registro.html` | Consultar Cita + Iniciar Sesión |
+| `perfil.html`, `recuperar.html` | Solo `#btn-auth` (sin consulta invitado) |
+
+- Se eliminó el bloque `.header__top` del DOM (ya no contenía nodos útiles tras la migración).
+- Los botones se inyectaron en `<div class="header__action-buttons">` inmediatamente después de `.header__nav-wrapper`.
+- **Sin cambios** en IDs, clases funcionales, `onclick` ni atributos `aria-*` de los botones.
+
+### Cambios CSS (`css/styles.css`)
+
+| Regla TR-113 | Implementación |
+|--------------|----------------|
+| Clausura franja superior | `.header__top { display: none !important; }` en `min-width: 768px` (residual por si reaparece en HTML) |
+| Flex principal | `.header__main-container`: `display: flex; justify-content: space-between; align-items: center; width: 100%` |
+| Nav desplazada | `.header__nav-wrapper`: `flex: 1`, `justify-content: flex-start`, `padding-left` fluido |
+| CTAs derecha | `.header__action-buttons`: `flex-shrink: 0`, oculto en móvil (`max-width: 767px`) |
+| Logo en línea única | Se neutralizó el desplazamiento negativo TR-109 (`margin-top` / `transform`) en ≥768px |
+
+### Intacto (blindaje)
+
+- `js/main.js`, `js/modulos/citas.js` — **cero modificaciones**.
+- Lógica de visibilidad de `#btn-consultar-cita-header` vía `iniciarSesionUsuario()` y TR-74/87.
+- Autenticación móvil: `#btn-auth-mobile` + ocultamiento de `#btn-auth` en `<768px`.
+
+### Verificación estructural
+
+- Las 10 páginas HTML incluyen `header__action-buttons` con paridad de IDs.
+- Ningún archivo conserva `header__top` en el marcado.
+- Móvil: menú hamburguesa + avatar; escritorio/tablet: fila única sin espacio muerto superior.
+
+### Estado: ✅ CERRADO — TR-113 línea de navegación unificada en App Shell MPA.
+
+---
+
+## Optimización de Espacio Responsivo y Ajuste de Breakpoint en Header TR-114
+
+### Fecha: 2026-05-22
+
+### Problema
+
+En tablet (768px–1023px), el menú horizontal seguía visible junto al logo y los CTAs, provocando colisión y solapamiento de textos tras TR-113. El colapso a hamburguesa solo ocurría por debajo de 768px.
+
+### Solución (solo `css/styles.css`)
+
+| Rango | Comportamiento |
+|-------|----------------|
+| **≤1023px** (móvil + tablet) | `.header__menu-toggle` visible (`display: flex`); `.header__nav-wrapper` oculto salvo `.active` (panel vertical absoluto, misma UX que móvil). |
+| **768px–1023px** (tablet) | Flex `order`: logo (1) → CTAs con `margin-left: auto` (3) → hamburguesa (4). Botones `#btn-consultar-cita-header` y `#btn-auth` visibles con texto compacto (`0.82rem`, padding reducido). |
+| **≥1024px** (desktop) | `.header__menu-toggle { display: none !important }`; `.header__nav-wrapper` en fila horizontal con `flex: 1` (reglas TR-113/114). |
+
+### Reglas clave
+
+- Breakpoint de colapso desplazado de `767px` → `1023px` para toggle, nav oculta y menú `.active`.
+- Breakpoint de nav horizontal desplazado de `768px` → `1024px`.
+- Bloque tablet `768px–1023px` sustituye el antiguo `768px–1024px` orientado a enlaces horizontales (eliminado para evitar reglas obsoletas).
+
+### Intacto (blindaje)
+
+- Cero cambios en HTML y JavaScript (`main.js`, `citas.js`).
+- TR-74: `#btn-auth` oculto solo en `<768px`; visible en tablet con óvalo desktop.
+- `#btn-auth-mobile` oculto desde `768px` (sin cambio).
+- Listener de hamburguesa y clase `.active` sin modificar.
+
+### Verificación (inspector)
+
+- **768px**: fila `[Logo] … [Consultar Cita][Iniciar Sesión] [☰]` sin solapamiento; nav horizontal ausente; panel vertical al pulsar hamburguesa.
+- **1024px**: nav horizontal restaurada; hamburguesa ausente; CTAs al extremo derecho.
+
+### Estado: ✅ CERRADO — TR-114 breakpoint de navegación en header.
+

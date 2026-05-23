@@ -25,20 +25,6 @@
 
     <!-- Encabezado / Header -->
     <header class="header" role="banner">
-        <!-- Barra superior -->
-        <div class="header__top">
-            <div class="header__top-container">
-                <div class="header__top-links">
-                </div>
-                <div class="header__top-buttons">
-                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display: inline-block;" onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita</button>
-                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
-                        <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- Navegación principal -->
         <nav class="header__main" aria-label="Navegación principal">
             <div class="header__main-container">
@@ -67,6 +53,13 @@
                         <li class="header__nav-item"><a href="citas.html" class="header__nav-link header__nav-link--active" aria-current="page" onclick="event.preventDefault(); app.agendarCitaGeneral();">Agendar Cita</a></li>
                         <li class="header__nav-item"><a href="contacto.html" class="header__nav-link">Contacto</a></li>
                     </ul>
+                </div>
+
+                <div class="header__action-buttons">
+                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display: inline-block;" onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita</button>
+                    <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
+                        <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
+                    </button>
                 </div>
             </div>
         </nav>
