@@ -3923,10 +3923,10 @@ const app = {
 
             if (!esCancelada) {
                 html += `<div class="cita-docs" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-                            <button class="btn btn--documento btn--imprimir" data-id="${idCitaEstable}" onclick="app.widgetInvitado.imprimirCitaInvitado('${idCitaEstable}')">
+                            <button class="btn btn--documento btn--imprimir" data-id="${idCitaEstable}" type="button">
                                 <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
                             </button>
-                            <button class="btn btn--documento btn--descargar-pdf" data-id="${idCitaEstable}" onclick="app.widgetInvitado.descargarPDFCitaInvitado('${idCitaEstable}')">
+                            <button class="btn btn--documento btn--descargar-pdf" data-id="${idCitaEstable}" type="button">
                                 <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
                             </button>
                         </div>`;
