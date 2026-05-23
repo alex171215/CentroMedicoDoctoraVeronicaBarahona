@@ -5936,3 +5936,74 @@ a[href^="mailto:"]:focus-visible,
     border: none !important;
     opacity: 1 !important;
 }
+/* ── Modal Especialista: layout columna centrado, responsivo ── */
+#modal-especialista .modal-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 4px;
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid #eef1f4;
+    margin-bottom: 0 !important;
+}
+
+#modal-especialista #modal-doc-img {
+    object-position: 50% 20%;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+#modal-especialista #modal-doc-name {
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+#modal-especialista #modal-doc-specialty {
+    color: #0DA99F;
+    font-size: 0.82rem;
+    letter-spacing: 0.6px;
+    margin-bottom: 0 !important;
+}
+
+#modal-especialista .modal-body {
+    padding: 20px 24px;
+}
+
+#modal-especialista .modal-content {
+    overflow: hidden;
+}
+
+@media (max-width: 600px) {
+    #modal-especialista .modal-content {
+        width: 95%;
+        padding: 0;
+        max-width: 100%;
+        margin: 0 10px;
+    }
+    #modal-especialista .modal-header {
+        padding: 22px 18px 16px;
+    }
+    #modal-especialista #modal-doc-img {
+        width: 88px !important;
+        height: 88px !important;
+    }
+    #modal-especialista #modal-doc-name {
+        font-size: 1.1rem !important;
+    }
+    #modal-especialista .modal-body {
+        padding: 16px 18px;
+    }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+    #modal-especialista .modal-content {
+        width: 80%;
+        max-width: 480px;
+    }
+    #modal-especialista #modal-doc-img {
+        width: 104px !important;
+        height: 104px !important;
+    }
+}

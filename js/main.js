@@ -1605,16 +1605,18 @@ const app = {
             document.getElementById('modal-doc-name').textContent = medico.doctor.nombre_completo || 'Médico';
             document.getElementById('modal-doc-specialty').textContent = medico.especialidad || '';
 
-            // Imagen del Modal — TR-122: WebP dinámico via _generarSlugImagen (H4 + H5)
+            // Imagen del Modal — thumbnails 200×200 de alta calidad
             const nombreMed = medico.doctor.nombre_completo || '';
             const imgModal = document.getElementById('modal-doc-img');
             if (imgModal) {
                 const slugModal = this._generarSlugImagen(nombreMed);
                 imgModal.loading = 'lazy';
-                imgModal.src = 'assets/img/especialistas/webp/' + slugModal + '.webp';
+                imgModal.style.objectPosition = '50% 20%';
+                imgModal.src = 'assets/img/especialistas/thumbs/' + slugModal + '.webp';
                 imgModal.onerror = function () {
                     this.onerror = null;
-                    this.src = 'assets/img/especialistas/placeholder-doctor.webp';
+                    this.style.objectPosition = '50% 50%';
+                    this.src = 'assets/img/especialistas/thumbs/placeholder-doctor.webp';
                 };
             }
 
