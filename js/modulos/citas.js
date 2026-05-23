@@ -3830,6 +3830,23 @@ export function createCitas() {
             }
         },
 
+        /** TR-119: Enter en el paso de identificación emula clic en Siguiente. */
+        _configurarAceleradoresEnterTR119() {
+            const btnId = 'btn-citas-siguiente';
+            ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el || el.dataset.tr119Enter === '1') return;
+                el.dataset.tr119Enter = '1';
+                el.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    const btn = document.getElementById(btnId);
+                    if (!btn || btn.style.pointerEvents === 'none') return;
+                    btn.click();
+                });
+            });
+        },
+
         configurarValidadores() {
             const config = [
                 { id: 'citas-nombres', err: 'error-nombres' },
@@ -3874,6 +3891,7 @@ export function createCitas() {
                 });
             });
 
+            this._configurarAceleradoresEnterTR119();
             this.actualizarEstadoBotonSiguiente();
         },
 

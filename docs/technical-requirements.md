@@ -890,3 +890,9 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Clausura de Relojes Huérfanos:** El método `_renovarOTP()` en `js/modulos/registro.js` debe invocar de forma mandatoria la instrucción `clearInterval()` sobre el puntero o ID del temporizador activo antes de iniciar un nuevo ciclo de conteo.
 2. **Restauración de Estado y UI:** Tras limpiar el hilo anterior, re-hidratará la variable de control de tiempo al límite original (120 segundos / 02:00 minutos) e iniciará de forma determinista el bucle cronometrado actualizando el nodo delDOM (`aria-live="polite"`).
 3. **Simulación de Canal Asíncrono:** La función disparará en paralelo la subrutina encargada de refrescar el token OTP simulado y emitir el microcopy de asistencia: "Código reenviado con éxito".
+
+
+## TR-119: Aceleradores de Teclado y Accesibilidad Operable (H7, WCAG 2.1.1)
+1. **Intercepción del Evento Enter:** Se capturará de forma explícita el evento nativo `keydown` en los campos de entrada clave (`#widget-cedula`, `#widget-codigo-cita`, `#login-cedula`, y el formulario del paso 3 de citas).
+2. **Disparo de Acción Principal:** Al detectar que `e.key === 'Enter'`, el sistema prevendrá el comportamiento por defecto (`e.preventDefault()`) para evitar recargas completas de la MPA y ejecutará programáticamente un `.click()` sobre el botón de acción principal asociado o invocará directamente su método ejecutor.
+3. **Preservación de Foco e Inmutabilidad:** Esta captura por teclado coexistirá pacíficamente con las validaciones de error diferidas en el evento `blur` (TR-107) y las limpiezas en el evento `input`, sin alterar el ciclo de vida del DOM.

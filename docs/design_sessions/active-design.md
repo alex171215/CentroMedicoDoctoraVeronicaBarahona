@@ -1338,3 +1338,63 @@ Replicar fielmente la maqueta móvil de referencia (WhatsApp): **dos filas** est
 
 ### Estado: ✅ CERRADO — TR-117 cabecera móvil alineada a maqueta de referencia (2 filas).
 
+---
+
+## Estabilización del Reenvío de OTP y Control de Fuga de Intervalos TR-118
+
+### Fecha: 2026-05-22
+
+### Problema
+
+`_renovarOTP()` en `app.registro` reiniciaba el contador con `setInterval` sin garantizar `clearInterval` previo, usaba **60 s** en lugar del límite de **120 s (02:00)**, mostraba `alert()` en vez del canal EmailJS y no emitía el microcopy «Código reenviado con éxito». Múltiples clics podían dejar relojes huérfanos acelerando la UI (Heurística #1 / WCAG 2.2.1).
+
+### Solución
+
+**Nuevo módulo** `js/modulos/registro.js` — exporta `registroOtpControl` mezclado en `app.registro` vía spread en `js/main.js` (sin tocar header, stepper ni Supabase).
+
+| Método TR-118 | Comportamiento |
+|---------------|----------------|
+| `_renovarOTP()` | `clearInterval(this._countdownInterval)` → `_refrescarCodigoOTPSimulado()` → `_mostrarMicrocopyReenvioExito()` → `_iniciarCountdown(120)` |
+| `_iniciarCountdown(seg)` | Limpia intervalo previo; restaura `#reg-resend-txt` con `#reg-countdown` y `aria-live="polite"`; oculta enlace hasta `00:00` |
+| `_refrescarCodigoOTPSimulado()` | OTP 6 dígitos + EmailJS en paralelo (mismo contrato TR-40/41 que el paso 3) |
+| `_mostrarMicrocopyReenvioExito()` | `#reg-otp-reenvio-feedback` con `role="status"` y texto «Código reenviado con éxito» (4 s) |
+
+### Intacto
+
+- Header TR-117, stepper radial TR-106, `validarCodigo()` / `registrarPacienteCondicionalTR110`, `_emitirOTPAlEntrarPaso3()` (sigue usando 90 s en el primer envío del paso 3).
+
+### Verificación
+
+- `node -c js/modulos/registro.js` → 0 errores.
+- `node --check js/main.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-118 reenvío OTP sin fugas de intervalo.
+
+---
+
+## Implementación de Aceleradores de Teclado y Accesibilidad Operable TR-119
+
+### Fecha: 2026-05-22
+
+### Objetivo
+
+Cumplir WCAG 2.1.1 (teclado) y H7: la tecla **Enter** en campos clave ejecuta la acción principal sin recargar la MPA, coexistiendo con validaciones `blur` (TR-98/TR-99) y sanitización `input`.
+
+### Cambios
+
+| Ámbito | Archivo | Implementación |
+|--------|---------|----------------|
+| Widget invitado | `js/main.js` | `_enlazarEnterWidgetTR119()` en `_bindVistaA()` para `#widget-cedula` y `#widget-codigo-cita` (si existe) → `preventDefault` + `#btn-consultar-cita.click()` |
+| Paso 3 citas | `js/modulos/citas.js` | `_configurarAceleradoresEnterTR119()` al final de `configurarValidadores()` en `#citas-nombres`, `#citas-cedula`, `#citas-celular` → `#btn-citas-siguiente.click()` si el botón no está bloqueado (`pointer-events`) |
+| Login | `js/main.js` → `app.login` | Enter en `#login-cedula` y `#login-password` → `#login-submit-btn.click()` (reemplaza el bloqueo que solo hacía `preventDefault`) |
+
+### Intacto
+
+- Validaciones `blur`, `_limpiarEstadoVisualInputTR99`, Supabase, purga de rutas, header, stepper radial, OTP TR-118.
+
+### Verificación
+
+- `node -c js/modulos/citas.js` y `node --check js/main.js` → 0 errores.
+
+### Estado: ✅ CERRADO — TR-119 aceleradores Enter en widget, citas paso 3 y login.
+
