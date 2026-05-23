@@ -3761,8 +3761,8 @@ const app = {
                 this._cedulaConsultada = cedula;
 
                 if (resultados.length === 1 || isAutoConsulta) {
-                    const citaAMostrar = isAutoConsulta && this._pendingDetailId 
-                        ? resultados.find(c => c.id_cita === this._pendingDetailId) || resultados[0] 
+                    const citaAMostrar = isAutoConsulta && this._pendingDetailId
+                        ? resultados.find(c => String(c.id_cita) === String(this._pendingDetailId)) || resultados[0]
                         : resultados[0];
                     // TR-85: Guardar el estado de la cita antes de pintar Vista C
                     this._citaActivaId = citaAMostrar.id_cita;

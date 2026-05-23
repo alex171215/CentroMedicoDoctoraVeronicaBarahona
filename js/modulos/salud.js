@@ -418,7 +418,10 @@ export const salud = {
         }
 
         if (!cita) {
-            cita = estado.citas.find(c => c.id === idStr || c.id === idNum || c._id === idStr);
+            cita = estado.citas.find(c =>
+                String(c.id_cita ?? '') === idStr ||
+                c.id === idStr || c.id === idNum || c._id === idStr
+            );
         }
         if (!cita) return;
 

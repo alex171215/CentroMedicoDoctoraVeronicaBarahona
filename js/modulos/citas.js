@@ -425,6 +425,15 @@ export function createCitas() {
 
             this.actualizarBarraProgreso();
 
+            // Al mostrar el paso 5, actualizar label/aria del botón primario según sesión real en ese momento.
+            if (nuevoPaso === 5) {
+                const btnP5 = document.querySelector('[data-citas-salida="primario"]');
+                const lblP5 = btnP5?.querySelector('[data-citas-salida-label]');
+                const esReg5 = localStorage.getItem('usuarioLogueado') === 'true';
+                if (btnP5) btnP5.setAttribute('aria-label', esReg5 ? 'Ir a Mi Salud para ver tus citas agendadas' : 'Ver el detalle de tu cita en la consulta para invitados');
+                if (lblP5) lblP5.textContent = esReg5 ? 'Ir a Mis Citas' : 'Ver mi cita';
+            }
+
             // --- INSERCIÓN: Auto-Completado para Recuperación de Errores (Heurística Nielsen) ---
             // --- INSERCIÓN: Auto-Completado tras recuperación de error ---
             if (nuevoPaso === 3) {
@@ -907,17 +916,11 @@ export function createCitas() {
             window.location.href = 'index.html';
         },
 
-        /** TR-20 / TR-22: salidas del paso 5; primario depende de sesión (Mi Salud vs deep link invitado). */
+        /** TR-20 / TR-22: salidas del paso 5; primario depende de sesión al momento del click (Mi Salud vs deep link invitado). */
         _montarSalidasPaso5() {
             const wrap = document.querySelector('#citas-step-5 .comprobante-botones');
             if (!wrap || wrap.dataset.salidasPaso5Bound === '1') return;
             wrap.dataset.salidasPaso5Bound = '1';
-
-            const esRegistrado = localStorage.getItem('usuarioLogueado') === 'true';
-            const labelPrimario = esRegistrado ? 'Ir a Mis Citas' : 'Ver mi cita';
-            const ariaPrimario = esRegistrado
-                ? 'Ir a Mi Salud para ver tus citas agendadas'
-                : 'Ver el detalle de tu cita en la consulta para invitados';
 
             const limpiarYNavegar = (href) => {
                 this.limpiarSessionFlujoCitas(false);
@@ -927,7 +930,7 @@ export function createCitas() {
             wrap.innerHTML = `
                 <div class="citas-exito-salidas" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:12px;">
                     <button type="button" class="btn btn--primario" data-citas-salida="primario">
-                        <i class="fa-solid fa-notes-medical" aria-hidden="true"></i> ${labelPrimario}
+                        <i class="fa-solid fa-notes-medical" aria-hidden="true"></i> <span data-citas-salida-label>Ver mi cita</span>
                     </button>
                     <button type="button" class="btn btn--secundario" data-citas-salida="inicio" aria-label="Volver a la página de inicio">
                         <i class="fa-solid fa-house" aria-hidden="true"></i> Volver al Inicio
@@ -944,10 +947,24 @@ export function createCitas() {
             `;
 
             const btnPrim = wrap.querySelector('[data-citas-salida="primario"]');
-            if (btnPrim) btnPrim.setAttribute('aria-label', ariaPrimario);
+            const labelSpan = wrap.querySelector('[data-citas-salida-label]');
+
+            // Actualizar label e aria del botón primario según estado de sesión actual (en el momento de mostrar paso 5).
+            const _actualizarLabelBtnPrimario = () => {
+                const esReg = localStorage.getItem('usuarioLogueado') === 'true';
+                if (btnPrim) {
+                    btnPrim.setAttribute('aria-label', esReg
+                        ? 'Ir a Mi Salud para ver tus citas agendadas'
+                        : 'Ver el detalle de tu cita en la consulta para invitados');
+                }
+                if (labelSpan) labelSpan.textContent = esReg ? 'Ir a Mis Citas' : 'Ver mi cita';
+            };
+            _actualizarLabelBtnPrimario();
 
             btnPrim?.addEventListener('click', (e) => {
                 e.preventDefault();
+                // Re-evaluar sesión en el momento del click (no en el momento del montaje).
+                const esRegistrado = localStorage.getItem('usuarioLogueado') === 'true';
                 if (esRegistrado) {
                     // TR-24 / TR-55: persistir id antes de limpiar sesión del flujo.
                     // sanitas_abrir_detalle_id → consumido por salud.js (TR-24)
@@ -2577,6 +2594,9 @@ export function createCitas() {
                                 id_especialista: idEspUpd,
                                 cedula_paciente: String(filaPac.cedula || cita.cedula || cita.cedula_paciente || '').trim()
                             });
+                            // Propagar el id real de la cita modificada para que resumenTicketConfirmado lo tenga correcto.
+                            cita.id_cita = realId;
+                            cita.id = realId;
 
                             let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
                             const indexH = historial.findIndex(h => (h.id || h._id) === realId || h.id_cita === realId);
