@@ -4092,7 +4092,14 @@ const app = {
             this.cerrarModalConsulta();
             sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
             sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
-            app.navegar('citas');
+
+            // Si el usuario ya está en citas.html, navegar() no actúa (mismo pathname).
+            // En ese caso iniciamos el flujo directamente sin recargar la página.
+            if (document.getElementById('view-citas') && typeof app.citas?.iniciarFlujo === 'function') {
+                void app.citas.iniciarFlujo();
+            } else {
+                app.navegar('citas');
+            }
         },
 
         _normalizarCitaInvitado(idStr) {

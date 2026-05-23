@@ -426,6 +426,19 @@ export function createCitas() {
         mostrarPaso(nuevoPaso) {
             // Limpiar campos del paso 3 al salir de él hacia cualquier otro paso.
             if (this.pasoActual === 3 && nuevoPaso !== 3) {
+                // Si avanza hacia adelante (paso 4+), guardar los datos antes de limpiar
+                // para que al volver al paso 3 los campos sigan llenos.
+                if (nuevoPaso > 3) {
+                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
+                    if (nom || ced || cel) {
+                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                    }
+                } else {
+                    // Si retrocede (hacia paso 2 o anterior), descartar datos guardados.
+                    sessionStorage.removeItem('citas_paso3_retorno');
+                }
                 this._limpiarCamposPaso3();
             }
 
@@ -473,6 +486,22 @@ export function createCitas() {
                         // Consumir el dato para que no quede residual
                         sessionStorage.removeItem('temp_datos_recuperacion');
                     } catch (e) { }
+                } else {
+                    // Restaurar campos si el usuario volvió desde el paso 4 (navegación hacia atrás).
+                    const retornoData = sessionStorage.getItem('citas_paso3_retorno');
+                    if (retornoData) {
+                        try {
+                            const data = JSON.parse(retornoData);
+                            const nomInput = document.getElementById('citas-nombres');
+                            const cedInput = document.getElementById('citas-cedula');
+                            const celInput = document.getElementById('citas-celular');
+
+                            if (nomInput && data.nombres) nomInput.value = data.nombres;
+                            if (cedInput && data.cedula) cedInput.value = data.cedula;
+                            if (celInput && data.celular) celInput.value = data.celular;
+                            // No se consume: persiste por si el usuario vuelve a avanzar/retroceder varias veces.
+                        } catch (e) { }
+                    }
                 }
 
                 const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
@@ -1097,6 +1126,7 @@ export function createCitas() {
             sessionStorage.removeItem('_citaTemporal_respaldo');
             sessionStorage.removeItem('citas_login_restore');
             sessionStorage.removeItem('temp_datos_recuperacion');
+            sessionStorage.removeItem('citas_paso3_retorno');
             sessionStorage.removeItem('cita_desde_login');
             sessionStorage.removeItem('modoModificacion');
             if (!preserveMod) {
@@ -1677,7 +1707,19 @@ export function createCitas() {
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
             // Regresar al paso 2 si estaba en el 3
             if (this.pasoActual === 3) {
+                // 1. Leer los datos del formulario ANTES de que mostrarPaso limpie el DOM.
+                //    El usuario eligió otra hora por colisión — no debería perder lo que ya escribió.
+                const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                const cel = document.getElementById('citas-celular')?.value.trim() || '';
+
+                // 2. Navegar al calendario (limpia campos y borra citas_paso3_retorno internamente).
                 this.mostrarPaso(2);
+
+                // 3. Volver a guardar los datos para que se restauren al llegar de nuevo al paso 3.
+                if (nom || ced || cel) {
+                    sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                }
             }
         },
 
@@ -4128,12 +4170,23 @@ export function createCitas() {
             const bindEvents = () => {
                 // Acción 1: Volver al calendario
                 document.getElementById('btn-limite-entendido')?.addEventListener('click', () => {
+                    // Guardar datos del paso 3 ANTES de limpiar para que el usuario no tenga que reescribirlos.
+                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
+
                     this._cerrarModalLimiteDiario();
                     this._bloquearConfirmar();
                     document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
                         .forEach(el => el.classList.remove('time-slot--selected'));
                     this.horaSeleccionada = null;
-                    this.mostrarPaso(2);
+                    this.mostrarPaso(2); // limpia campos y borra citas_paso3_retorno internamente
+
+                    // Restaurar respaldo para que al llegar de nuevo al paso 3 los campos aparezcan llenos.
+                    if (nom || ced || cel) {
+                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                    }
+
                     this.generarCalendario();
                 });
 
@@ -4176,22 +4229,23 @@ export function createCitas() {
             const btnElegir = document.getElementById('btn-buffer-elegir-otro');
             if (btnElegir) {
                 btnElegir.onclick = () => {
-                    // Guardar datos actuales del Paso 3 para no perderlos
-                    const nom = document.getElementById('citas-nombres');
-                    const ced = document.getElementById('citas-cedula');
-                    const cel = document.getElementById('citas-celular');
-                    const tempData = {
-                        nombres: nom ? nom.value.trim() : '',
-                        cedula: ced ? ced.value.trim() : '',
-                        celular: cel ? cel.value.trim() : ''
-                    };
-                    sessionStorage.setItem('temp_datos_recuperacion', JSON.stringify(tempData));
+                    // Leer datos del paso 3 ANTES de que mostrarPaso limpie el DOM.
+                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
+
                     this.cerrarModalBuffer();
                     // Resetear selección de hora y retroceder al calendario
                     document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
                         .forEach(el => el.classList.remove('time-slot--selected'));
                     this.horaSeleccionada = null;
-                    this.mostrarPaso(2);
+                    this.mostrarPaso(2); // limpia campos y borra citas_paso3_retorno internamente
+
+                    // Re-guardar para que al volver al paso 3 los campos aparezcan llenos.
+                    if (nom || ced || cel) {
+                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                    }
+
                     this.generarCalendario();
                 };
             }
