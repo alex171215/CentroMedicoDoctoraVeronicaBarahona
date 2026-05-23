@@ -877,10 +877,30 @@ const app = {
             '<span>Sin conexión a internet. Algunas funciones no estarán disponibles hasta que te reconectes.</span>';
         document.body.insertAdjacentElement('afterbegin', banner);
 
-        const mostrar = () => banner.classList.add('visible');
-        const ocultar = () => banner.classList.remove('visible');
+        // Toast "Conexión restaurada"
+        const TOAST_ID = 'sanitas-online-toast';
+        const toast = document.createElement('div');
+        toast.id = TOAST_ID;
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        toast.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Conexión restaurada</span>';
+        document.body.insertAdjacentElement('beforeend', toast);
 
-        // Estado inicial
+        let _toastTimer = null;
+        const mostrarToast = () => {
+            clearTimeout(_toastTimer);
+            toast.classList.add('visible');
+            _toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+        };
+
+        const mostrar = () => banner.classList.add('visible');
+        const ocultar = () => {
+            banner.classList.remove('visible');
+            mostrarToast();
+        };
+
+        // Estado inicial — si arranca sin internet mostrar banner; el toast solo aparece
+        // cuando se RECUPERA la conexión, no al cargar la página con internet.
         if (!navigator.onLine) mostrar();
 
         window.addEventListener('offline', mostrar);
