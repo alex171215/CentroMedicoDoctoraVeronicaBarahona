@@ -551,9 +551,8 @@ export function createCitas() {
                 const backBtnPaso2 = document.querySelector('#citas-step-2 .btn-back-minimalist');
                 if (backBtnPaso2) {
                     if (this._esTunelReagendamientoTR100()) {
-                        backBtnPaso2.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancelar modificación';
-                        backBtnPaso2.setAttribute('aria-label', 'Cancelar modificación y volver al punto de partida');
-                        backBtnPaso2.onclick = () => this._cancelarModificacionTR100();
+                        // En reagendamiento no se puede volver a elegir médico: ocultar el botón.
+                        backBtnPaso2.style.display = 'none';
                     } else {
                         backBtnPaso2.onclick = () => window.app.citas.irAtras();
                         const prevDom = this.historialPasos.length
