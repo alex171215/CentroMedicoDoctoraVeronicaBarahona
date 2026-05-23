@@ -240,29 +240,29 @@ export function createCitas() {
                 .replace(/\s+/g, '-');
         },
 
-        // TR-122: Alias de compatibilidad — resuelve src WebP; llamado desde _abrirCalendarioMedico
+        // TR-122: Alias de compatibilidad — resuelve src thumb; llamado desde _abrirCalendarioMedico
         // y otros puntos que aún pasan imgUrl por sessionStorage (puede llegar como slug antiguo).
-        // Retorna la ruta WebP local; el onerror en la <img> cubre discrepancias de disco.
+        // Retorna la ruta del thumbnail 200×200 de alta calidad; el onerror en la <img> cubre discrepancias de disco.
         obtenerImagenMedico(nombreMed) {
             const slug = this._generarSlugImagenCitas(nombreMed);
-            return 'assets/img/especialistas/webp/' + slug + '.webp';
+            return 'assets/img/especialistas/thumbs/' + slug + '.webp';
         },
 
         prepararResumenMedico(medicoNombre, especialidad, imgUrl, idEspecialista) {
             document.getElementById('citas-doctor-name').textContent = medicoNombre;
             document.getElementById('citas-doctor-specialty').textContent = especialidad || '';
-            // TR-122: slug WebP dinámico — imgUrl ignorado (ya no contiene rutas Unsplash)
-            const webpSrc = 'assets/img/especialistas/webp/' + this._generarSlugImagenCitas(medicoNombre) + '.webp';
+            // Usar thumbnail 200×200 de alta calidad para el calendario (sin pérdida de calidad)
+            const thumbSrc = 'assets/img/especialistas/thumbs/' + this._generarSlugImagenCitas(medicoNombre) + '.webp';
             const imgDoctor = document.getElementById('citas-doctor-img');
             if (imgDoctor) {
                 imgDoctor.loading = 'lazy';
-                imgDoctor.style.objectPosition = 'top center';
-                imgDoctor.src = webpSrc;
+                imgDoctor.style.objectPosition = '50% 20%';
+                imgDoctor.src = thumbSrc;
                 // H5 — Prevención de errores: fallback a avatar neutro si el archivo no existe en disco.
                 imgDoctor.onerror = function () {
                     this.onerror = null;
                     this.style.objectPosition = '50% 50%';
-                    this.src = 'assets/img/especialistas/webp/placeholder-doctor.webp';
+                    this.src = 'assets/img/especialistas/thumbs/placeholder-doctor.webp';
                 };
             }
 
