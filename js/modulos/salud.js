@@ -374,9 +374,13 @@ export const salud = {
                 : c.fecha;
             const idCita = c.id || c._id || String(Date.now());
             const esCancelada = c.estado === 'Cancelada';
+            const fechaCitaItem = this._parsearFechaHoraCita(c);
+            const esCompletada = !esCancelada && fechaCitaItem && fechaCitaItem < new Date();
             const badgeHtml = esCancelada
                 ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
-                : '';
+                : esCompletada
+                    ? '<span class="cita-estado-badge cita-estado-badge--completada">Completada</span>'
+                    : '';
 
             // TR-60: .trim() para limpiar espacio sobrante si apellido está vacío
             const nombrePacienteTarjeta = escapeHtml((c.paciente || c.nombres || '').trim() || 'No especificado');
@@ -438,9 +442,13 @@ export const salud = {
 
         const idCita = cita.id || cita._id;
         const esCancelada = cita.estado === 'Cancelada';
+        const fechaCitaDetalle = this._parsearFechaHoraCita(cita);
+        const esCompletadaDetalle = !esCancelada && fechaCitaDetalle && fechaCitaDetalle < new Date();
         const estadoBadge = esCancelada
             ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
-            : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
+            : esCompletadaDetalle
+                ? '<span class="cita-estado-badge cita-estado-badge--completada">Completada</span>'
+                : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
 
         const detBody = document.getElementById('salud-cita-detalle-body');
         if (!detBody) return;

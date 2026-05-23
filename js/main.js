@@ -3796,7 +3796,17 @@ const app = {
             const fechaFmt = /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha) ? cita.fecha.split('-').reverse().join('/') : cita.fecha;
             const idCitaEstable = cita.id_cita || '';
             const esCancelada = cita.estado === 'Cancelada';
-            const estadoBadge = esCancelada ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>' : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
+            const _fechaCitaVistaC = (() => {
+                const horaC = cita.hora ? String(cita.hora).slice(0, 5) : '00:00';
+                const isoC = cita.fecha && /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha) ? `${cita.fecha}T${horaC}` : null;
+                return isoC ? new Date(isoC) : null;
+            })();
+            const esCompletadaVistaC = !esCancelada && _fechaCitaVistaC && _fechaCitaVistaC < new Date();
+            const estadoBadge = esCancelada
+                ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
+                : esCompletadaVistaC
+                    ? '<span class="cita-estado-badge cita-estado-badge--completada">Completada</span>'
+                    : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
 
             let html = `
                 <div style="text-align: center; margin-bottom: 20px;">

@@ -5332,6 +5332,11 @@ a[href^="mailto:"]:focus-visible,
     color: #0DA99F;
 }
 
+.cita-estado-badge--completada {
+    background-color: #eaf0fb;
+    color: #2563b0;
+}
+
 /* â”€â”€ Responsive Mobile â”€â”€ */
 @media (max-width: 480px) {
     .cita-acciones {
