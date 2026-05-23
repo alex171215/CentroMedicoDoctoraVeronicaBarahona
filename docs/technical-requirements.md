@@ -901,3 +901,16 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-120: Aislamiento de Modales y Estabilidad de Header (H3, H8)
 1. **Acción de Cierre Atómica:** El método de cierre del modal `#modal-consulta-invitado` ejecutará ÚNICAMENTE la ocultación visual (ej: `classList.add('hidden')` o `style.display = 'none'`). Se prohíbe terminantemente la ejecución de cualquier método de navegación, enrutamiento o historial (`history.back`, `irAtras`, etc.).
 2. **Persistencia del Menú de Navegación:** El contenedor `.header__nav-wrapper` deberá ser declarado con `display: block` (o el display flex adecuado) en todos los archivos HTML (index, citas, especialistas), garantizando que el diseño responsive no lo oculte accidentalmente en resoluciones de escritorio o tablet.
+
+
+## TR-121: Optimización de Activos de Directorio y Mapeo Dinámico Normalized (06-Rendimiento)
+1. **Formato y Compresión de Próxima Generación:** Todas las fotografías de especialistas se procesarán obligatoriamente en formato WebP con un factor de calidad estricto de 80%, reduciendo el peso del asset por debajo de los 40KB para optimizar el LCP.
+2. **Normalización Programática de URIs (H4):** Queda prohibida la carga de rutas estáticas cableadas (hardcoded) en las tarjetas de especialistas. El sistema generará las URLs dinámicamente transformando el string de `nombre_completo` de Supabase a formato kebab-case limpio (sin prefijos médicos, acentos, espacios ni mayúsculas).
+3. **Mecanismo Contra Errores de Activos (H5):** El componente de renderizado inyectará de forma obligatoria el atributo `onerror` en la etiqueta `<img>` para desplegar un avatar neutro (`placeholder-doctor.webp`) en caso de colisión o ausencia física del archivo multimedia.
+
+## TR-122: Consistencia de Activos Multimediales en Sub-Vistas Dinámicas (H4, H5)
+1. **Unificación de Fuente de Verdad:** Queda estrictamente prohibido el uso de URLs externas o cableadas (Unsplash) en los componentes `img#modal-doc-img` (Modal de Perfil) y `img#citas-doctor-img` (Wizard de Citas). Ambos elementos resolverán su atributo `.src` exclusivamente a través de la función de normalización de cadenas `_generarSlugImagen()`.
+2. **Inyección en Tiempo de Carga Dinámica:**
+   - Al abrir el modal de detalles/actividades, el script interceptará el objeto del médico seleccionado y mutará el puntero de la imagen apuntando al directorio local `/webp/`.
+   - Al inicializar el flujo del asistente de citas con un especialista pre-seleccionado, la vista del calendario actualizará sincrónicamente el avatar del doctor bajo la misma regla de limpieza de strings.
+3. **Blindaje de Carga Fallida (UI Fallback):** JavaScript asignará por código el controlador `.onerror` a ambos elementos de imagen dinámicos, garantizando la redirección inmediata hacia `placeholder-doctor.webp` ante cualquier anomalía de tipeo en disco.

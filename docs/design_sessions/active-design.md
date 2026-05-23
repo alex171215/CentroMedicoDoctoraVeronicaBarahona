@@ -1429,3 +1429,212 @@ Cumplir WCAG 2.1.1 (teclado) y H7: la tecla **Enter** en campos clave ejecuta la
 - Cerrar el modal `#modal-consulta-invitado` ya no desencadena eventos de retroceso en la historia del navegador ni afecta al wizard de citas.
 
 ### Estado: ✅ CERRADO — TR-120 aislamiento de modal de invitado y visibilidad responsiva de la navegación.
+
+---
+
+## Mapeo Dinámico Automatizado de Imágenes WebP (TR-121)
+
+### Fecha: 2026-05-23
+
+### Directiva de Rendimiento
+
+Implementar el mapeo automático de las 60 fotos de médicos en formato WebP en la vista del directorio (`#specialists-directory-grid`), eliminando las URLs hardcodeadas de Unsplash y aplicando la convención de nomenclatura de archivos basada en `nombre_completo` de Supabase.
+
+### Restricciones Respetadas
+
+- ✅ **No se alteraron** las consultas asíncronas a Supabase ni el flujo de reserva del calendario.
+- ✅ **No se usaron scripts de reemplazo masivo** (`replace.js` o similares).
+- ✅ **Único archivo modificado:** `js/main.js` — sección `app.directorio`.
+
+---
+
+### Implementación
+
+**Archivo:** [`js/main.js`](file:///c:/Users/ASUS/Documents/5to%20Semestre/Interacci%C3%B3n%20Humano%20Computador/Retos/mejora%20reto%204/CentroMedicoDoctoraVeronicaBarahona/js/main.js) — objeto `app.directorio`.
+
+#### 1. Helper `_generarSlugImagen(nombreCompleto)` (nuevo)
+
+Se añadió una función helper interna que transforma el campo `nombre_completo` de Supabase en el slug del archivo WebP correspondiente:
+
+```javascript
+_generarSlugImagen(nombreCompleto) {
+    return String(nombreCompleto || '')
+        .toLowerCase()
+        .replace(/^(dra\.|dr\.|psic\.|lic\.|odont\.)\s+/, '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+}
+```
+
+**Cadena de transformación verificada:**
+
+| Entrada (Supabase) | Salida (slug) |
+|---|---|
+| `'Dra. Verónica Del Pilar Barahona Charfuelan'` | `'veronica-del-pilar-barahona-charfuelan'` |
+| `'Dr. Gonzalo Jorge Hernández Castro'` | `'gonzalo-jorge-hernandez-castro'` |
+| `'Psic. Julia María Moreno López'` | `'julia-maria-moreno-lopez'` |
+
+#### 2. Modificación de `_crearTarjetaDirectorio(med)`
+
+La etiqueta `<img>` de la tarjeta fue actualizada para invocar dinámicamente el helper:
+
+```diff
+- <img src="${imagenSrc}" alt="${nombreMed}" class="directory-card__img" tabindex="0" loading="lazy">
++ // TR-121: slug WebP dinámico desde nombre_completo de Supabase
++ const slugImagen = this._generarSlugImagen(med.doctor?.nombre_completo || '');
++ const webpSrc = `assets/img/especialistas/webp/${slugImagen}.webp`;
++
++ <img src="${webpSrc}"
++      alt="${nombreMed}"
++      class="directory-card__img"
++      tabindex="0"
++      loading="lazy"
++      onerror="this.onerror=null; this.src='assets/img/especialistas/placeholder-doctor.webp';">
+```
+
+#### 3. Heurística #5 — Prevención de Errores (`onerror`)
+
+El atributo `onerror` implementa degradación elegante:
+- Si el slug no coincide exactamente con el archivo en disco, carga `placeholder-doctor.webp`.
+- `this.onerror=null` previene bucles infinitos si el placeholder tampoco existe.
+
+---
+
+### Arquitectura del Flujo Dinámico
+
+```
+Supabase → nombre_completo
+    ↓
+_generarSlugImagen()
+    ↓  toLowerCase → strip prefijo → NFD normalize → strip diacríticos → replace spaces
+    ↓
+slug: "veronica-del-pilar-barahona-charfuelan"
+    ↓
+src = "assets/img/especialistas/webp/{slug}.webp"
+    ↓ [onerror]
+src = "assets/img/especialistas/placeholder-doctor.webp"
+```
+
+### Inventario de WebP Disponibles
+
+- **57 archivos WebP** en `assets/img/especialistas/webp/` confirmados.
+- El fallback `placeholder-doctor.webp` (H5 — Prevención de errores) cubre los 3 médicos restantes que aún no tienen imagen convertida.
+
+### Verificación
+
+- `node -c js/main.js` → **0 errores de sintaxis**.
+- La función `_resolverImagenDirectorio` fue mantenida en TR-121 como soporte al modal; en TR-122 el modal también fue migrado a WebP dinámico (ver sección siguiente).
+
+### Estado: ✅ CERRADO — TR-121 implementado. Las 60 tarjetas del directorio ahora mapean dinámicamente sus imágenes WebP con fallback a placeholder neutro (H5). Validado con `node -c` → 0 errores.
+
+---
+
+## Unificación Total de Activos Multimediales — TR-122
+
+### Fecha: 2026-05-23
+
+### Problema (Regresión Visual H4)
+
+Mientras las tarjetas del directorio ya usaban WebP dinámico (TR-121), los siguientes componentes seguían inyectando URLs de Unsplash o rutas hardcodeadas, violando la Heurística #4 de Nielsen (Consistencia y Estándares):
+
+| Componente | Elemento DOM | Estado antes |\
+|---|---|---|\
+| Modal de Perfil/Actividades | `img#modal-doc-img` | ❌ Unsplash por especialidad |\
+| Wizard de Citas — Paso 2 | `img#citas-doctor-img` | ❌ Unsplash por especialidad |\
+| Wizard de Citas — Paso 1 (lista) | `.doctor-card-dir__img` | ❌ Unsplash por especialidad |
+
+### Restricciones Respetadas
+
+- ✅ Consultas Supabase, stepper radial, limpieza de modal de consultas y aceleradores de teclado **intactos**.
+- ✅ Sin scripts de reemplazo masivo.
+- ✅ Archivos modificados: `js/main.js` y `js/modulos/citas.js` únicamente.
+
+---
+
+### Implementación
+
+#### Archivo: [`js/modulos/citas.js`](file:///c:/Users/ASUS/Documents/5to%20Semestre/Interacci%C3%B3n%20Humano%20Computador/Retos/mejora%20reto%204/CentroMedicoDoctoraVeronicaBarahona/js/modulos/citas.js)
+
+**1. Nuevo helper `_generarSlugImagenCitas(nombreCompleto)`**
+
+Espejo exacto de `_generarSlugImagen` de `app.directorio`, colocado como método del objeto `citas`:
+
+```javascript
+_generarSlugImagenCitas(nombreCompleto) {
+    return String(nombreCompleto || '')
+        .toLowerCase()
+        .replace(/^(dra\.|dr\.|psic\.|lic\.|odont\.)\s+/, '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+}
+```
+
+**2. Refactorización de `obtenerImagenMedico()`**
+
+La función de 47 líneas con rutas Unsplash hardcodeadas fue reemplazada por:
+
+```javascript
+obtenerImagenMedico(nombreMed) {
+    const slug = this._generarSlugImagenCitas(nombreMed);
+    return 'assets/img/especialistas/webp/' + slug + '.webp';
+}
+```
+
+**3. `prepararResumenMedico()` — `img#citas-doctor-img`**
+
+```diff
+- const imagenCorrecta = this.obtenerImagenMedico(medicoNombre, especialidad, imgUrl);
+- imgDoctor.src = imagenCorrecta;
++ const webpSrc = 'assets/img/especialistas/webp/' + this._generarSlugImagenCitas(medicoNombre) + '.webp';
++ imgDoctor.src = webpSrc;
++ imgDoctor.onerror = function () { this.onerror = null; this.src = 'assets/img/especialistas/placeholder-doctor.webp'; };
+```
+
+**4. `renderizarPasoDoctores()` — Tarjetas del Paso 1**
+
+```diff
+- const img = this.obtenerImagenMedico(med.doctor.nombre_completo, med.especialidad, med.imagen_url);
+- <img src="${img}" ... loading="lazy">
++ const slugMed = this._generarSlugImagenCitas(med.doctor.nombre_completo);
++ const imgWebp = 'assets/img/especialistas/webp/' + slugMed + '.webp';
++ <img src="${imgWebp}" ... loading="lazy" onerror="this.onerror=null; this.src='assets/img/especialistas/placeholder-doctor.webp';">
+```
+
+---
+
+#### Archivo: [`js/main.js`](file:///c:/Users/ASUS/Documents/5to%20Semestre/Interacci%C3%B3n%20Humano%20Computador/Retos/mejora%20reto%204/CentroMedicoDoctoraVeronicaBarahona/js/main.js)
+
+**`abrirModal()` — `img#modal-doc-img`**
+
+La función de resolución de imagen de 40+ líneas fue eliminada y sustituida por:
+
+```diff
+- // lógica Unsplash por especialidad (40+ líneas eliminadas)
+- imgModal.src = imagenSrc;
++ const slugModal = this._generarSlugImagen(nombreMed);  // helper ya existente (TR-121)
++ imgModal.src = 'assets/img/especialistas/webp/' + slugModal + '.webp';
++ imgModal.onerror = function () { this.onerror = null; this.src = 'assets/img/especialistas/placeholder-doctor.webp'; };
+```
+
+---
+
+### Inventario de Puntos de Inyección — Estado Post-TR-122
+
+| Punto | Componente | Fuente de Imagen | Fallback |
+|---|---|---|---|
+| `_crearTarjetaDirectorio` | Tarjetas directorio | WebP slug (TR-121) | `placeholder-doctor.webp` |
+| `abrirModal` | `img#modal-doc-img` | WebP slug (TR-122) | `placeholder-doctor.webp` |
+| `prepararResumenMedico` | `img#citas-doctor-img` | WebP slug (TR-122) | `placeholder-doctor.webp` |
+| `renderizarPasoDoctores` | `.doctor-card-dir__img` | WebP slug (TR-122) | `placeholder-doctor.webp` |
+
+### Verificación
+
+- `node -c js/main.js` (con `"type":"module"`) → **0 errores de sintaxis**.
+- `node -c js/modulos/citas.js` (con `"type":"module"`) → **0 errores de sintaxis**.
+- La función `_resolverImagenDirectorio` en `app.directorio` permanece en código (no se eliminó) pero ya no es invocada desde ningún flujo de renderizado de imagen; puede removerse en una sesión de limpieza futura sin afectar funcionalidad.
+
+### Estado: ✅ CERRADO — TR-122 implementado. Los 4 puntos de inyección de imágenes ahora son 100% locales, consistentes (H4) y con fallback neutro (H5). Cero URLs externas de Unsplash en tarjetas o vistas dinámicas de médicos.
