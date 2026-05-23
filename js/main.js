@@ -3678,7 +3678,22 @@ const app = {
                 }
                 if (target.classList.contains('btn--imprimir')) {
                     e.preventDefault(); e.stopPropagation();
-                    if(idCita) widget.imprimirCitaInvitado(idCita);
+                    if (!idCita || target.disabled) return;
+
+                    // Bloquear el botón y mostrar spinner para evitar clics dobles
+                    const htmlOriginalImprimir = target.innerHTML;
+                    target.disabled = true;
+                    target.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Preparando...';
+
+                    // imprimirCita usa iframe.onload + setTimeout(300ms) internamente;
+                    // restaurar el botón después de que el diálogo de impresión haya abierto.
+                    setTimeout(() => {
+                        widget.imprimirCitaInvitado(idCita);
+                    }, 60);
+                    setTimeout(() => {
+                        target.disabled = false;
+                        target.innerHTML = htmlOriginalImprimir;
+                    }, 700);
                     return;
                 }
                 if (target.classList.contains('btn--descargar-pdf')) {
