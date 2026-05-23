@@ -5378,7 +5378,7 @@ a[href^="mailto:"]:focus-visible,
    ========================================================================== */
 .directory-search {
     max-width: 600px;
-    margin: 0 auto 40px auto;
+    margin: 2rem auto 40px auto;
     position: relative;
 }
 
