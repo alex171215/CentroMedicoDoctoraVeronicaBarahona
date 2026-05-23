@@ -190,6 +190,7 @@ const app = {
         }
 
         this.iniciarMenuMovil();
+        this._initOfflineDetection();
         this.iniciarPurgaDesercionRutaTR93();
 
         // TR-72: Sanitizador Global con Floating Tooltips (OWASP / H1 / H4)
@@ -860,6 +861,30 @@ const app = {
                 }
             }
         }, true);
+    },
+
+    _initOfflineDetection: function () {
+        // Crear banner una sola vez e insertarlo al inicio del body
+        const BANNER_ID = 'sanitas-offline-banner';
+        if (document.getElementById(BANNER_ID)) return;
+
+        const banner = document.createElement('div');
+        banner.id = BANNER_ID;
+        banner.setAttribute('role', 'alert');
+        banner.setAttribute('aria-live', 'assertive');
+        banner.innerHTML =
+            '<i class="fa-solid fa-wifi offline-icon" aria-hidden="true"></i>' +
+            '<span>Sin conexión a internet. Algunas funciones no estarán disponibles hasta que te reconectes.</span>';
+        document.body.insertAdjacentElement('afterbegin', banner);
+
+        const mostrar = () => banner.classList.add('visible');
+        const ocultar = () => banner.classList.remove('visible');
+
+        // Estado inicial
+        if (!navigator.onLine) mostrar();
+
+        window.addEventListener('offline', mostrar);
+        window.addEventListener('online', ocultar);
     },
 
     iniciarMenuMovil: function () {
