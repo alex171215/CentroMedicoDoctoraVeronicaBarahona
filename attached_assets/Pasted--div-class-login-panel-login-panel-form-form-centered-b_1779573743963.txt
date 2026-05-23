@@ -1,0 +1,88 @@
+<div class="login-panel login-panel--form form-centered-box" bis_skin_checked="1">
+                    <div class="login-form-wrapper reg-wrapper" bis_skin_checked="1">
+
+                        <!-- Header con botón volver -->
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;" bis_skin_checked="1">
+                            <button type="button" class="reg-back-btn" style="position:static;" aria-label="Volver al perfil" onclick="window.location.href='index.html'">
+                                <i class="fa-solid fa-arrow-left-long" aria-hidden="true"></i>
+                            </button>
+                            <h2 id="editar-perfil-heading" class="login-title" style="margin:0; font-size:1.1rem;" tabindex="-1">
+                                Editar Información Personal</h2>
+                        </div>
+
+                        <form class="login-form" onsubmit="event.preventDefault();">
+                            <!-- Primer Nombre -->
+                            <div class="login-field" bis_skin_checked="1">
+                                <label for="edit-nombre1" class="login-field__label">Primer nombre *</label>
+                                <input type="text" id="edit-nombre1" class="login-field__input" autocomplete="given-name" aria-required="true" aria-describedby="edit-nombre1-error" data-listener-added_d505f97a="true">
+                                <span id="edit-nombre1-error" class="login-field__error" role="alert" style="display: none;"></span>
+                            </div>
+
+                            <!-- Segundo Nombre -->
+                            <div class="login-field" bis_skin_checked="1">
+                                <label for="edit-nombre2" class="login-field__label">Segundo nombre</label>
+                                <input type="text" id="edit-nombre2" class="login-field__input" autocomplete="additional-name" aria-describedby="edit-nombre2-error">
+                                <span id="edit-nombre2-error" class="login-field__error" role="alert" style="display:none;"></span>
+                            </div>
+
+                            <!-- Primer Apellido -->
+                            <div class="login-field" bis_skin_checked="1">
+                                <label for="edit-apellido1" class="login-field__label">Primer apellido *</label>
+                                <input type="text" id="edit-apellido1" class="login-field__input" autocomplete="family-name" aria-required="true" aria-describedby="edit-apellido1-error" data-listener-added_d505f97a="true">
+                                <span id="edit-apellido1-error" class="login-field__error" role="alert" style="display:none;"></span>
+                            </div>
+
+                            <!-- Segundo Apellido -->
+                            <div class="login-field" bis_skin_checked="1">
+                                <label for="edit-apellido2" class="login-field__label">Segundo apellido</label>
+                                <input type="text" id="edit-apellido2" class="login-field__input" autocomplete="off" aria-describedby="edit-apellido2-error" data-listener-added_d505f97a="true">
+                                <span id="edit-apellido2-error" class="login-field__error" role="alert" style="display: none;"></span>
+                            </div>
+
+                            <!-- Teléfono Celular -->
+                            <div class="login-field" bis_skin_checked="1">
+                                <label for="edit-celular" class="login-field__label">Teléfono celular *</label>
+                                <input type="tel" id="edit-celular" class="login-field__input" placeholder="Ej: 0991234567" inputmode="numeric" maxlength="10" aria-required="true" autocomplete="tel" aria-describedby="edit-celular-error" data-listener-added_d505f97a="true">
+                                <span id="edit-celular-error" class="login-field__error" role="alert" style="display:none;"></span>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="login-field" bis_skin_checked="1">
+                                <label for="edit-email" class="login-field__label">Email *</label>
+                                <input type="email" id="edit-email" class="login-field__input" placeholder="Ej: juan.perez@email.com" autocomplete="email" aria-required="true" aria-describedby="edit-email-error" data-listener-added_d505f97a="true">
+                                <span id="edit-email-error" class="login-field__error" role="alert" style="display:none;"></span>
+                            </div>
+
+                            <!-- Fecha de Nacimiento (H3 – Control y Libertad: corrección de errores tipográficos) -->
+                            <div class="login-field" bis_skin_checked="1">
+                                <label for="edit-fecha-nac" class="login-field__label">Fecha de nacimiento *</label>
+                                <input type="date" id="edit-fecha-nac" class="login-field__input" autocomplete="bday" aria-required="true" aria-describedby="edit-fecha-nac-error" min="1926-05-23" max="2008-05-23" value="2008-05-23">
+                                <span id="edit-fecha-nac-error" class="login-field__error" role="alert" style="display:none;"></span>
+                            </div>
+
+                            <!-- Mensaje de éxito (oculto por defecto) -->
+                            <div id="edit-success-msg" class="edit-success-msg" style="display:none;" role="status" aria-live="polite" bis_skin_checked="1">
+                                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                <span>Datos actualizados correctamente.</span>
+                            </div>
+
+                            <!-- Botón Guardar -->
+                            <button type="button" class="btn btn--accion login-submit" onclick="app.perfil.guardarCambios()">
+                                <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                                Guardar Cambios
+                            </button>
+
+                            <!-- TR-49: Divulgación Progresiva — Cambio de Contraseña -->
+                            <p class="reg-cancel-link" style="margin-top:8px;">
+                                <span class="enlace-accion" onclick="app.perfil.abrirModalPassword()" role="button" tabindex="0" aria-haspopup="dialog" onkeydown="if(event.key==='Enter'||event.key===' ')app.perfil.abrirModalPassword()">
+                                    <i class="fa-solid fa-lock" aria-hidden="true" style="margin-right:5px;"></i>Cambiar Contraseña
+                                </span>
+                            </p>
+
+                            <p class="reg-cancel-link">
+                                <span onclick="window.location.href='index.html'" class="enlace-accion">Cancelar</span>
+                            </p>
+                        </form>
+
+                    </div>
+                </div>

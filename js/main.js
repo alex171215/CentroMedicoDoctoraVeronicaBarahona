@@ -2953,6 +2953,25 @@ const app = {
                     if (el) el.style.borderColor = '';
                     if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
                 });
+
+            // Sanitización en tiempo real: bloquea espacios al inicio y dobles espacios en campos de texto
+            ['edit-nombre1', 'edit-nombre2', 'edit-apellido1', 'edit-apellido2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || el.dataset.sanitizadorActivo) return;
+                el.dataset.sanitizadorActivo = '1';
+                el.addEventListener('input', function () {
+                    const pos = this.selectionStart;
+                    const original = this.value;
+                    // No permitir espacio al inicio; colapsar espacios consecutivos
+                    const sanitizado = original.replace(/^ +/, '').replace(/ {2,}/g, ' ');
+                    if (sanitizado !== original) {
+                        this.value = sanitizado;
+                        // Restaurar posición del cursor ajustada
+                        const diff = original.length - sanitizado.length;
+                        this.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+                    }
+                });
+            });
         },
 
         // ------------------------------------------------------------------

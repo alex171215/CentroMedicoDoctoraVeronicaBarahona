@@ -1,0 +1,71 @@
+<div class="modal-content" role="document" bis_skin_checked="1">
+
+            <!-- Cabecera -->
+            <div class="modal-header" bis_skin_checked="1">
+                <h2 id="modal-password-title" class="modal-header__title">
+                    <i class="fa-solid fa-lock" aria-hidden="true" style="color:var(--action-color);margin-right:8px;"></i>
+                    Cambiar Contraseña
+                </h2>
+                <button type="button" class="reg-modal__close" aria-label="Cerrar modal de cambio de contraseña" onclick="app.perfil.cerrarModalPassword()">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <!-- Cuerpo -->
+            <div class="modal-body" bis_skin_checked="1">
+                <form id="form-cambiar-password" onsubmit="event.preventDefault(); app.perfil.cambiarPasswordUsuario();">
+
+                    <!-- Campo 1: Contraseña Actual -->
+                    <div class="login-field" bis_skin_checked="1">
+                        <label for="pass-actual" class="login-field__label">Contraseña actual *</label>
+                        <div style="position:relative;" bis_skin_checked="1">
+                            <input type="password" id="pass-actual" class="login-field__input" maxlength="128" autocomplete="current-password" aria-required="true" aria-describedby="pass-actual-error" placeholder="Ingresa tu contraseña actual" data-listener-added_d505f97a="true" style="">
+                            <button type="button" class="login-field__eye" aria-label="Mostrar u ocultar contraseña actual" onclick="app.perfil._togglePassVis('pass-actual', this)">
+                                <i class="fa-regular fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <span id="pass-actual-error" class="login-field__error" role="alert" style="display: none;"></span>
+                    </div>
+
+                    <!-- Campo 2: Nueva Contraseña -->
+                    <div class="login-field" bis_skin_checked="1">
+                        <label for="pass-nueva" class="login-field__label">Nueva contraseña *</label>
+                        <div style="position:relative;" bis_skin_checked="1">
+                            <input type="password" id="pass-nueva" class="login-field__input" maxlength="128" autocomplete="new-password" aria-required="true" aria-describedby="pass-nueva-error" placeholder="Mínimo 6 caracteres" aria-autocomplete="list" data-listener-added_d505f97a="true">
+                            <button type="button" class="login-field__eye" aria-label="Mostrar u ocultar nueva contraseña" onclick="app.perfil._togglePassVis('pass-nueva', this)">
+                                <i class="fa-regular fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <span id="pass-nueva-error" class="login-field__error" role="alert" style="display:none;"></span>
+                    </div>
+
+                    <!-- Campo 3: Repetir Nueva Contraseña -->
+                    <div class="login-field" bis_skin_checked="1">
+                        <label for="pass-repetir" class="login-field__label">Repetir nueva contraseña *</label>
+                        <div style="position:relative;" bis_skin_checked="1">
+                            <input type="password" id="pass-repetir" class="login-field__input" maxlength="128" autocomplete="new-password" aria-required="true" aria-describedby="pass-repetir-error" placeholder="Repite la nueva contraseña" data-listener-added_d505f97a="true">
+                            <button type="button" class="login-field__eye" aria-label="Mostrar u ocultar confirmación de contraseña" onclick="app.perfil._togglePassVis('pass-repetir', this)">
+                                <i class="fa-regular fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <span id="pass-repetir-error" class="login-field__error" role="alert" style="display:none;"></span>
+                    </div>
+
+                    <!-- Mensaje de éxito interno del modal -->
+                    <div id="pass-success-msg" role="status" aria-live="polite" class="edit-success-msg" style="display: none;" bis_skin_checked="1">
+                        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                        <span>Contraseña actualizada correctamente.</span>
+                    </div>
+
+                </form>
+            </div><!-- /.modal-body -->
+
+            <!-- Acciones -->
+            <div class="modal-actions" bis_skin_checked="1">
+                <button type="button" class="btn btn--accion" id="btn-confirmar-password" onclick="app.perfil.cambiarPasswordUsuario()"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Confirmar Cambio</button>
+                <button type="button" class="btn btn--secundario" onclick="app.perfil.cerrarModalPassword()">
+                    Cancelar
+                </button>
+            </div>
+
+        </div>

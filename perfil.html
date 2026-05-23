@@ -88,7 +88,7 @@
                             <div class="login-field">
                                 <label for="edit-nombre1" class="login-field__label">Primer nombre *</label>
                                 <input type="text" id="edit-nombre1" class="login-field__input"
-                                    autocomplete="given-name" aria-required="true"
+                                    autocomplete="given-name" aria-required="true" maxlength="30"
                                     aria-describedby="edit-nombre1-error">
                                 <span id="edit-nombre1-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -98,7 +98,7 @@
                             <div class="login-field">
                                 <label for="edit-nombre2" class="login-field__label">Segundo nombre</label>
                                 <input type="text" id="edit-nombre2" class="login-field__input"
-                                    autocomplete="additional-name" aria-describedby="edit-nombre2-error">
+                                    autocomplete="additional-name" maxlength="30" aria-describedby="edit-nombre2-error">
                                 <span id="edit-nombre2-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -107,7 +107,7 @@
                             <div class="login-field">
                                 <label for="edit-apellido1" class="login-field__label">Primer apellido *</label>
                                 <input type="text" id="edit-apellido1" class="login-field__input"
-                                    autocomplete="family-name" aria-required="true"
+                                    autocomplete="family-name" aria-required="true" maxlength="30"
                                     aria-describedby="edit-apellido1-error">
                                 <span id="edit-apellido1-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -117,7 +117,7 @@
                             <div class="login-field">
                                 <label for="edit-apellido2" class="login-field__label">Segundo apellido</label>
                                 <input type="text" id="edit-apellido2" class="login-field__input"
-                                    autocomplete="off" aria-describedby="edit-apellido2-error">
+                                    autocomplete="off" maxlength="30" aria-describedby="edit-apellido2-error">
                                 <span id="edit-apellido2-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -137,7 +137,7 @@
                                 <label for="edit-email" class="login-field__label">Email *</label>
                                 <input type="email" id="edit-email" class="login-field__input"
                                     placeholder="Ej: juan.perez@email.com" autocomplete="email" aria-required="true"
-                                    aria-describedby="edit-email-error">
+                                    maxlength="80" aria-describedby="edit-email-error">
                                 <span id="edit-email-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
