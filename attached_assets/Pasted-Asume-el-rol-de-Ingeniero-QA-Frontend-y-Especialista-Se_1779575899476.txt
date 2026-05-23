@@ -1,0 +1,37 @@
+Asume el rol de Ingeniero QA Frontend y Especialista Senior en IHC y Accesibilidad Web (WCAG 2.2). Vamos a realizar una auditoría de código estricta y congelación de la interfaz gráfica bajo la directiva final TR-127 para erradicar cualquier error de usabilidad, funcionalidad o accesibilidad que penalice la entrega del proyecto.
+
+Restricciones de Integridad Absoluta (Cero Modificaciones a la Lógica de Negocio):
+
+
+
+Queda estrictamente PROHIBIDO modificar los esquemas o funciones internas de la base de datos de Supabase.
+
+Está prohibido generar bloques de texto o ensayos informativos para evitar violar los límites de coincidencia del informe académico. El foco es el código limpio.
+
+Tareas Obligatorias de Inspección y Aseguramiento (Pinpoint Fixes):
+
+
+
+Auditoría de Usabilidad y Responsividad (Heurísticas #4, #7 y #8):
+
+Examina minuciosamente styles.css y las etiquetas de las 8 pantallas HTML para comprobar que no existan colisiones espaciales.
+
+Asegúrate de que el menú de navegación colapse limpiamente a Menú de Hamburguesa en tablets por debajo de los 1023px  y que la cabecera móvil mantenga el orden estricto en una sola línea horizontal compacta sin rupturas.
+
+Verifica que el buscador de especialistas (#buscador-especialistas) mantenga su espacio negativo superior de 2rem y que la grid de médicos muestre la matriz agrupada alfabéticamente por especialidad con títulos <h3> limpios.
+
+Auditoría de Funcionalidad y Flujos de Citas (Heurística #1 y #5):
+
+Revisa js/main.js y js/modulos/citas.js para asegurar que el botón final "Ver mi cita" contenga asignado el atributo data-id con el UUID dinámico de la cita creada en Supabase (TR-131) y que redirija al detalle exacto, tanto para invitados con el token seguro de 6 dígitos como para usuarios con cuenta.
+
+Comprueba que al cerrar el modal de actividades de un médico NO se altere el paso actual del wizard de agendamiento.
+
+Verifica que el campo de contraseñas de registro use enmascaramiento visual CSS puro con la clase .input-password-masked y type='text' para anular de raíz el popup intrusivo del navegador .
+
+Auditoría de Accesibilidad Operable (WCAG 2.2 - Nivel AA):
+
+Asegúrate de que todos los inputs clave intercepten correctamente la tecla 'Enter' para ejecutar la búsqueda o el envío de datos de forma nativa por teclado sin recargar la MPA .
+
+Revisa que todas las imágenes de los médicos y del carrusel tengan configurado su atributo de control ante fallas de carga onerror="this.onerror=null; this.src='assets/img/especialistas/placeholder-doctor.webp';" .
+
+Ejecuta una comprobación de consistencia estricta en el proyecto usando node -c en todas tus carpetas de JavaScript y actualiza la sesión de active-design en docs/design_sessions/active-design.md confirmando la estabilización absoluta de la interfaz con 0 advertencias y 0 errores.
