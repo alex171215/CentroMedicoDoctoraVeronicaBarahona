@@ -1653,6 +1653,16 @@ export function createCitas() {
         },
 
         async _esperarDatosEspecialistas(maxMs = 2500) {
+            try {
+                const raw = localStorage.getItem('sanitasFam_db');
+                if (raw) {
+                    const db = JSON.parse(raw);
+                    if (db && Array.isArray(db.cartera_especialistas) && db.cartera_especialistas.length > 0) {
+                        return;
+                    }
+                }
+            } catch (_) { /* continuar con polling */ }
+
             const t0 = Date.now();
             while (Date.now() - t0 < maxMs) {
                 try {

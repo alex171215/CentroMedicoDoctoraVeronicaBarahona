@@ -163,15 +163,15 @@ const app = {
             };
 
             if (carteraEspecialistasCacheValida()) {
-                try {
-                    const lista = await fetchEspecialistasSupabase();
+                refrescarUI();
+                fetchEspecialistasSupabase().then(lista => {
                     if (lista.length) {
                         mergeCarteraEnSanitasFamDb(lista);
                         refrescarUI();
                     }
-                } catch (err) {
+                }).catch(err => {
                     console.warn('[Supabase] Refresco de especialistas no disponible.', err);
-                }
+                });
             } else {
                 await conCargaGlobal(async () => {
                     const lista = await fetchEspecialistasSupabase();
@@ -1515,46 +1515,12 @@ const app = {
         },
 
         _resolverImagenDirectorio(med, nombreMed) {
-            let imagenSrc = med.imagen_url;
-            if (nombreMed.toLowerCase().includes('verónica') && nombreMed.toLowerCase().includes('barahona')) {
-                imagenSrc = 'assets/img/veronica-barahona.jpg';
-            } else if (!imagenSrc) {
-                const espLower = (med.especialidad || '').toLowerCase();
-                if (espLower.includes('medicina familiar') || espLower.includes('medico familiar'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('medicina general') || espLower.includes('general'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80';
-                else if (espLower.includes('pediatr'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('odontolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
-                else if (espLower.includes('ginec')) {
-                    if (nombreMed.toLowerCase().includes('marcela') && nombreMed.toLowerCase().includes('pantoja')) {
-                        imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
-                    } else {
-                        imagenSrc = 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?q=80';
-                    }
-                }
-                else if (espLower.includes('dermatol'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80';
-                else if (espLower.includes('radiolog') || espLower.includes('radiodiagn'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&q=80';
-                else if (espLower.includes('urolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1637059824899-a441006a6875?q=80';
-                else if (espLower.includes('endocrin'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1758691463582-11aea602cd4a?q=80';
-                else if (espLower.includes('traumat') || espLower.includes('ortoped'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1712215544003-af10130f8eb3?q=80';
-                else if (espLower.includes('psicolog'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1661580574627-9211124e5c3f?q=80';
-                else if (espLower.includes('enfermer'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1681996359725-06262b082c27?q=80';
-                else if (espLower.includes('laboratorio'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1682089874677-3eee554feb19?w=600';
-                else
-                    imagenSrc = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80';
+            const nombreLower = nombreMed.toLowerCase();
+            if (nombreLower.includes('verónica') && nombreLower.includes('barahona')) {
+                return 'assets/img/veronica-barahona.jpg';
             }
-            return imagenSrc;
+            const slug = this._generarSlugImagen(nombreMed);
+            return 'assets/img/especialistas/webp/' + slug + '.webp';
         },
 
         /** TR-111: tarjeta con listeners intactos (.directory-card__btn / __link). */
@@ -1612,6 +1578,7 @@ const app = {
             }
 
             const ordenados = this._ordenarMedicosDirectorioTR111(listaMedicos);
+            const fragment = document.createDocumentFragment();
             let especialidadActual = null;
             let grupoActual = null;
 
@@ -1622,14 +1589,16 @@ const app = {
                     const titulo = document.createElement('h3');
                     titulo.className = 'directory-specialty-title';
                     titulo.textContent = esp;
-                    grid.appendChild(titulo);
+                    fragment.appendChild(titulo);
 
                     grupoActual = document.createElement('div');
                     grupoActual.className = 'directory-specialty-group';
-                    grid.appendChild(grupoActual);
+                    fragment.appendChild(grupoActual);
                 }
                 grupoActual.appendChild(this._crearTarjetaDirectorio(med));
             });
+
+            grid.appendChild(fragment);
         },
 
         abrirModal(medico) {
