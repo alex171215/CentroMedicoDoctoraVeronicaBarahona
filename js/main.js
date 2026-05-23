@@ -1743,12 +1743,9 @@ const app = {
             const inputPassword = document.getElementById('login-password');
 
             if (inputCedula) inputCedula.value = '';
-
             if (inputPassword) {
-                // Previene que el navegador lea el cambio como un “valor de contraseña”
-                inputPassword.type = 'text';
                 inputPassword.value = '';
-                inputPassword.type = 'password';
+                inputPassword.classList.add('input-password-masked');
             }
 
             // Restablecer icono de ojo
@@ -1765,11 +1762,11 @@ const app = {
             const icon = document.getElementById('login-eye-icon');
             if (!input) return;
 
-            if (input.type === 'password') {
-                input.type = 'text';
+            if (input.classList.contains('input-password-masked')) {
+                input.classList.remove('input-password-masked');
                 icon.classList.replace('fa-eye', 'fa-eye-slash');
             } else {
-                input.type = 'password';
+                input.classList.add('input-password-masked');
                 icon.classList.replace('fa-eye-slash', 'fa-eye');
             }
         },
@@ -1903,62 +1900,9 @@ const app = {
         _regexNombre: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
         ...registroOtpControl,
 
-        /** TR-112: desactiva heurísticas de Credential Management en pasos intermedios. */
-        _neutralizarCampoPasswordTR112() {
-            const pwd = document.getElementById('reg-password');
-            if (!pwd) return;
-            pwd.type = 'text';
-            pwd.value = '';
-            pwd.removeAttribute('name');
-            pwd.setAttribute('autocomplete', 'off');
-            pwd.setAttribute('autocapitalize', 'off');
-            pwd.setAttribute('autocorrect', 'off');
-            pwd.setAttribute('spellcheck', 'false');
-            pwd.setAttribute('data-lpignore', 'true');
-            pwd.setAttribute('data-1p-ignore', '');
-            pwd.setAttribute('data-form-type', 'other');
-        },
-
-        /** TR-112: modo edición Paso 2 sin disparar autosave al ocultar el contenedor. */
-        _prepararCampoPasswordPaso2TR112() {
-            const pwd = document.getElementById('reg-password');
-            if (!pwd) return;
-            pwd.type = 'text';
-            pwd.removeAttribute('name');
-            pwd.setAttribute('autocomplete', 'off');
-            pwd.setAttribute('data-lpignore', 'true');
-            pwd.setAttribute('data-1p-ignore', '');
-            pwd.setAttribute('data-form-type', 'other');
-            const guardada = sessionStorage.getItem('temp_pass');
-            if (guardada) pwd.value = guardada;
-        },
-
-        _onPasswordFocusTR112() {
-            if (this._pasoActual !== 2) return;
-            const pwd = document.getElementById('reg-password');
-            if (!pwd) return;
-            pwd.type = 'password';
-        },
-
-        _asegurarPasswordFueraAntesPaso3TR112() {
-            const pwdInput = document.getElementById('reg-password');
-            if (!pwdInput) return;
-            const val = pwdInput.value || sessionStorage.getItem('temp_pass') || '';
-            if (val) sessionStorage.setItem('temp_pass', val);
-            this._neutralizarCampoPasswordTR112();
-        },
-
-        /** TR-112: activa credencial nativa solo en el commit real (previo a Supabase). */
-        _activarCredencialesCommitTR112(pwdInput, plainValue) {
-            if (!pwdInput) return;
-            pwdInput.type = 'password';
-            pwdInput.name = 'password';
-            pwdInput.setAttribute('autocomplete', 'new-password');
-            pwdInput.removeAttribute('data-lpignore');
-            pwdInput.removeAttribute('data-1p-ignore');
-            pwdInput.removeAttribute('data-form-type');
-            pwdInput.value = plainValue || '';
-        },
+        /* TR-112 (simplificado): Las funciones _neutralizar, _preparar, _onPasswordFocus,
+           _asegurarPasswordFuera y _activarCredencialesCommit han sido eliminadas.
+           Ahora se usa CSS Masking (.input-password-masked) en un input type="text". */
 
         // ------------------------------------------------------------------
         // 10.1 Inicialización: bloqueos de input + on-blur + fecha max
@@ -2075,11 +2019,6 @@ const app = {
                 regPwd._blurHandler = () => this._validarCampo('reg-password');
                 regPwd.addEventListener('blur', regPwd._blurHandler);
 
-                regPwd.removeEventListener('focus', regPwd._focusTr112Handler);
-                regPwd._focusTr112Handler = () => this._onPasswordFocusTR112();
-                regPwd.addEventListener('focus', regPwd._focusTr112Handler);
-
-                this._neutralizarCampoPasswordTR112();
             }
 
             // — Fecha de nacimiento: solo 'change' (no input en todos los browsers) —
@@ -2251,11 +2190,6 @@ const app = {
                 if (el) el.style.display = (i === n) ? 'flex' : 'none';
             }
             this._pasoActual = n;
-            if (n === 2) {
-                this._prepararCampoPasswordPaso2TR112();
-            } else {
-                this._neutralizarCampoPasswordTR112();
-            }
             if (n === 3) {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => this._emitirOTPAlEntrarPaso3());
@@ -2380,8 +2314,6 @@ const app = {
                     }
                 }
 
-                // TR-112 + TR-34: candado antisave antes de ocultar Paso 2 (evita Credential Prompt).
-                this._asegurarPasswordFueraAntesPaso3TR112();
             }
 
             this._irAPaso(pasoActual + 1);
@@ -2670,10 +2602,8 @@ const app = {
                 return;
             }
 
-            // TR-34/B: Recuperar la contraseña real desde sessionStorage.
-            // El input #reg-password fue vaciado al pasar al Paso 3; el valor
-            // real está guardado en 'temp_pass' para evitar fallos silenciosos.
-            const finalPass = sessionStorage.getItem('temp_pass') || '';
+            // Leer la contraseña directamente del input (type="text" con CSS masking).
+            const finalPass = (document.getElementById('reg-password')?.value || '').trim();
 
             const nuevoUsuario = {
                 tipoDoc: this._tipoDoc,
@@ -2688,13 +2618,10 @@ const app = {
                 fijo: (document.getElementById('reg-fijo')?.value || '').trim(),
                 correo: (document.getElementById('reg-email')?.value || '').trim(),
                 email: (document.getElementById('reg-email')?.value || '').trim(),
-                password: finalPass  // ← desde sessionStorage, no del DOM vaciado
+                password: finalPass
             };
 
             const filaPacienteSupabase = pacienteDesdeRegistroLocal(nuevoUsuario);
-
-            const pwdInputCommit = document.getElementById('reg-password');
-            this._activarCredencialesCommitTR112(pwdInputCommit, finalPass);
 
             let filaInsertada;
             try {
@@ -2729,49 +2656,7 @@ const app = {
             localStorage.setItem('usuarioLogueado', 'true');
             localStorage.setItem('usuarioActivo', JSON.stringify(usuarioActivo));
 
-            // ── TR-31 §3 — Ghost Form: disparar prompt nativo de guardado de contraseñas ──
-            // Se crea un formulario invisible con las credenciales reales, se hace submit
-            // interceptado (preventDefault) para que el navegador ofrezca guardar la
-            // contraseña, y se elimina de inmediato. No altera el <form> original.
-            try {
-                const ghostForm = document.createElement('form');
-                ghostForm.style.cssText = 'display:none;position:fixed;top:-9999px;left:-9999px;';
-                ghostForm.setAttribute('autocomplete', 'on');
-                ghostForm.setAttribute('action', 'javascript:void(0);');
-
-                const ghostUser = document.createElement('input');
-                ghostUser.type = 'text';
-                ghostUser.name = 'username';
-                ghostUser.autocomplete = 'username';
-                ghostUser.value = nuevoUsuario.identificacion || '';
-
-                const ghostPwd = document.createElement('input');
-                ghostPwd.type = 'password';
-                ghostPwd.name = 'password';
-                ghostPwd.autocomplete = 'new-password';
-                ghostPwd.value = finalPass || nuevoUsuario.password || ''; // TR-34: usa el valor real
-
-                const ghostSubmit = document.createElement('button');
-                ghostSubmit.type = 'submit';
-
-                ghostForm.appendChild(ghostUser);
-                ghostForm.appendChild(ghostPwd);
-                ghostForm.appendChild(ghostSubmit);
-
-                // Interceptar el submit para evitar navegación pero dejar que el
-                // gestor de contraseñas del navegador capture las credenciales.
-                ghostForm.addEventListener('submit', (e) => e.preventDefault(), { once: true });
-
-                document.body.appendChild(ghostForm);
-                ghostSubmit.click(); // Activa el prompt nativo sin navegación
-                ghostForm.remove();
-
-                // TR-34/B §4: Limpiar la clave temporal tras usarla en el Ghost Form.
-                sessionStorage.removeItem('temp_pass');
-            } catch (_) {
-                // No interrumpir el flujo si el ghost form falla (degradación controlada)
-                sessionStorage.removeItem('temp_pass'); // Limpiar igualmente en caso de error
-            }
+            // Ghost Form eliminado — ya no se necesita con CSS Masking.
 
             clearInterval(this._countdownInterval);
             app.iniciarSesionUsuario();
@@ -2895,11 +2780,12 @@ const app = {
             const input = document.getElementById('reg-password');
             const icon = document.getElementById('reg-eye-icon');
             if (!input || this._pasoActual !== 2) return;
-            if (input.type === 'password') {
-                input.type = 'text';
+
+            if (input.classList.contains('input-password-masked')) {
+                input.classList.remove('input-password-masked');
                 icon?.classList.replace('fa-eye', 'fa-eye-slash');
             } else {
-                input.type = 'password';
+                input.classList.add('input-password-masked');
                 icon?.classList.replace('fa-eye-slash', 'fa-eye');
             }
         },
@@ -3634,7 +3520,8 @@ const app = {
                 this._bindVistaA();
             }
 
-            history.pushState({ vista: 'widget-invitado-input' }, '', '');
+            // TR-120: Sin pushState — el modal se aísla del historial para no
+            // disparar popstate/irAtras() al cerrar.
             modal.classList.remove('hidden');
             modal.style.removeProperty('display');
             modal.setAttribute('aria-hidden', 'false');
@@ -3653,14 +3540,13 @@ const app = {
                 errorCedula.style.display = 'none';
             }
 
+            // TR-120: Cierre atómico — solo ocultación visual.
+            // Se prohíbe history.back() para no disparar el popstate → irAtras().
             const modal = document.getElementById('modal-consulta-invitado');
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
                 modal.setAttribute('aria-hidden', 'true');
-                if (history.state && history.state.vista === 'widget-invitado-input') {
-                    history.back();
-                }
             }
             this._resultadosActuales = [];
         },

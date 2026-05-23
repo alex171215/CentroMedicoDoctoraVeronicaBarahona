@@ -838,13 +838,18 @@ textarea:focus-visible {
     }
 }
 
+/* TR-120: base — width solo; display controlado por media queries */
 .header__nav-wrapper {
-    display: none;
     width: auto;
 }
 
 /* TR-65 / TR-114: menú colapsado desplegable (móvil + tablet ≤1023px) */
 @media (max-width: 1023px) {
+    /* TR-120: oculto por defecto; se muestra al activar hamburguesa (.active) */
+    .header__nav-wrapper {
+        display: none;
+    }
+
     .header__nav-wrapper.active {
         display: flex;
         flex-direction: column;
@@ -5648,6 +5653,15 @@ a[href^="mailto:"]:focus-visible,
     inset: 0;
     z-index: 5;
     background: rgba(255, 255, 255, 0.72);
+}
+
+/* ======================================================================
+   CSS Password Masking — TR-112 Simplificación
+   Muestra puntos (●) en inputs type="text" sin activar el Credential Manager.
+   ====================================================================== */
+.input-password-masked {
+    -webkit-text-security: disc;
+    text-security: disc;
 }
 
 /* ======================================================================

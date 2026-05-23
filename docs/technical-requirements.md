@@ -896,3 +896,8 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Intercepción del Evento Enter:** Se capturará de forma explícita el evento nativo `keydown` en los campos de entrada clave (`#widget-cedula`, `#widget-codigo-cita`, `#login-cedula`, y el formulario del paso 3 de citas).
 2. **Disparo de Acción Principal:** Al detectar que `e.key === 'Enter'`, el sistema prevendrá el comportamiento por defecto (`e.preventDefault()`) para evitar recargas completas de la MPA y ejecutará programáticamente un `.click()` sobre el botón de acción principal asociado o invocará directamente su método ejecutor.
 3. **Preservación de Foco e Inmutabilidad:** Esta captura por teclado coexistirá pacíficamente con las validaciones de error diferidas en el evento `blur` (TR-107) y las limpiezas en el evento `input`, sin alterar el ciclo de vida del DOM.
+
+
+## TR-120: Aislamiento de Modales y Estabilidad de Header (H3, H8)
+1. **Acción de Cierre Atómica:** El método de cierre del modal `#modal-consulta-invitado` ejecutará ÚNICAMENTE la ocultación visual (ej: `classList.add('hidden')` o `style.display = 'none'`). Se prohíbe terminantemente la ejecución de cualquier método de navegación, enrutamiento o historial (`history.back`, `irAtras`, etc.).
+2. **Persistencia del Menú de Navegación:** El contenedor `.header__nav-wrapper` deberá ser declarado con `display: block` (o el display flex adecuado) en todos los archivos HTML (index, citas, especialistas), garantizando que el diseño responsive no lo oculte accidentalmente en resoluciones de escritorio o tablet.
