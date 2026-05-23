@@ -1425,10 +1425,20 @@ const app = {
                 buscador.removeEventListener('input', this.manejarFiltro);
                 buscador.addEventListener('input', this.manejarFiltro.bind(this));
 
-                // Bloque A – Sanitización en tiempo real (Regex Whitelist)
-                // Solo permite letras (incluye tildes y ñ) y espacios. Borra números y símbolos al instante.
+                // Bloque A – Sanitización en tiempo real (Regex Whitelist + dobles espacios)
                 buscador.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                    const input = e.target;
+                    let val = input.value;
+                    const original = val;
+                    val = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '');
+                    if (val.startsWith(' ')) val = val.trimStart();
+                    val = val.replace(/  +/g, ' ');
+                    if (val !== original) {
+                        input.value = val;
+                        input.classList.add('input-rechazado');
+                        clearTimeout(input._flashTimeout);
+                        input._flashTimeout = setTimeout(() => input.classList.remove('input-rechazado'), 300);
+                    }
                 });
             }
 
