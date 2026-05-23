@@ -1924,135 +1924,135 @@ export function createCitas() {
         async _irAPaso(paso) {
             this._suppressHistorialPush = true;
             try {
-            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+                const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
 
-            if (paso === 0) {
-                this.renderizarPasoEspecialidades();
-                this.mostrarPaso(0);
-                return;
-            }
-
-            if (paso === 1) {
-                const esp = sessionStorage.getItem('especialidad_seleccionada');
-                let db;
-                try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
-                const medicos = (db.cartera_especialistas || []).filter(e => e.especialidad === esp && e.doctor);
-                if (!esp || !medicos.length) {
+                if (paso === 0) {
                     this.renderizarPasoEspecialidades();
                     this.mostrarPaso(0);
                     return;
                 }
-                if (medicos.length === 1) {
-                    const med = medicos[0];
-                    sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
-                        medico: med.doctor.nombre_completo,
-                        especialidad: esp,
-                        imagen_url: med.imagen_url,
-                        id_especialista: med.id_especialista
-                    }));
-                    this.prepararResumenMedico(med.doctor.nombre_completo, esp, med.imagen_url, med.id_especialista);
+
+                if (paso === 1) {
+                    const esp = sessionStorage.getItem('especialidad_seleccionada');
+                    let db;
+                    try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
+                    const medicos = (db.cartera_especialistas || []).filter(e => e.especialidad === esp && e.doctor);
+                    if (!esp || !medicos.length) {
+                        this.renderizarPasoEspecialidades();
+                        this.mostrarPaso(0);
+                        return;
+                    }
+                    if (medicos.length === 1) {
+                        const med = medicos[0];
+                        sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
+                            medico: med.doctor.nombre_completo,
+                            especialidad: esp,
+                            imagen_url: med.imagen_url,
+                            id_especialista: med.id_especialista
+                        }));
+                        this.prepararResumenMedico(med.doctor.nombre_completo, esp, med.imagen_url, med.id_especialista);
+                        this.mostrarPaso(2);
+                        this.generarCalendario(true);
+                        return;
+                    }
+                    this.renderizarPasoDoctores(esp, medicos);
+                    this.mostrarPaso(1);
+                    return;
+                }
+
+                if (paso === 5) {
+                    const t = this.resumenTicketConfirmado;
+                    if (!t || typeof t !== 'object') {
+                        this.renderizarPasoEspecialidades();
+                        this.mostrarPaso(0);
+                        return;
+                    }
+                    this._aplicarResumenTicketAlDom(t);
+                    this.mostrarPaso(5);
+                    return;
+                }
+
+                if (paso === 2) {
+                    const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
+                    let preCita = null;
+                    try { preCita = preCitaStr ? JSON.parse(preCitaStr) : null; } catch (_) { preCita = null; }
+                    const esp = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
+                    if (!preCita?.medico || !esp) {
+                        this.renderizarPasoEspecialidades();
+                        this.mostrarPaso(0);
+                        return;
+                    }
+                    this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, preCita.id_especialista);
                     this.mostrarPaso(2);
                     this.generarCalendario(true);
+                    if (sessionStorage.getItem('cita_hora_confirmada') === 'true') {
+                        const horaGuardada = (sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada || '').trim();
+                        const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
+                        if (horaGuardada) {
+                            this.horaSeleccionada = horaGuardada;
+                            if (fechaISO) this.fechaISOSeleccionada = fechaISO;
+                            this._seleccionarSlotVisual(horaGuardada, fechaISO);
+                        }
+                    }
                     return;
                 }
-                this.renderizarPasoDoctores(esp, medicos);
-                this.mostrarPaso(1);
-                return;
-            }
 
-            if (paso === 5) {
-                const t = this.resumenTicketConfirmado;
-                if (!t || typeof t !== 'object') {
-                    this.renderizarPasoEspecialidades();
-                    this.mostrarPaso(0);
+                if (paso === 3) {
+                    const modifica = !!sessionStorage.getItem('cita_modificacion');
+                    if (estaLogueado && !this.modoProxy && !modifica) {
+                        if (!this.horaSeleccionada) {
+                            const hg = sessionStorage.getItem('cita_hora_seleccionada');
+                            if (hg) this.horaSeleccionada = hg;
+                        }
+                        if (!this.fechaISOSeleccionada) {
+                            const fi = sessionStorage.getItem('cita_fecha_iso');
+                            if (fi) this.fechaISOSeleccionada = fi;
+                        }
+                        if (this.horaSeleccionada) {
+                            if (!this._doctorActual) {
+                                try {
+                                    const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
+                                    const preCita = preCitaStr ? JSON.parse(preCitaStr) : null;
+                                    const espSel = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
+                                    if (preCita?.medico) {
+                                        this.prepararResumenMedico(preCita.medico, espSel, preCita.imagen_url, preCita.id_especialista);
+                                    }
+                                } catch (_) { }
+                            }
+                            this.prepararResumenFinal(true);
+                            return;
+                        }
+                    }
+                    this.mostrarPaso(3);
                     return;
                 }
-                this._aplicarResumenTicketAlDom(t);
-                this.mostrarPaso(5);
-                return;
-            }
 
-            if (paso === 2) {
-                const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
-                let preCita = null;
-                try { preCita = preCitaStr ? JSON.parse(preCitaStr) : null; } catch (_) { preCita = null; }
-                const esp = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
-                if (!preCita?.medico || !esp) {
-                    this.renderizarPasoEspecialidades();
-                    this.mostrarPaso(0);
-                    return;
-                }
-                this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, preCita.id_especialista);
-                this.mostrarPaso(2);
-                this.generarCalendario(true);
-                if (sessionStorage.getItem('cita_hora_confirmada') === 'true') {
-                    const horaGuardada = (sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada || '').trim();
-                    const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
-                    if (horaGuardada) {
-                        this.horaSeleccionada = horaGuardada;
-                        if (fechaISO) this.fechaISOSeleccionada = fechaISO;
-                        this._seleccionarSlotVisual(horaGuardada, fechaISO);
+                if (paso === 4) {
+                    if (this._citaTemporal) {
+                        this._mostrarResumen(this._citaTemporal);
+                        this.mostrarPaso(4);
+                        return;
                     }
-                }
-                return;
-            }
-
-            if (paso === 3) {
-                const modifica = !!sessionStorage.getItem('cita_modificacion');
-                if (estaLogueado && !this.modoProxy && !modifica) {
-                    if (!this.horaSeleccionada) {
-                        const hg = sessionStorage.getItem('cita_hora_seleccionada');
-                        if (hg) this.horaSeleccionada = hg;
+                    const backup = sessionStorage.getItem('_citaTemporal_respaldo');
+                    if (backup) {
+                        try {
+                            this._citaTemporal = JSON.parse(backup);
+                            this._mostrarResumen(this._citaTemporal);
+                            this.mostrarPaso(4);
+                            return;
+                        } catch (_) { /* continuar */ }
                     }
-                    if (!this.fechaISOSeleccionada) {
-                        const fi = sessionStorage.getItem('cita_fecha_iso');
-                        if (fi) this.fechaISOSeleccionada = fi;
-                    }
-                    if (this.horaSeleccionada) {
-                        if (!this._doctorActual) {
-                            try {
-                                const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
-                                const preCita = preCitaStr ? JSON.parse(preCitaStr) : null;
-                                const espSel = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
-                                if (preCita?.medico) {
-                                    this.prepararResumenMedico(preCita.medico, espSel, preCita.imagen_url, preCita.id_especialista);
-                                }
-                            } catch (_) { }
+                    if ((this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada')) && estaLogueado) {
+                        if (!this.horaSeleccionada) this.horaSeleccionada = sessionStorage.getItem('cita_hora_seleccionada');
+                        if (!this.fechaISOSeleccionada) {
+                            const fi = sessionStorage.getItem('cita_fecha_iso');
+                            if (fi) this.fechaISOSeleccionada = fi;
                         }
                         this.prepararResumenFinal(true);
                         return;
                     }
+                    await this._irAPaso(2);
                 }
-                this.mostrarPaso(3);
-                return;
-            }
-
-            if (paso === 4) {
-                if (this._citaTemporal) {
-                    this._mostrarResumen(this._citaTemporal);
-                    this.mostrarPaso(4);
-                    return;
-                }
-                const backup = sessionStorage.getItem('_citaTemporal_respaldo');
-                if (backup) {
-                    try {
-                        this._citaTemporal = JSON.parse(backup);
-                        this._mostrarResumen(this._citaTemporal);
-                        this.mostrarPaso(4);
-                        return;
-                    } catch (_) { /* continuar */ }
-                }
-                if ((this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada')) && estaLogueado) {
-                    if (!this.horaSeleccionada) this.horaSeleccionada = sessionStorage.getItem('cita_hora_seleccionada');
-                    if (!this.fechaISOSeleccionada) {
-                        const fi = sessionStorage.getItem('cita_fecha_iso');
-                        if (fi) this.fechaISOSeleccionada = fi;
-                    }
-                    this.prepararResumenFinal(true);
-                    return;
-                }
-                await this._irAPaso(2);
-            }
             } finally {
                 this._suppressHistorialPush = false;
             }
@@ -2310,9 +2310,9 @@ export function createCitas() {
                 } catch (_) { /* noop */ }
 
                 if (modCtxInv && modCtxInv.modoModificacion) {
-                    paciente       = modCtxInv.paciente || 'Paciente';
+                    paciente = modCtxInv.paciente || 'Paciente';
                     cedulaPaciente = modCtxInv.cedula_paciente || modCtxInv.cedula || '';
-                    cedulaTitular  = cedulaPaciente;
+                    cedulaTitular = cedulaPaciente;
                 } else {
                     const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
                     const inputApellidos = document.getElementById('cita-apellidos');
@@ -4050,7 +4050,7 @@ export function createCitas() {
                     <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
                     <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
                     <p class="modal-colision-text" style="margin-bottom: 20px;">
-                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos que ingresaste se borrarán. ¿Deseas continuar?
+                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos que ingresaste se borrarán. ¿Deseas salir?
                     </p>
                     <div class="modal-colision-actions">
                         <button id="btn-buffer-no-volver" class="btn btn--primario btn-full-width btn-margin-bottom">
@@ -4108,7 +4108,7 @@ export function createCitas() {
                     <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
                     <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
                     <p class="modal-colision-text" style="margin-bottom: 20px;">
-                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos ingresados se borrarán. ¿Deseas continuar?
+                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos ingresados se borrarán. ¿Deseas salir?
                     </p>
                     <div class="modal-colision-actions">
                         <button id="btn-limite-no-volver" class="btn btn--primario btn-full-width btn-margin-bottom">
