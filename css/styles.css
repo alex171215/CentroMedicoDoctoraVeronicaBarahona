@@ -5337,6 +5337,10 @@ a[href^="mailto:"]:focus-visible,
     color: #2563b0;
 }
 
+/* Anti-FOUC: aplicado por script inline en <head> antes de renderizar el body */
+html.logueado #btn-consultar-cita-header { display: none !important; }
+html.logueado #nav-mi-salud { display: list-item !important; }
+
 /* â”€â”€ Responsive Mobile â”€â”€ */
 @media (max-width: 480px) {
     .cita-acciones {
