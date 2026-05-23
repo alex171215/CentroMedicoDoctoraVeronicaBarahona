@@ -789,7 +789,11 @@ export function createCitas() {
 
             document.querySelectorAll('.citas-step').forEach(el => el.style.display = 'none');
             const step2 = document.getElementById('citas-step-2');
-            if (step2) step2.style.display = 'block';
+            if (step2) {
+                step2.style.display = 'block';
+                const backBtn = step2.querySelector('.btn-back-minimalist');
+                if (backBtn) backBtn.style.display = 'none';
+            }
             this.actualizarBarraProgreso();
 
             await this._esperarDatosEspecialistas();
