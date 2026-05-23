@@ -426,6 +426,19 @@ export function createCitas() {
         mostrarPaso(nuevoPaso) {
             // Limpiar campos del paso 3 al salir de él hacia cualquier otro paso.
             if (this.pasoActual === 3 && nuevoPaso !== 3) {
+                // Si avanza hacia adelante (paso 4+), guardar los datos antes de limpiar
+                // para que al volver al paso 3 los campos sigan llenos.
+                if (nuevoPaso > 3) {
+                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
+                    if (nom || ced || cel) {
+                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                    }
+                } else {
+                    // Si retrocede (hacia paso 2 o anterior), descartar datos guardados.
+                    sessionStorage.removeItem('citas_paso3_retorno');
+                }
                 this._limpiarCamposPaso3();
             }
 
@@ -473,6 +486,22 @@ export function createCitas() {
                         // Consumir el dato para que no quede residual
                         sessionStorage.removeItem('temp_datos_recuperacion');
                     } catch (e) { }
+                } else {
+                    // Restaurar campos si el usuario volvió desde el paso 4 (navegación hacia atrás).
+                    const retornoData = sessionStorage.getItem('citas_paso3_retorno');
+                    if (retornoData) {
+                        try {
+                            const data = JSON.parse(retornoData);
+                            const nomInput = document.getElementById('citas-nombres');
+                            const cedInput = document.getElementById('citas-cedula');
+                            const celInput = document.getElementById('citas-celular');
+
+                            if (nomInput && data.nombres) nomInput.value = data.nombres;
+                            if (cedInput && data.cedula) cedInput.value = data.cedula;
+                            if (celInput && data.celular) celInput.value = data.celular;
+                            // No se consume: persiste por si el usuario vuelve a avanzar/retroceder varias veces.
+                        } catch (e) { }
+                    }
                 }
 
                 const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
@@ -1097,6 +1126,7 @@ export function createCitas() {
             sessionStorage.removeItem('_citaTemporal_respaldo');
             sessionStorage.removeItem('citas_login_restore');
             sessionStorage.removeItem('temp_datos_recuperacion');
+            sessionStorage.removeItem('citas_paso3_retorno');
             sessionStorage.removeItem('cita_desde_login');
             sessionStorage.removeItem('modoModificacion');
             if (!preserveMod) {
