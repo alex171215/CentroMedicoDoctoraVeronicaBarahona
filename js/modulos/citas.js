@@ -1707,7 +1707,19 @@ export function createCitas() {
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
             // Regresar al paso 2 si estaba en el 3
             if (this.pasoActual === 3) {
+                // 1. Leer los datos del formulario ANTES de que mostrarPaso limpie el DOM.
+                //    El usuario eligió otra hora por colisión — no debería perder lo que ya escribió.
+                const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                const cel = document.getElementById('citas-celular')?.value.trim() || '';
+
+                // 2. Navegar al calendario (limpia campos y borra citas_paso3_retorno internamente).
                 this.mostrarPaso(2);
+
+                // 3. Volver a guardar los datos para que se restauren al llegar de nuevo al paso 3.
+                if (nom || ced || cel) {
+                    sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                }
             }
         },
 
