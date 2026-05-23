@@ -479,18 +479,19 @@ const app = {
         const maxCitas = new Date(hoy.getFullYear(), hoy.getMonth() + 2, hoy.getDate());
         const en2Meses = maxCitas.toISOString().split('T')[0];
 
-        // TR-13: Titulares de cuenta → mínimo 18 años, máximo 120 años
+        // TR-13: Titulares de cuenta → mínimo 18 años, máximo 100 años
         // new Date(año, mes, día) maneja años bisiestos de forma nativa.
-        const minNac = new Date(hoy.getFullYear() - 120, hoy.getMonth(), hoy.getDate());
-        const hace120Anios = minNac.toISOString().split('T')[0];
+        const minNac = new Date(hoy.getFullYear() - 100, hoy.getMonth(), hoy.getDate());
+        const hace100Anios = minNac.toISOString().split('T')[0];
 
         const maxNac = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
         const hace18Anios = maxNac.toISOString().split('T')[0];
 
         // Alias de compatibilidad para código anterior que usaba 'hace90Anios'
-        const hace90Anios = hace120Anios;
+        const hace90Anios = hace100Anios;
+        const hace120Anios = hace100Anios;
 
-        return { hoy: fechaHoy, en2Meses, hace120Anios, hace90Anios, hace18Anios };
+        return { hoy: fechaHoy, en2Meses, hace100Anios, hace120Anios, hace90Anios, hace18Anios };
     },
 
     _aplicarLimitesFechaGlobal() {
