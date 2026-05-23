@@ -3683,7 +3683,22 @@ const app = {
                 }
                 if (target.classList.contains('btn--descargar-pdf')) {
                     e.preventDefault(); e.stopPropagation();
-                    if(idCita) widget.descargarPDFCitaInvitado(idCita);
+                    if (!idCita || target.disabled) return;
+
+                    // Bloquear el botón y mostrar spinner para evitar clics dobles
+                    const htmlOriginal = target.innerHTML;
+                    target.disabled = true;
+                    target.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Generando PDF...';
+
+                    // Ceder el hilo al navegador para que repinte ANTES de que jsPDF bloquee el thread
+                    setTimeout(() => {
+                        try {
+                            widget.descargarPDFCitaInvitado(idCita);
+                        } finally {
+                            target.disabled = false;
+                            target.innerHTML = htmlOriginal;
+                        }
+                    }, 60);
                     return;
                 }
                 if (target.classList.contains('btn--vista-c-volver')) {
