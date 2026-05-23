@@ -190,6 +190,7 @@ const app = {
         }
 
         this.iniciarMenuMovil();
+        this._initOfflineDetection();
         this.iniciarPurgaDesercionRutaTR93();
 
         // TR-72: Sanitizador Global con Floating Tooltips (OWASP / H1 / H4)
@@ -860,6 +861,50 @@ const app = {
                 }
             }
         }, true);
+    },
+
+    _initOfflineDetection: function () {
+        // Crear banner una sola vez e insertarlo al inicio del body
+        const BANNER_ID = 'sanitas-offline-banner';
+        if (document.getElementById(BANNER_ID)) return;
+
+        const banner = document.createElement('div');
+        banner.id = BANNER_ID;
+        banner.setAttribute('role', 'alert');
+        banner.setAttribute('aria-live', 'assertive');
+        banner.innerHTML =
+            '<i class="fa-solid fa-wifi offline-icon" aria-hidden="true"></i>' +
+            '<span>Sin conexión a internet. Algunas funciones no estarán disponibles hasta que te reconectes.</span>';
+        document.body.insertAdjacentElement('afterbegin', banner);
+
+        // Toast "Conexión restaurada"
+        const TOAST_ID = 'sanitas-online-toast';
+        const toast = document.createElement('div');
+        toast.id = TOAST_ID;
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        toast.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Conexión restaurada</span>';
+        document.body.insertAdjacentElement('beforeend', toast);
+
+        let _toastTimer = null;
+        const mostrarToast = () => {
+            clearTimeout(_toastTimer);
+            toast.classList.add('visible');
+            _toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+        };
+
+        const mostrar = () => banner.classList.add('visible');
+        const ocultar = () => {
+            banner.classList.remove('visible');
+            mostrarToast();
+        };
+
+        // Estado inicial — si arranca sin internet mostrar banner; el toast solo aparece
+        // cuando se RECUPERA la conexión, no al cargar la página con internet.
+        if (!navigator.onLine) mostrar();
+
+        window.addEventListener('offline', mostrar);
+        window.addEventListener('online', ocultar);
     },
 
     iniciarMenuMovil: function () {
