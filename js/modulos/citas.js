@@ -593,6 +593,10 @@ export function createCitas() {
                 document.querySelectorAll('#view-citas .btn-back-minimalist').forEach(btn => {
                     btn.style.display = '';
                 });
+                if (nuevoPaso === 2 && this._esTunelReagendamientoTR100()) {
+                    const backBtnPaso2 = document.querySelector('#citas-step-2 .btn-back-minimalist');
+                    if (backBtnPaso2) backBtnPaso2.style.display = 'none';
+                }
             }
 
             // ─── Paso 4: inyectar aviso si es modificación ───
