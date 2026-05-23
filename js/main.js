@@ -760,6 +760,12 @@ const app = {
                         // Estamos en login.html: solo actualizar estado
                         app.navegar('login');
                     } else {
+                        // Preservar contexto de citas (igual que app.navegar('login')) antes de salir.
+                        const vistaActual = app._mpaVistaDesdePathname?.() || '';
+                        if (vistaActual === 'citas' && app.citas) {
+                            sessionStorage.setItem('vista_origen', 'citas');
+                            app.citas._guardarEstadoParaLogin();
+                        }
                         window.location.href = 'login.html';
                     }
                 }
