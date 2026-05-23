@@ -18,6 +18,7 @@ import {
     registrarPacienteCondicionalTR110,
     correoOcupadoPorOtraCedula
 } from './modulos/supabaseServicio.js';
+import { registroOtpControl } from './modulos/registro.js';
 
 // function enviarCorreoOTP(correo, codigo) {}
 
@@ -1708,18 +1709,17 @@ const app = {
                 });
             }
 
-            // ── Prevenir envío por Enter en campos de login ──
+            // TR-119: Enter en credenciales ejecuta inicio de sesión (sin recarga MPA).
             ['login-cedula', 'login-password'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) {
-                    el.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();               // evita cualquier acción por defecto
-                            // Opcional: hacer clic en el botón de login automáticamente
-                            // document.getElementById('login-submit-btn').click();
-                        }
-                    });
-                }
+                if (!el || el.dataset.tr119Enter === '1') return;
+                el.dataset.tr119Enter = '1';
+                el.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    const submitBtn = document.getElementById('login-submit-btn');
+                    if (submitBtn) submitBtn.click();
+                });
             });
 
             // ── NUEVO: Asociar botón de login ──
@@ -1898,7 +1898,10 @@ const app = {
         _sexo: '',
         _codigoOTPGenerado: '',
         _countdownInterval: null,
+        _reenvioFeedbackTimer: null,
+        _otpToastTimer: null,
         _regexNombre: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+        ...registroOtpControl,
 
         /** TR-112: desactiva heurísticas de Credential Management en pasos intermedios. */
         _neutralizarCampoPasswordTR112() {
@@ -2644,32 +2647,8 @@ const app = {
         },
 
         // ------------------------------------------------------------------
-        // 10.6 Contador de reenvío
+        // 10.6 Contador de reenvío — TR-118: js/modulos/registro.js (registroOtpControl)
         // ------------------------------------------------------------------
-        _iniciarCountdown(segundos) {
-            clearInterval(this._countdownInterval);
-            const spanCd = document.getElementById('reg-countdown');
-            const resendTxt = document.getElementById('reg-resend-txt');
-            const btn = document.getElementById('reg-validar-btn');
-            if (btn) btn.disabled = false;
-
-            let restante = segundos;
-            const actualizar = () => {
-                const m = String(Math.floor(restante / 60)).padStart(2, '0');
-                const s = String(restante % 60).padStart(2, '0');
-                if (spanCd) spanCd.textContent = `${m}:${s}`;
-                if (restante === 0) {
-                    clearInterval(this._countdownInterval);
-                    if (resendTxt) resendTxt.innerHTML =
-                        '<a href="javascript:void(0)" onclick="app.registro._renovarOTP()" ' +
-                        'style="color:var(--action-color);font-weight:600;">' +
-                        'Solicitar código nuevamente</a>';
-                }
-                restante--;
-            };
-            actualizar();
-            this._countdownInterval = setInterval(actualizar, 1000);
-        },
 
         // ------------------------------------------------------------------
         // 10.7 Validación del Código (Paso 3)
@@ -2877,14 +2856,7 @@ const app = {
             this._limpiarError('reg-tipo-doc');
         },
 
-        _renovarOTP() {
-            const emailVal = document.getElementById('reg-email')?.value || '';
-            const codigo = String(Math.floor(100000 + Math.random() * 900000));
-            this._codigoOTPGenerado = codigo;
-            console.log('[QA OTP] Nuevo código:', codigo, '| correo:', emailVal);
-            alert('Tu código de validación es: ' + codigo);
-            this._iniciarCountdown(60);
-        },
+        // _renovarOTP — TR-118: js/modulos/registro.js (registroOtpControl)
 
         // ------------------------------------------------------------------
         // 10.9 Modales — Sexo
@@ -3702,8 +3674,21 @@ const app = {
             }
         },
 
+        /** TR-119: Enter en inputs del widget dispara la búsqueda principal. */
+        _enlazarEnterWidgetTR119(inputEl) {
+            if (!inputEl || inputEl.dataset.tr119Enter === '1') return;
+            inputEl.dataset.tr119Enter = '1';
+            inputEl.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const btn = document.getElementById('btn-consultar-cita');
+                if (btn) btn.click();
+            });
+        },
+
         _bindVistaA() {
             const inputCedula = document.getElementById('widget-cedula');
+            const inputCodigoCita = document.getElementById('widget-codigo-cita');
             const btnConsultar = document.getElementById('btn-consultar-cita');
 
             if (inputCedula) {
@@ -3713,6 +3698,11 @@ const app = {
                     const errorSpan = document.getElementById('widget-cedula-error');
                     if (errorSpan) errorSpan.style.display = 'none';
                 };
+                this._enlazarEnterWidgetTR119(inputCedula);
+            }
+
+            if (inputCodigoCita) {
+                this._enlazarEnterWidgetTR119(inputCodigoCita);
             }
 
             if (btnConsultar) {

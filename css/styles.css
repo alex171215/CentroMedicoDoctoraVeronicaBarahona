@@ -3419,6 +3419,122 @@ a[href^="mailto:"]:focus-visible,
     text-align: center;
 }
 
+/* Toast de confirmación OTP (reenvío) — visible sobre el header */
+.reg-otp-toast {
+    position: fixed;
+    top: max(72px, env(safe-area-inset-top, 0px) + 56px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10050;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: min(92vw, 380px);
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: var(--white);
+    box-shadow: 0 10px 32px rgba(59, 73, 163, 0.22);
+    animation: regOtpToastIn 0.35s ease;
+    box-sizing: border-box;
+}
+
+.reg-otp-toast--ok {
+    border: 2px solid var(--action-color);
+}
+
+.reg-otp-toast--error {
+    border: 2px solid #c0392b;
+}
+
+.reg-otp-toast > .fa-solid {
+    font-size: 1.35rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.reg-otp-toast--ok > .fa-solid {
+    color: var(--action-color);
+}
+
+.reg-otp-toast--error > .fa-solid {
+    color: #c0392b;
+}
+
+.reg-otp-toast__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reg-otp-toast__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.3;
+}
+
+.reg-otp-toast__detail {
+    font-size: 0.82rem;
+    color: var(--gray-text);
+    line-height: 1.4;
+}
+
+.reg-otp-toast__close {
+    background: none;
+    border: none;
+    color: var(--gray-text);
+    cursor: pointer;
+    padding: 4px;
+    min-width: 32px;
+    min-height: 32px;
+    flex-shrink: 0;
+}
+
+.reg-otp-inline-banner {
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+    margin: 10px 0 4px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    line-height: 1.35;
+}
+
+.reg-otp-inline-banner--ok {
+    color: var(--action-color);
+    background: rgba(13, 169, 159, 0.1);
+    border: 1px solid rgba(13, 169, 159, 0.35);
+}
+
+.reg-otp-inline-banner--error {
+    color: #c0392b;
+    background: rgba(192, 57, 43, 0.08);
+    border: 1px solid rgba(192, 57, 43, 0.35);
+}
+
+.reg-otp-enviando {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--gray-text);
+    font-weight: 500;
+}
+
+@keyframes regOtpToastIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
 /* ==========================================================================
    MODALES DE REGISTRO (Tipo Documento / Sexo)
    ========================================================================== */
