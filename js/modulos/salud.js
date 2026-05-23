@@ -143,6 +143,12 @@ export const salud = {
     async inicializar() {
         if (!document.getElementById('view-mi-salud')) return;
 
+        // Guard: mi-salud solo es accesible para usuarios con sesión activa.
+        if (localStorage.getItem('usuarioLogueado') !== 'true') {
+            window.location.replace('index.html');
+            return;
+        }
+
         const rawRecetas = localStorage.getItem('sanitas_mis_recetas');
         estado.recetas = rawRecetas ? JSON.parse(rawRecetas) : this._recetasDemo;
         estado.citas = [];
@@ -164,8 +170,9 @@ export const salud = {
         const abrirDetalleId = sessionStorage.getItem('sanitas_abrir_detalle_id');
         if (abrirDetalleId) {
             sessionStorage.removeItem('sanitas_abrir_detalle_id');
+            sessionStorage.removeItem('cita_destacada'); // evitar doble disparo en próxima visita
             await this.verDetalleCita(String(abrirDetalleId).trim());
-            return; // ya manejado; evitar doble apertura con cita_destacada
+            return;
         }
 
         // TR-55: Retorno contextual — auto-apertura desde el botón "Ver mi cita" del paso 5

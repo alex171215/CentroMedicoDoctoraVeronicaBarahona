@@ -85,19 +85,23 @@ const app = {
     },
 
     async ejecutarLogout() {
-        this.cerrarModalLogout();
+        // Cerrar el modal visualmente SIN llamar history.back() para no navegar
+        // accidentalmente a la página anterior del historial del browser (mi-salud.html, etc.)
+        const modal = document.getElementById('modal-logout');
+        if (modal) modal.style.display = 'none';
         try {
             await conCargaGlobal(async () => {
-                // Simulación de tiempo para que el modal se vea
                 return new Promise(resolve => {
                     localStorage.clear();
-                    setTimeout(resolve, 1500);
+                    sessionStorage.clear();
+                    setTimeout(resolve, 800);
                 });
             }, 'Cerrando sesión...');
 
-            window.location.href = 'index.html';
+            window.location.replace('index.html');
         } catch (err) {
             console.error('Error al cerrar sesión:', err);
+            window.location.replace('index.html');
         }
     },
 
