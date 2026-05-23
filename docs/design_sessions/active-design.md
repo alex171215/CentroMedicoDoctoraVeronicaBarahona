@@ -1638,3 +1638,118 @@ La función de resolución de imagen de 40+ líneas fue eliminada y sustituida p
 - La función `_resolverImagenDirectorio` en `app.directorio` permanece en código (no se eliminó) pero ya no es invocada desde ningún flujo de renderizado de imagen; puede removerse en una sesión de limpieza futura sin afectar funcionalidad.
 
 ### Estado: ✅ CERRADO — TR-122 implementado. Los 4 puntos de inyección de imágenes ahora son 100% locales, consistentes (H4) y con fallback neutro (H5). Cero URLs externas de Unsplash en tarjetas o vistas dinámicas de médicos.
+
+---
+
+## Optimización de Carga Crítica LCP y Desbloqueo del App Shell TR-123/124
+
+### Fecha: 2026-05-23
+
+### Contexto
+
+El Home (`index.html`) presentaba dos latencias críticas:
+1. **TR-123** — El carrusel de especialidades (`#doctors-carousel`) y los slides del Hero cargaban imágenes externas de Pexels/Unsplash, generando latencia de red y dependencia de terceros para el LCP.
+2. **TR-124** — El botón `#btn-consultar-cita-header` nacía con `display:none` en el HTML y JS lo mostraba solo después de leer `localStorage`, provocando un FOUC (Flash Of Unstyled Content) visible al usuario invitado.
+
+### Archivos Modificados
+
+- [`index.html`](file:///c:/Users/ASUS/Documents/5to%20Semestre/Interacci%C3%B3n%20Humano%20Computador/Retos/mejora%20reto%204/CentroMedicoDoctoraVeronicaBarahona/index.html)
+- [`js/main.js`](file:///c:/Users/ASUS/Documents/5to%20Semestre/Interacci%C3%B3n%20Humano%20Computador/Retos/mejora%20reto%204/CentroMedicoDoctoraVeronicaBarahona/js/main.js)
+
+---
+
+### TR-123 — Erradicación de Peticiones Externas en el Carrusel
+
+#### `index.html` — Hero Slides 4 y 5
+
+Los fondos CSS de `background-image` de los slides internos fueron migrados de Unsplash a WebP locales:
+
+```diff
+# Slide 4 (Registro)
+- url('https://images.unsplash.com/photo-1576091160550...?q=80&w=1200')
++ url('assets/img/carrusel/webp/medicina-familiar.webp')
+
+# Slide 5 (Política 24h)
+- url('https://images.unsplash.com/photo-1506784983877...?q=80&w=1200')
++ url('assets/img/carrusel/webp/radiodiagnostico.webp')
+
+# Sección Ubicación
+- src="https://images.unsplash.com/photo-1519494026892...?q=80&w=800"
++ src="assets/img/carrusel/webp/medicina-general.webp"
+```
+
+#### `js/main.js` — `renderizarEspecialidadesHome()`
+
+El mapa `imagenesEspecialidad` de 12 URLs externas de Pexels fue reemplazado por rutas WebP locales:
+
+| Especialidad | Antes | Después |
+|---|---|---|
+| MEDICINA FAMILIAR | `pexels.com/.../7579831.jpeg` | `assets/img/carrusel/webp/medicina-familiar.webp` |
+| MEDICINA GENERAL | `pexels.com/.../40568.jpeg` | `assets/img/carrusel/webp/medicina-general.webp` |
+| RADIODIÁGNOSTICO | `pexels.com/.../3825527.jpeg` | `assets/img/carrusel/webp/radiodiagnostico.webp` |
+| … (12 total) | Pexels externo | Local WebP |
+
+**Estrategia de prioridad de carga (`idx === 0`):**
+
+```javascript
+const prioridad = idx === 0
+    ? 'fetchpriority="high"'  // Primera tarjeta visible → LCP inmediato
+    : 'loading="lazy"';       // Tarjetas ocultas → no bloquean red inicial
+```
+
+---
+
+### TR-124 — Desbloqueo No Bloqueante del App Shell
+
+#### `index.html` — Botón `#btn-consultar-cita-header`
+
+```diff
+- <button id="btn-consultar-cita-header" ... style="display:none;" ...>
++ <button id="btn-consultar-cita-header" ... style="display:inline-block;" ...>
+```
+
+El botón **nace visible** desde el primer byte del HTML parseado.
+
+#### `js/main.js` — `iniciarSesionUsuario()`
+
+```diff
+- btnConsultarHeader.style.display = (usuarioLogueado === 'true') ? 'none' : 'inline-block';
++ if (usuarioLogueado === 'true') {
++     btnConsultarHeader.style.display = 'none';  // Solo ocultar si hay sesión
++ }
++ // Si NO está logueado: no tocar el display — el HTML ya lo tiene en inline-block.
+```
+
+**Flujo antes/después:**
+
+| Escenario | Antes | Después |
+|---|---|---|
+| Usuario invitado | Botón oculto → JS lo muestra (lag FOUC) | Botón visible desde HTML (0ms lag) |
+| Usuario logueado | Botón oculto desde inicio | JS lo oculta inmediatamente tras leer `localStorage` |
+| Sesión Supabase pendiente | El botón esperaba la promesa | El botón jamás depende de Supabase |
+
+---
+
+### Inventario de Assets WebP — Carrusel (`assets/img/carrusel/webp/`)
+
+| Archivo | Tamaño |
+|---|---|
+| `medicina-familiar.webp` | 17.4 KB |
+| `medicina-general.webp` | 18.3 KB |
+| `radiodiagnostico.webp` | 17.1 KB |
+| `dermatologia.webp` | 24.9 KB |
+| `urologia.webp` | 13.3 KB |
+| `endocrinologia.webp` | 8.4 KB |
+| `traumatologia.webp` | 17.6 KB |
+| `psicologia.webp` | 46.6 KB |
+| `odontologia.webp` | 18.7 KB |
+| `enfermeria.webp` | 22.1 KB |
+| `laboratorio.webp` | 18.1 KB |
+| `ginecologia.webp` | 11.1 KB |
+
+### Verificación
+
+- `node -c js/main.js` (con `"type":"module"`) → **`SYNTAX OK`**
+- Restricciones de integridad: Supabase, stepper radial, aceleradores de teclado → **intactos**
+
+### Estado: ✅ CERRADO — TR-123/124 implementados. El carrusel del Home ahora carga exclusivamente desde activos locales WebP con estrategia fetchpriority/lazy. El botón Consultar Cita nace visible en el HTML sin dependencia de Supabase ni lag visual.

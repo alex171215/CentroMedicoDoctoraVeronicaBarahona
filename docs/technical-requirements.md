@@ -914,3 +914,12 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
    - Al abrir el modal de detalles/actividades, el script interceptará el objeto del médico seleccionado y mutará el puntero de la imagen apuntando al directorio local `/webp/`.
    - Al inicializar el flujo del asistente de citas con un especialista pre-seleccionado, la vista del calendario actualizará sincrónicamente el avatar del doctor bajo la misma regla de limpieza de strings.
 3. **Blindaje de Carga Fallida (UI Fallback):** JavaScript asignará por código el controlador `.onerror` a ambos elementos de imagen dinámicos, garantizando la redirección inmediata hacia `placeholder-doctor.webp` ante cualquier anomalía de tipeo en disco.
+
+## TR-123: Optimización del Carrusel Crítico de Inicio (Heurística #8 y LCP)
+1. **Erradicación de Peticiones Externas:** Queda estrictamente prohibido el uso de URLs de Unsplash en el carrusel de `index.html`. Todas las imágenes deben ser locales, alojadas en `assets/img/carrusel/` y en formato WebP (Calidad 80%).
+2. **Estrategia Avanzada de Carga (Preload vs Lazy):** - La primera imagen del carrusel (visible de inmediato) se cargará de forma nativa e inmediata incluyendo el atributo `fetchpriority="high"` para acelerar el FCP.
+   - Las imágenes restantes del carrusel (las ocultas que pasan después) incluirán obligatoriamente `loading="lazy"` para no bloquear el hilo de red inicial.
+
+## TR-124: Renderizado Estático No Bloqueante de Utilidades del Header (H1)
+1. **Eliminación de Lag Visual:** El botón `#btn-consultar-cita-header` se renderizará de forma estática en el HTML con `display: inline-block` por defecto, naciendo activo para el usuario desde el primer milisegundo de carga.
+2. **Inyección en Segundo Plano:** El proceso de validación de sesión de Supabase se ejecutará de forma asíncrona en segundo plano sin ocultar, retrasar o bloquear la visualización del botón en el App Shell.

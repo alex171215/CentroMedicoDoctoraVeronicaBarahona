@@ -812,17 +812,19 @@ const app = {
         }
 
 
-        // TR-93 / TR-87: Botón "Consultar Cita" en el header — sincronización global MPA.
-        // El botón #btn-consultar-cita-header existe estáticamente en TODOS los archivos HTML
-        // (index, citas, especialistas, mi-salud, farmacia, contacto, login, registro).
-        // Regla de ocultamiento condicional:
-        //   · usuarioLogueado === 'true'  → display: none   (el usuario ya tiene acceso desde Mi Salud)
-        //   · cualquier otro valor        → display: inline-block  (invitado puede consultar su cita)
-        // Esta función se llama en cada carga de página (init()), garantizando consistencia visual
-        // sin importar qué ruta del MPA esté activa.
+        // TR-93 / TR-87 / TR-124: Botón "Consultar Cita" en el header — sincronización global MPA.
+        // El botón #btn-consultar-cita-header nace visible en el HTML (display:inline-block).
+        // TR-124: JavaScript solo lo oculta si hay sesión activa; jamás lo muestra con retraso.
+        // Regla de ocultamiento condicional (lectura de localStorage, sin esperar Supabase):
+        //   · usuarioLogueado === 'true'  → display: none   (el usuario accede desde Mi Salud)
+        //   · cualquier otro valor        → preservar display:inline-block del HTML estático
         const btnConsultarHeader = document.getElementById('btn-consultar-cita-header');
         if (btnConsultarHeader) {
-            btnConsultarHeader.style.display = (usuarioLogueado === 'true') ? 'none' : 'inline-block';
+            if (usuarioLogueado === 'true') {
+                btnConsultarHeader.style.display = 'none';
+            }
+            // Si NO está logueado: no tocar el display — el HTML ya lo tiene en inline-block.
+            // Esto elimina el lag visual (FOUC) causado por asignar 'inline-block' desde JS.
         }
     },
 
@@ -1302,32 +1304,39 @@ const app = {
             }
         });
 
-        // Mapa de imágenes representativas por especialidad (Unsplash reales y enfocadas)
+        // TR-123: Mapa de imágenes WebP locales — erradicación de peticiones externas (Pexels/Unsplash).
+        // Las imágenes residen en assets/img/carrusel/webp/ y fueron convertidas al 80% de calidad.
         const imagenesEspecialidad = {
-            "MEDICINA FAMILIAR": "https://images.pexels.com/photos/7579831/pexels-photo-7579831.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "MEDICINA GENERAL": "https://images.pexels.com/photos/40568/medical-appointment-doctor-healthcare-40568.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "RADIODIÁGNOSTICO": "https://images.pexels.com/photos/3825527/pexels-photo-3825527.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "DERMATOLOGÍA": "https://images.pexels.com/photos/3762871/pexels-photo-3762871.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "UROLOGÍA": "https://images.pexels.com/photos/6627663/pexels-photo-6627663.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "ENDOCRINOLOGÍA": "https://images.pexels.com/photos/6940861/pexels-photo-6940861.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "TRAUMATOLOGÍA": "https://images.pexels.com/photos/5473182/pexels-photo-5473182.jpeg?auto=compress&cs=tinysrgb&w=600", // Sesión de fisioterapia y rehabilitación
-            "PSICOLOGÍA": "https://images.pexels.com/photos/5699419/pexels-photo-5699419.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "ODONTOLOGÍA": "https://images.pexels.com/photos/3845806/pexels-photo-3845806.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "ENFERMERÍA": "https://images.pexels.com/photos/339620/pexels-photo-339620.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "LABORATORIO": "https://images.pexels.com/photos/2280571/pexels-photo-2280571.jpeg?auto=compress&cs=tinysrgb&w=600",
-            "GINECOLOGÍA": "https://images.pexels.com/photos/3845129/pexels-photo-3845129.jpeg?auto=compress&cs=tinysrgb&w=600" // Doctora revisando vientre/ecografía
+            "MEDICINA FAMILIAR":  "assets/img/carrusel/webp/medicina-familiar.webp",
+            "MEDICINA GENERAL":   "assets/img/carrusel/webp/medicina-general.webp",
+            "RADIODIÁGNOSTICO":   "assets/img/carrusel/webp/radiodiagnostico.webp",
+            "DERMATOLOGÍA":       "assets/img/carrusel/webp/dermatologia.webp",
+            "UROLOGÍA":           "assets/img/carrusel/webp/urologia.webp",
+            "ENDOCRINOLOGÍA":     "assets/img/carrusel/webp/endocrinologia.webp",
+            "TRAUMATOLOGÍA":      "assets/img/carrusel/webp/traumatologia.webp",
+            "PSICOLOGÍA":         "assets/img/carrusel/webp/psicologia.webp",
+            "ODONTOLOGÍA":        "assets/img/carrusel/webp/odontologia.webp",
+            "ENFERMERÍA":         "assets/img/carrusel/webp/enfermeria.webp",
+            "LABORATORIO":        "assets/img/carrusel/webp/laboratorio.webp",
+            "GINECOLOGÍA":        "assets/img/carrusel/webp/ginecologia.webp"
         };
+        const imagenDefault = "assets/img/carrusel/webp/medicina-general.webp";
 
         // 3. Generar HTML Dinámicamente
+        // TR-123: Primera tarjeta → fetchpriority="high" (LCP); siguientes → loading="lazy".
         let html = '';
-        especialidadesUnicas.forEach(esp => {
-            const imagen = imagenesEspecialidad[esp] || "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=500&q=80"; // Imagen por defecto
+        especialidadesUnicas.forEach((esp, idx) => {
+            const imagen = imagenesEspecialidad[esp] || imagenDefault;
+            // Primer elemento visible: carga inmediata con alta prioridad de red (FCP/LCP)
+            const prioridad = idx === 0
+                ? 'fetchpriority="high"'
+                : 'loading="lazy"';
 
             html += `
                 <article class="doctor-card" onclick="app.seleccionarEspecialidad('${esp}')" style="cursor: pointer;" title="Ver especialistas en ${esp}">
                     <div class="doctor-card__img-container" style="position: relative; height: 200px;">
                         <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(59, 73, 163, 0.9), rgba(59, 73, 163, 0.3)); z-index: 1;"></div>
-                        <img src="${imagen}" alt="${esp}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
+                        <img src="${imagen}" alt="${esp}" ${prioridad} style="width: 100%; height: 100%; object-fit: cover;">
                         <h3 style="position: absolute; bottom: 20px; left: 20px; color: #ffffff; z-index: 2; margin: 0; font-size: 1.2rem; font-weight: 700;">${esp}</h3>
                     </div>
                     <div class="doctor-card__content">
