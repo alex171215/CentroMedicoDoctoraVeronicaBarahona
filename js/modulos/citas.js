@@ -201,6 +201,7 @@ export function createCitas() {
                 this.diaSeleccionadoMobile = 0;
                 // TR-80.4 + TR-92.1: purga de hora/slot al cambiar de especialidad (médico único).
                 this._purgaSeleccionHorario();
+                this._limpiarCamposPaso3();
 
                 // Guardar pre-selección para que el login sepa que hay cita en curso
                 sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
@@ -214,6 +215,7 @@ export function createCitas() {
                 this.generarCalendario(true);
             } else if (medicos.length > 1) {
                 this._purgaSeleccionHorario();
+                this._limpiarCamposPaso3();
                 this.mostrarPaso(1);
                 this.renderizarPasoDoctores(especialidad, medicos);
             } else {
@@ -396,6 +398,7 @@ export function createCitas() {
             // TR-80.1 + TR-80.4: Reseteo de contexto temporal al cambiar de médico.
             this.fechaBaseCalendario = new Date();
             this.diaSeleccionadoMobile = 0;
+            this._limpiarCamposPaso3();
 
             sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                 medico: nombre,
@@ -409,7 +412,23 @@ export function createCitas() {
             this.generarCalendario(true);
         },
 
+        _limpiarCamposPaso3() {
+            ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.value = ''; el.style.borderColor = ''; }
+            });
+            ['error-nombres', 'error-cedula', 'error-celular'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.textContent = ''; el.style.display = 'none'; }
+            });
+        },
+
         mostrarPaso(nuevoPaso) {
+            // Limpiar campos del paso 3 al salir de él hacia cualquier otro paso.
+            if (this.pasoActual === 3 && nuevoPaso !== 3) {
+                this._limpiarCamposPaso3();
+            }
+
             // TR-92.1: purga total al abandonar el calendario (paso 2 → 0/1).
             if (this.pasoActual === 2 && nuevoPaso !== 2 && nuevoPaso < 2) {
                 this._purgaSeleccionHorario();
