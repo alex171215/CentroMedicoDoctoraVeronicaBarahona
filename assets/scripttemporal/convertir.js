@@ -1,13 +1,9 @@
 const sharp = require('sharp');
 const fs = require('fs');
 
-// Lista de archivos a convertir (solo los 5 nuevos)
 const archivos = [
-  'yolanda-antonela-sanchez-barahona.png',
-  'maria-silvia-ruiz-medina.png',
-  'patricia-maria-sanchez-guerrero.png',
-  'lucia-maria-silva-cruz.png',
-  'victor-hugo-fernandez-soto.png'
+  'Diapositiva3.png',
+  'Diapositiva4.png'
 ];
 
 archivos.forEach(archivo => {
