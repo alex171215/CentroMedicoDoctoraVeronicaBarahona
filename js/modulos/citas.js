@@ -1707,7 +1707,8 @@ export function createCitas() {
                     preSel = JSON.stringify({
                         medico: this._citaTemporal.medico,
                         especialidad: this._citaTemporal.especialidad || esp || '',
-                        imagen_url: ''
+                        imagen_url: '',
+                        id_especialista: this._citaTemporal.id_especialista ?? null
                     });
                 }
                 if (!esp && this._citaTemporal && this._citaTemporal.especialidad) {
@@ -1978,6 +1979,16 @@ export function createCitas() {
                         if (fi) this.fechaISOSeleccionada = fi;
                     }
                     if (this.horaSeleccionada) {
+                        if (!this._doctorActual) {
+                            try {
+                                const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
+                                const preCita = preCitaStr ? JSON.parse(preCitaStr) : null;
+                                const espSel = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
+                                if (preCita?.medico) {
+                                    this.prepararResumenMedico(preCita.medico, espSel, preCita.imagen_url, preCita.id_especialista);
+                                }
+                            } catch (_) { }
+                        }
                         this.prepararResumenFinal(true);
                         return;
                     }
@@ -2295,7 +2306,21 @@ export function createCitas() {
             const idCitaUnico = 'C' + Date.now().toString();
 
             const docSel = this._doctorActual;
-            const idEspCita = docSel?.id_especialista ?? docSel?.id ?? null;
+            let idEspCita = docSel?.id_especialista ?? docSel?.id ?? null;
+            if ((idEspCita == null || idEspCita === '') && nombreMedico) {
+                try {
+                    const dbFb = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+                    if (Array.isArray(dbFb.cartera_especialistas)) {
+                        const found = dbFb.cartera_especialistas.find(
+                            e => e.doctor?.nombre_completo === nombreMedico || e.nombre_completo === nombreMedico
+                        );
+                        if (found) {
+                            idEspCita = found.id_especialista ?? found.id ?? null;
+                            this._doctorActual = found;
+                        }
+                    }
+                } catch (_) { }
+            }
 
             const nuevaCita = {
                 id: idCitaUnico,
@@ -2635,7 +2660,21 @@ export function createCitas() {
                         this._reconstruirOcupadas();
                     } else {
                         const doc = this._doctorActual;
-                        const idEsp = doc?.id_especialista ?? doc?.id ?? cita.id_especialista ?? null;
+                        let idEsp = doc?.id_especialista ?? doc?.id ?? cita.id_especialista ?? null;
+                        if ((idEsp == null || idEsp === '') && cita.medico) {
+                            try {
+                                const dbFb = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+                                if (Array.isArray(dbFb.cartera_especialistas)) {
+                                    const found = dbFb.cartera_especialistas.find(
+                                        e => e.doctor?.nombre_completo === cita.medico || e.nombre_completo === cita.medico
+                                    ) || dbFb.cartera_especialistas.find(e => e.especialidad === cita.especialidad);
+                                    if (found) {
+                                        idEsp = found.id_especialista ?? found.id ?? null;
+                                        this._doctorActual = found;
+                                    }
+                                }
+                            } catch (_) { }
+                        }
                         if (idEsp == null || idEsp === '') {
                             throw new Error('Falta el especialista (id_especialista). Vuelve al paso 1 y elige un médico.');
                         }
