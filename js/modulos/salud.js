@@ -544,7 +544,10 @@ export const salud = {
         const det = document.getElementById('salud-cita-detalle');
         if (h) h.style.display = 'none';
         if (lista) lista.style.display = 'none';
-        if (det) det.style.display = 'block';
+        if (det) {
+            det.style.display = 'block';
+            requestAnimationFrame(() => det.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
 
         // TR-52: Registrar ancla en el historial del navegador para que el botón
         // "Atrás" del móvil devuelva al usuario a la lista en vez de expulsarlo.
@@ -662,7 +665,10 @@ export const salud = {
         const rd = document.getElementById('salud-receta-detalle');
         if (rh) rh.style.display = 'none';
         if (rl) rl.style.display = 'none';
-        if (rd) rd.style.display = 'block';
+        if (rd) {
+            rd.style.display = 'block';
+            requestAnimationFrame(() => rd.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
     },
 
     /**

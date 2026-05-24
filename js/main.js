@@ -4076,7 +4076,10 @@ const app = {
             const body = document.getElementById('modal-consulta-invitado-body');
             // TR-85: Guardar cita activa antes de inyectar HTML
             this._citaActivaId = cita.id_cita;
-            if (body) body.innerHTML = this._renderVistaC(cita, true);
+            if (body) {
+                body.innerHTML = this._renderVistaC(cita, true);
+                requestAnimationFrame(() => body.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            }
         },
 
         volverAListado() {
