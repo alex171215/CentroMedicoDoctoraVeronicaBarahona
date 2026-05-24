@@ -1419,7 +1419,15 @@ const app = {
         if (app.citas && typeof app.citas.hardResetCitas === 'function') {
             app.citas.hardResetCitas();
         }
-        this.navegar('citas');
+        // Si ya estamos en citas.html, navegar() es bloqueado por el guard de misma ruta.
+        // Llamar iniciarFlujo() directamente para reiniciar al paso 1.
+        if (document.getElementById('view-citas')) {
+            if (app.citas && typeof app.citas.iniciarFlujo === 'function') {
+                app.citas.iniciarFlujo();
+            }
+        } else {
+            this.navegar('citas');
+        }
     },
 
     preseleccionarDoctor: function (id_especialista, especialidad, medico, imagen_url) {
