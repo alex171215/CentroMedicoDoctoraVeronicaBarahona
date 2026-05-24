@@ -3840,11 +3840,24 @@ const app = {
                     const errorSpan = document.getElementById('widget-cedula-error');
                     if (errorSpan) errorSpan.style.display = 'none';
                 };
-                this._enlazarEnterWidgetTR119(inputCedula);
+                // onkeydown = asignación idempotente: siempre sobrescribe sin depender
+                // del atributo data-tr119-enter que puede viajar en el innerHTML al
+                // reconstruir el shell del modal (TR-90 _normalizarShellModalMPA).
+                inputCedula.onkeydown = (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    const btn = document.getElementById('btn-consultar-cita');
+                    if (btn) { btn.focus(); btn.click(); }
+                };
             }
 
             if (inputCodigoCita) {
-                this._enlazarEnterWidgetTR119(inputCodigoCita);
+                inputCodigoCita.onkeydown = (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    const btn = document.getElementById('btn-consultar-cita');
+                    if (btn) { btn.focus(); btn.click(); }
+                };
             }
 
             if (btnConsultar) {
