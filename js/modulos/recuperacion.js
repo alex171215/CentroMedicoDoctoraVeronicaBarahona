@@ -165,16 +165,19 @@ async function buscarUsuario() {
     _setBtnLoading('rec-btn-fase1', true);
 
     try {
+        // Consulta Supabase: el correo debe existir y pertenecer a un paciente
+        // registrado formalmente (es_invitado = false).
         const { data, error } = await supabase
             .from('pacientes')
             .select('cedula, nombres, apellidos, correo')
             .eq('correo', correo)
+            .eq('es_invitado', false)
             .maybeSingle();
 
         if (error) throw error;
 
         if (!data) {
-            // TR-44 §3: Modal de Rescate — el correo no existe en el sistema
+            // El correo no existe en el sistema o corresponde a una cuenta de invitado.
             _setBtnLoading('rec-btn-fase1', false);
             abrirModalRescate();
             return;
@@ -378,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── #rec-identificador: sanitización + blur de formato ──────────────────
     const inputIdent = document.getElementById('rec-identificador');
     if (inputIdent) {
-        // TR-44 §1: Sanitización en tiempo real — whitelist de caracteres válidos para correo
+        // Sanitización en tiempo real — whitelist de caracteres válidos para correo.
         // Bloquea: espacios, <, >, ', ", ;, y cualquier caracter XSS/SQLi.
         inputIdent.addEventListener('input', (e) => {
             const antes = e.target.value;
@@ -390,6 +393,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 try { e.target.setSelectionRange(pos - 1, pos - 1); } catch (_) {}
                 setTimeout(() => e.target.classList.remove('input-rechazado'), 400);
             }
+        });
+
+        // Sanitización al pegar: elimina espacios y caracteres inválidos del texto pegado.
+        inputIdent.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const pegado = (e.clipboardData || window.clipboardData).getData('text');
+            const limpio = pegado.replace(/[^a-zA-Z0-9@._+-]/g, '');
+            const start = inputIdent.selectionStart;
+            const end = inputIdent.selectionEnd;
+            const actual = inputIdent.value;
+            inputIdent.value = actual.slice(0, start) + limpio + actual.slice(end);
+            const nuevaPos = start + limpio.length;
+            try { inputIdent.setSelectionRange(nuevaPos, nuevaPos); } catch (_) {}
         });
 
         // TR-46 §1: Validación de formato de correo en blur (H5 – feedback inmediato)
