@@ -28,6 +28,27 @@ if (typeof emailjs !== 'undefined') {
     console.warn('[EmailJS] SDK no cargado. Asegúrate de que el script CDN esté en el <head>.');
 }
 
+// Adjunta el indicador de fortaleza de contraseña a un input dado.
+function _adjuntarFortaleza(inputId, barId) {
+    const inp = document.getElementById(inputId);
+    const bar = document.getElementById(barId);
+    if (!inp || !bar) return;
+    inp.addEventListener('input', () => {
+        const v = inp.value;
+        if (!v) { bar.style.display = 'none'; return; }
+        bar.style.display = 'flex';
+        const tipos = [/[A-Z]/.test(v), /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+        let nivel, etiqueta, color;
+        if (v.length < 6 || tipos < 2) { nivel = 1; etiqueta = 'Débil'; color = '#e74c3c'; }
+        else if (v.length < 8 || tipos < 3) { nivel = 2; etiqueta = 'Media'; color = '#e67e22'; }
+        else { nivel = 3; etiqueta = 'Fuerte'; color = '#27ae60'; }
+        bar.querySelector('.pass-strength__label').textContent = etiqueta;
+        bar.querySelectorAll('.pass-strength__seg').forEach((s, i) => {
+            s.style.background = i < nivel ? color : '#e0e0e0';
+        });
+    });
+}
+
 // ── Estado interno de la máquina de fases ───────────────────────────────────
 let _otpGenerado = '';
 let _correoUsuario = '';
@@ -35,6 +56,9 @@ let _cedulaUsuario = '';
 let _countdownInterval = null;
 let _faseActual = 1;           // TR-54: rastreamos la fase activa para irAtras()
 let _suppressHistorialPush = false; // TR-54: bandera anti-bucle del popstate
+let _intentosFallidosFase1 = 0;  // Contador de correos no encontrados
+let _bloqueadoHasta = 0;          // Timestamp hasta el que el botón está bloqueado
+let _bloqueoInterval = null;      // Intervalo del countdown de bloqueo
 
 // ────────────────────────────────────────────────────────────────────────────
 // UTILIDADES DE UI
@@ -81,6 +105,37 @@ function _setBtnLoading(btnId, loading) {
     } else {
         btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
     }
+}
+
+// Activa bloqueo temporal del botón tras demasiados intentos fallidos.
+function _activarBloqueoFase1(segundos) {
+    _bloqueadoHasta = Date.now() + segundos * 1000;
+    clearInterval(_bloqueoInterval);
+    const btn = document.getElementById('rec-btn-fase1');
+    if (btn) {
+        btn.disabled = true;
+        btn.dataset.originalHtml = btn.dataset.originalHtml || btn.innerHTML;
+    }
+    const tick = () => {
+        const restante = Math.ceil((_bloqueadoHasta - Date.now()) / 1000);
+        const span = document.getElementById('rec-ident-error');
+        if (span) {
+            span.textContent = `Demasiados intentos. Espera ${restante} segundo${restante !== 1 ? 's' : ''} para continuar.`;
+            span.style.display = 'block';
+        }
+        if (btn) btn.innerHTML = `<i class="fa-solid fa-clock" aria-hidden="true"></i> Espera ${restante}s…`;
+        if (restante <= 0) {
+            clearInterval(_bloqueoInterval);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalHtml || 'Enviar código';
+            }
+            const span2 = document.getElementById('rec-ident-error');
+            if (span2) { span2.textContent = ''; span2.style.display = 'none'; }
+        }
+    };
+    tick();
+    _bloqueoInterval = setInterval(tick, 1000);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -146,6 +201,9 @@ async function _enviarOTP(correo, nombrePaciente, codigo) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function buscarUsuario() {
+    // Verificar bloqueo temporal por intentos fallidos
+    if (Date.now() < _bloqueadoHasta) return;
+
     _limpiarError('rec-ident');
     const correo = (document.getElementById('rec-identificador')?.value || '').trim();
 
@@ -165,22 +223,34 @@ async function buscarUsuario() {
     _setBtnLoading('rec-btn-fase1', true);
 
     try {
-        const { data, error } = await supabase
+        // Consulta Supabase: el correo debe existir y pertenecer a un paciente
+        // registrado formalmente (es_invitado = false).
+        const { data: filas, error } = await supabase
             .from('pacientes')
             .select('cedula, nombres, apellidos, correo')
             .eq('correo', correo)
-            .maybeSingle();
+            .eq('es_invitado', false)
+            .limit(1);
 
         if (error) throw error;
 
+        const data = filas && filas.length > 0 ? filas[0] : null;
+
         if (!data) {
-            // TR-44 §3: Modal de Rescate — el correo no existe en el sistema
+            // El correo no existe en el sistema o corresponde a una cuenta de invitado.
             _setBtnLoading('rec-btn-fase1', false);
-            abrirModalRescate();
+            _intentosFallidosFase1++;
+            if (_intentosFallidosFase1 >= 3) {
+                _intentosFallidosFase1 = 0;
+                _activarBloqueoFase1(30);
+            } else {
+                abrirModalRescate();
+            }
             return;
         }
 
-        // Usuario encontrado — guardar estado y avanzar a Fase 2
+        // Usuario encontrado — reiniciar contador y avanzar a Fase 2
+        _intentosFallidosFase1 = 0;
         _cedulaUsuario = data.cedula;
         _correoUsuario = data.correo || '';
         _otpGenerado = String(Math.floor(100000 + Math.random() * 900000));
@@ -378,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── #rec-identificador: sanitización + blur de formato ──────────────────
     const inputIdent = document.getElementById('rec-identificador');
     if (inputIdent) {
-        // TR-44 §1: Sanitización en tiempo real — whitelist de caracteres válidos para correo
+        // Sanitización en tiempo real — whitelist de caracteres válidos para correo.
         // Bloquea: espacios, <, >, ', ", ;, y cualquier caracter XSS/SQLi.
         inputIdent.addEventListener('input', (e) => {
             const antes = e.target.value;
@@ -390,6 +460,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 try { e.target.setSelectionRange(pos - 1, pos - 1); } catch (_) {}
                 setTimeout(() => e.target.classList.remove('input-rechazado'), 400);
             }
+        });
+
+        // Sanitización al pegar: elimina espacios y caracteres inválidos del texto pegado.
+        inputIdent.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const pegado = (e.clipboardData || window.clipboardData).getData('text');
+            const limpio = pegado.replace(/[^a-zA-Z0-9@._+-]/g, '');
+            const start = inputIdent.selectionStart;
+            const end = inputIdent.selectionEnd;
+            const actual = inputIdent.value;
+            inputIdent.value = actual.slice(0, start) + limpio + actual.slice(end);
+            const nuevaPos = start + limpio.length;
+            try { inputIdent.setSelectionRange(nuevaPos, nuevaPos); } catch (_) {}
         });
 
         // TR-46 §1: Validación de formato de correo en blur (H5 – feedback inmediato)
@@ -406,6 +489,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ── Indicador de fortaleza — campo nueva contraseña ─────────────────────
+    _adjuntarFortaleza('rec-new-password', 'rec-pass-strength');
+
     // ── #rec-codigo: sanitización física — solo dígitos (TR-46 §2) ──────────
     const inputCodigo = document.getElementById('rec-codigo');
     if (inputCodigo) {
@@ -416,6 +502,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.target.value = despues;
             }
         });
+    }
+
+    // ── Menú hamburguesa móvil ───────────────────────────────────────────────
+    const menuToggle = document.querySelector('.header__menu-toggle');
+    const mainMenu = document.getElementById('main-menu');
+    if (menuToggle && mainMenu) {
+        const headerEl = menuToggle.closest('header');
+        if (headerEl) headerEl.style.position = 'relative';
+
+        const cerrarMenu = () => {
+            menuToggle.setAttribute('aria-expanded', 'false');
+            mainMenu.classList.remove('active');
+            const icon = menuToggle.querySelector('i');
+            if (icon) icon.classList.replace('fa-xmark', 'fa-bars');
+        };
+
+        menuToggle.addEventListener('click', () => {
+            const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
+            menuToggle.setAttribute('aria-expanded', String(!isExpanded));
+            mainMenu.classList.toggle('active');
+            const icon = menuToggle.querySelector('i');
+            if (icon) {
+                if (!isExpanded) icon.classList.replace('fa-bars', 'fa-xmark');
+                else icon.classList.replace('fa-xmark', 'fa-bars');
+            }
+        });
+
+        mainMenu.querySelectorAll('.header__nav-link').forEach(link => {
+            link.addEventListener('click', () => cerrarMenu());
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mainMenu.classList.contains('active')) {
+                cerrarMenu();
+                menuToggle.focus();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (mainMenu.classList.contains('active') &&
+                !mainMenu.contains(e.target) &&
+                !menuToggle.contains(e.target)) {
+                cerrarMenu();
+            }
+        });
+    }
+
+    // ── Botón de autenticación móvil (btn-auth-mobile) ───────────────────────
+    const btnMovil = document.getElementById('btn-auth-mobile');
+    if (btnMovil) {
+        const usuarioLogueado = localStorage.getItem('usuarioLogueado');
+        if (usuarioLogueado === 'true') {
+            try {
+                const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
+                const inicial = userActivo?.nombre_1?.charAt(0).toUpperCase()
+                    || userActivo?.nombres?.charAt(0).toUpperCase()
+                    || 'U';
+                btnMovil.textContent = inicial;
+            } catch (_) {
+                btnMovil.innerHTML = '<i class="fa-solid fa-user"></i>';
+            }
+            btnMovil.addEventListener('click', () => {
+                window.location.href = 'mi-salud.html';
+            });
+        } else {
+            btnMovil.innerHTML = '<i class="fa-solid fa-user"></i>';
+            btnMovil.addEventListener('click', () => {
+                window.location.href = 'login.html';
+            });
+        }
     }
 });
 

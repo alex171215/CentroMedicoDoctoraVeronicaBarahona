@@ -923,3 +923,16 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-124: Renderizado Estático No Bloqueante de Utilidades del Header (H1)
 1. **Eliminación de Lag Visual:** El botón `#btn-consultar-cita-header` se renderizará de forma estática en el HTML con `display: inline-block` por defecto, naciendo activo para el usuario desde el primer milisegundo de carga.
 2. **Inyección en Segundo Plano:** El proceso de validación de sesión de Supabase se ejecutará de forma asíncrona en segundo plano sin ocultar, retrasar o bloquear la visualización del botón en el App Shell.
+
+## TR-125: Optimización de Carga Crítica de Assets en Carrusel y Directorios (06-Rendimiento)
+1. **Localización de Recursos del Home:** Erradicación absoluta de llamadas CDN externas para imágenes. Los recursos del carrusel se servirán desde `assets/img/carrusel/` en formato `.webp` compactado a calidad 80%.
+2. **fetchpriority y Lazy Loading:** El elemento de imagen inmediatamente visible en la carga del viewport del carrusel portará el atributo `fetchpriority="high"`. Las imágenes restantes del carrusel y las tarjetas del directorio portarán `loading="lazy"`.
+
+## TR-126: Renderizado Asíncrono No Bloqueante en Selección y Directorios (H1, H7)
+1. **Skeletons de Carga Efímeros:** Las zonas donde se inyectan dinámicamente las especialidades (`citas.html`) o los médicos renderizarán un contenedor estructural CSS estático ("Skeleton") preexistente en el HTML para bajar la carga cognitiva de espera.
+2. **Asincronía en Segundo Plano:** El hilo principal de UI del App Shell se mantendrá liberado e interactivo mientras las promesas asíncronas resuelven los datos de Supabase de fondo, eliminando parpadeos bruscos o congelamiento de pantalla.
+3. 
+## TR-127: Congelación de Código y Auditoría de Cero Errores (Rúbrica RDA2)
+1. **Verificación Estricta Heurística (Usabilidad):** Ningún elemento interactivo presentará superposiciones, solapamientos responsivos o "clics muertos". Las cabeceras móvil (TR-121) y tablet (TR-120) deben comportarse de forma fluida.
+2. **Cumplimiento de Accesibilidad Operable (WCAG 2.2):** Todos los formularios de la MPA deben ser completamente operables mediante teclado (tecla Enter - TR-123), mantener contraste de color AA (4.5:1), inyectar etiquetas aria-label semánticas y retener fallbacks multimedia `onerror` en todo el DOM.
+3. **Cierre de Brechas de Funcionalidad:** Los flujos asíncronos asilados (TR-117, TR-118, TR-131) se verificarán en consola (`Console Error Count = 0`). Queda terminantemente prohibido alterar la lógica de persistencia estable de Supabase.

@@ -85,19 +85,23 @@ const app = {
     },
 
     async ejecutarLogout() {
-        this.cerrarModalLogout();
+        // Cerrar el modal visualmente SIN llamar history.back() para no navegar
+        // accidentalmente a la página anterior del historial del browser (mi-salud.html, etc.)
+        const modal = document.getElementById('modal-logout');
+        if (modal) modal.style.display = 'none';
         try {
             await conCargaGlobal(async () => {
-                // Simulación de tiempo para que el modal se vea
                 return new Promise(resolve => {
                     localStorage.clear();
-                    setTimeout(resolve, 1500);
+                    sessionStorage.clear();
+                    setTimeout(resolve, 800);
                 });
             }, 'Cerrando sesión...');
 
-            window.location.href = 'index.html';
+            window.location.replace('index.html');
         } catch (err) {
             console.error('Error al cerrar sesión:', err);
+            window.location.replace('index.html');
         }
     },
 
@@ -163,15 +167,15 @@ const app = {
             };
 
             if (carteraEspecialistasCacheValida()) {
-                try {
-                    const lista = await fetchEspecialistasSupabase();
+                refrescarUI();
+                fetchEspecialistasSupabase().then(lista => {
                     if (lista.length) {
                         mergeCarteraEnSanitasFamDb(lista);
                         refrescarUI();
                     }
-                } catch (err) {
+                }).catch(err => {
                     console.warn('[Supabase] Refresco de especialistas no disponible.', err);
-                }
+                });
             } else {
                 await conCargaGlobal(async () => {
                     const lista = await fetchEspecialistasSupabase();
@@ -186,6 +190,7 @@ const app = {
         }
 
         this.iniciarMenuMovil();
+        this._initOfflineDetection();
         this.iniciarPurgaDesercionRutaTR93();
 
         // TR-72: Sanitizador Global con Floating Tooltips (OWASP / H1 / H4)
@@ -208,7 +213,7 @@ const app = {
             if (id === 'login-cedula') {
                 val = val.replace(/[^a-zA-Z0-9]/g, '');
             }
-            else if (id === 'widget-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
+            else if (id === 'widget-cedula' || id === 'citas-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
                 val = val.replace(/[^0-9]/g, '');
             }
             else if (id === 'buscador-especialistas' || id.includes('nombre') || id.includes('apellido')) {
@@ -479,18 +484,19 @@ const app = {
         const maxCitas = new Date(hoy.getFullYear(), hoy.getMonth() + 2, hoy.getDate());
         const en2Meses = maxCitas.toISOString().split('T')[0];
 
-        // TR-13: Titulares de cuenta → mínimo 18 años, máximo 120 años
+        // TR-13: Titulares de cuenta → mínimo 18 años, máximo 100 años
         // new Date(año, mes, día) maneja años bisiestos de forma nativa.
-        const minNac = new Date(hoy.getFullYear() - 120, hoy.getMonth(), hoy.getDate());
-        const hace120Anios = minNac.toISOString().split('T')[0];
+        const minNac = new Date(hoy.getFullYear() - 100, hoy.getMonth(), hoy.getDate());
+        const hace100Anios = minNac.toISOString().split('T')[0];
 
         const maxNac = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
         const hace18Anios = maxNac.toISOString().split('T')[0];
 
         // Alias de compatibilidad para código anterior que usaba 'hace90Anios'
-        const hace90Anios = hace120Anios;
+        const hace90Anios = hace100Anios;
+        const hace120Anios = hace100Anios;
 
-        return { hoy: fechaHoy, en2Meses, hace120Anios, hace90Anios, hace18Anios };
+        return { hoy: fechaHoy, en2Meses, hace100Anios, hace120Anios, hace90Anios, hace18Anios };
     },
 
     _aplicarLimitesFechaGlobal() {
@@ -759,6 +765,12 @@ const app = {
                         // Estamos en login.html: solo actualizar estado
                         app.navegar('login');
                     } else {
+                        // Preservar contexto de citas (igual que app.navegar('login')) antes de salir.
+                        const vistaActual = app._mpaVistaDesdePathname?.() || '';
+                        if (vistaActual === 'citas' && app.citas) {
+                            sessionStorage.setItem('vista_origen', 'citas');
+                            app.citas._guardarEstadoParaLogin();
+                        }
                         window.location.href = 'login.html';
                     }
                 }
@@ -849,6 +861,50 @@ const app = {
                 }
             }
         }, true);
+    },
+
+    _initOfflineDetection: function () {
+        // Crear banner una sola vez e insertarlo al inicio del body
+        const BANNER_ID = 'sanitas-offline-banner';
+        if (document.getElementById(BANNER_ID)) return;
+
+        const banner = document.createElement('div');
+        banner.id = BANNER_ID;
+        banner.setAttribute('role', 'alert');
+        banner.setAttribute('aria-live', 'assertive');
+        banner.innerHTML =
+            '<i class="fa-solid fa-wifi offline-icon" aria-hidden="true"></i>' +
+            '<span>Sin conexión a internet. Algunas funciones no estarán disponibles hasta que te reconectes.</span>';
+        document.body.insertAdjacentElement('afterbegin', banner);
+
+        // Toast "Conexión restaurada"
+        const TOAST_ID = 'sanitas-online-toast';
+        const toast = document.createElement('div');
+        toast.id = TOAST_ID;
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        toast.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Conexión restaurada</span>';
+        document.body.insertAdjacentElement('beforeend', toast);
+
+        let _toastTimer = null;
+        const mostrarToast = () => {
+            clearTimeout(_toastTimer);
+            toast.classList.add('visible');
+            _toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+        };
+
+        const mostrar = () => banner.classList.add('visible');
+        const ocultar = () => {
+            banner.classList.remove('visible');
+            mostrarToast();
+        };
+
+        // Estado inicial — si arranca sin internet mostrar banner; el toast solo aparece
+        // cuando se RECUPERA la conexión, no al cargar la página con internet.
+        if (!navigator.onLine) mostrar();
+
+        window.addEventListener('offline', mostrar);
+        window.addEventListener('online', ocultar);
     },
 
     iniciarMenuMovil: function () {
@@ -1041,7 +1097,11 @@ const app = {
                 closeBtn.click();
                 return;
             }
-            // Fallback: ocultar directamente
+            // Fallback: si es el modal de consulta, usar su limpieza específica.
+            if (modal.id === 'modal-consulta-invitado' && app.widgetInvitado?.cerrarModalConsulta) {
+                app.widgetInvitado.cerrarModalConsulta();
+                return;
+            }
             modal.style.display = 'none';
         };
 
@@ -1359,7 +1419,15 @@ const app = {
         if (app.citas && typeof app.citas.hardResetCitas === 'function') {
             app.citas.hardResetCitas();
         }
-        this.navegar('citas');
+        // Si ya estamos en citas.html, navegar() es bloqueado por el guard de misma ruta.
+        // Llamar iniciarFlujo() directamente para reiniciar al paso 1.
+        if (document.getElementById('view-citas')) {
+            if (app.citas && typeof app.citas.iniciarFlujo === 'function') {
+                app.citas.iniciarFlujo();
+            }
+        } else {
+            this.navegar('citas');
+        }
     },
 
     preseleccionarDoctor: function (id_especialista, especialidad, medico, imagen_url) {
@@ -1414,10 +1482,20 @@ const app = {
                 buscador.removeEventListener('input', this.manejarFiltro);
                 buscador.addEventListener('input', this.manejarFiltro.bind(this));
 
-                // Bloque A – Sanitización en tiempo real (Regex Whitelist)
-                // Solo permite letras (incluye tildes y ñ) y espacios. Borra números y símbolos al instante.
+                // Bloque A – Sanitización en tiempo real (Regex Whitelist + dobles espacios)
                 buscador.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                    const input = e.target;
+                    let val = input.value;
+                    const original = val;
+                    val = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '');
+                    if (val.startsWith(' ')) val = val.trimStart();
+                    val = val.replace(/  +/g, ' ');
+                    if (val !== original) {
+                        input.value = val;
+                        input.classList.add('input-rechazado');
+                        clearTimeout(input._flashTimeout);
+                        input._flashTimeout = setTimeout(() => input.classList.remove('input-rechazado'), 300);
+                    }
                 });
             }
 
@@ -1515,46 +1593,12 @@ const app = {
         },
 
         _resolverImagenDirectorio(med, nombreMed) {
-            let imagenSrc = med.imagen_url;
-            if (nombreMed.toLowerCase().includes('verónica') && nombreMed.toLowerCase().includes('barahona')) {
-                imagenSrc = 'assets/img/veronica-barahona.jpg';
-            } else if (!imagenSrc) {
-                const espLower = (med.especialidad || '').toLowerCase();
-                if (espLower.includes('medicina familiar') || espLower.includes('medico familiar'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('medicina general') || espLower.includes('general'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80';
-                else if (espLower.includes('pediatr'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80';
-                else if (espLower.includes('odontolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1681939282781-341ac4f61996?q=80';
-                else if (espLower.includes('ginec')) {
-                    if (nombreMed.toLowerCase().includes('marcela') && nombreMed.toLowerCase().includes('pantoja')) {
-                        imagenSrc = 'https://images.unsplash.com/photo-1713865467253-ce0ac8477d34?q=80';
-                    } else {
-                        imagenSrc = 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?q=80';
-                    }
-                }
-                else if (espLower.includes('dermatol'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80';
-                else if (espLower.includes('radiolog') || espLower.includes('radiodiagn'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&q=80';
-                else if (espLower.includes('urolog'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1637059824899-a441006a6875?q=80';
-                else if (espLower.includes('endocrin'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1758691463582-11aea602cd4a?q=80';
-                else if (espLower.includes('traumat') || espLower.includes('ortoped'))
-                    imagenSrc = 'https://images.unsplash.com/photo-1712215544003-af10130f8eb3?q=80';
-                else if (espLower.includes('psicolog'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1661580574627-9211124e5c3f?q=80';
-                else if (espLower.includes('enfermer'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1681996359725-06262b082c27?q=80';
-                else if (espLower.includes('laboratorio'))
-                    imagenSrc = 'https://plus.unsplash.com/premium_photo-1682089874677-3eee554feb19?w=600';
-                else
-                    imagenSrc = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80';
+            const nombreLower = nombreMed.toLowerCase();
+            if (nombreLower.includes('verónica') && nombreLower.includes('barahona')) {
+                return 'assets/img/veronica-barahona.jpg';
             }
-            return imagenSrc;
+            const slug = this._generarSlugImagen(nombreMed);
+            return 'assets/img/especialistas/webp/' + slug + '.webp';
         },
 
         /** TR-111: tarjeta con listeners intactos (.directory-card__btn / __link). */
@@ -1612,6 +1656,7 @@ const app = {
             }
 
             const ordenados = this._ordenarMedicosDirectorioTR111(listaMedicos);
+            const fragment = document.createDocumentFragment();
             let especialidadActual = null;
             let grupoActual = null;
 
@@ -1622,30 +1667,34 @@ const app = {
                     const titulo = document.createElement('h3');
                     titulo.className = 'directory-specialty-title';
                     titulo.textContent = esp;
-                    grid.appendChild(titulo);
+                    fragment.appendChild(titulo);
 
                     grupoActual = document.createElement('div');
                     grupoActual.className = 'directory-specialty-group';
-                    grid.appendChild(grupoActual);
+                    fragment.appendChild(grupoActual);
                 }
                 grupoActual.appendChild(this._crearTarjetaDirectorio(med));
             });
+
+            grid.appendChild(fragment);
         },
 
         abrirModal(medico) {
             document.getElementById('modal-doc-name').textContent = medico.doctor.nombre_completo || 'Médico';
             document.getElementById('modal-doc-specialty').textContent = medico.especialidad || '';
 
-            // Imagen del Modal — TR-122: WebP dinámico via _generarSlugImagen (H4 + H5)
+            // Imagen del Modal — thumbnails 200×200 de alta calidad
             const nombreMed = medico.doctor.nombre_completo || '';
             const imgModal = document.getElementById('modal-doc-img');
             if (imgModal) {
                 const slugModal = this._generarSlugImagen(nombreMed);
                 imgModal.loading = 'lazy';
-                imgModal.src = 'assets/img/especialistas/webp/' + slugModal + '.webp';
+                imgModal.style.objectPosition = '50% 20%';
+                imgModal.src = 'assets/img/especialistas/thumbs/' + slugModal + '.webp';
                 imgModal.onerror = function () {
                     this.onerror = null;
-                    this.src = 'assets/img/especialistas/placeholder-doctor.webp';
+                    this.style.objectPosition = '50% 50%';
+                    this.src = 'assets/img/especialistas/thumbs/placeholder-doctor.webp';
                 };
             }
 
@@ -1791,8 +1840,46 @@ const app = {
             if (input) { input.style.borderColor = ''; }
         },
 
+        _intentosFallidos: 0,
+        _bloqueadoHasta: 0,
+        _bloqueoInterval: null,
+
+        _activarBloqueo(segundos) {
+            const self = this;
+            self._bloqueadoHasta = Date.now() + segundos * 1000;
+            clearInterval(self._bloqueoInterval);
+            const btn = document.getElementById('login-submit-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.originalHtml = btn.dataset.originalHtml || btn.innerHTML;
+            }
+            const tick = () => {
+                const restante = Math.ceil((self._bloqueadoHasta - Date.now()) / 1000);
+                const spanPwd = document.getElementById('login-password-error');
+                if (spanPwd) {
+                    spanPwd.textContent = `Demasiados intentos. Espera ${restante} segundo${restante !== 1 ? 's' : ''} para continuar.`;
+                    spanPwd.style.display = 'block';
+                }
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-clock" aria-hidden="true"></i> Espera ${restante}s…`;
+                if (restante <= 0) {
+                    clearInterval(self._bloqueoInterval);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = btn.dataset.originalHtml || 'Iniciar sesión';
+                    }
+                    const span2 = document.getElementById('login-password-error');
+                    if (span2) { span2.textContent = ''; span2.style.display = 'none'; }
+                }
+            };
+            tick();
+            self._bloqueoInterval = setInterval(tick, 1000);
+        },
+
         async enviar(e) {
             e?.preventDefault?.();
+
+            // Verificar bloqueo temporal por intentos fallidos
+            if (Date.now() < this._bloqueadoHasta) return;
 
             const identificacion = (document.getElementById('login-cedula')?.value || '').trim();
             const password = (document.getElementById('login-password')?.value || '').trim();
@@ -1849,15 +1936,27 @@ const app = {
                 const inputPwd = document.getElementById('login-password');
                 const spanPwd = document.getElementById('login-password-error');
 
-                if (inputCed) inputCed.style.borderColor = '#c0392b';
-                if (inputPwd) inputPwd.style.borderColor = '#c0392b';
-                if (spanPwd) {
-                    spanPwd.textContent = 'Número de identificación o contraseña incorrectos.';
-                    spanPwd.style.display = 'block';
+                this._intentosFallidos++;
+
+                if (this._intentosFallidos >= 3) {
+                    this._intentosFallidos = 0;
+                    if (inputCed) inputCed.style.borderColor = '#c0392b';
+                    if (inputPwd) inputPwd.style.borderColor = '#c0392b';
+                    this._activarBloqueo(30);
+                } else {
+                    if (inputCed) inputCed.style.borderColor = '#c0392b';
+                    if (inputPwd) inputPwd.style.borderColor = '#c0392b';
+                    if (spanPwd) {
+                        spanPwd.textContent = `Número de identificación o contraseña incorrectos. Intento ${this._intentosFallidos} de 3.`;
+                        spanPwd.style.display = 'block';
+                    }
                 }
 
                 return;
             }
+
+            // Inicio de sesión exitoso — reiniciar contador de intentos
+            this._intentosFallidos = 0;
 
             const usuarioEncontrado = mapPacienteAUsuarioActivo(fila);
 
@@ -2024,6 +2123,26 @@ const app = {
                 regPwd.removeEventListener('blur', regPwd._blurHandler);
                 regPwd._blurHandler = () => this._validarCampo('reg-password');
                 regPwd.addEventListener('blur', regPwd._blurHandler);
+
+                // Indicador de fortaleza de contraseña
+                const regPwdBar = document.getElementById('reg-pass-strength');
+                if (regPwdBar && !regPwd.dataset.strengthBound) {
+                    regPwd.dataset.strengthBound = '1';
+                    regPwd.addEventListener('input', () => {
+                        const v = regPwd.value;
+                        if (!v) { regPwdBar.style.display = 'none'; return; }
+                        regPwdBar.style.display = 'flex';
+                        const tipos = [/[A-Z]/.test(v), /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+                        let nivel, etiqueta, color;
+                        if (v.length < 6 || tipos < 2) { nivel = 1; etiqueta = 'Débil'; color = '#e74c3c'; }
+                        else if (v.length < 8 || tipos < 3) { nivel = 2; etiqueta = 'Media'; color = '#e67e22'; }
+                        else { nivel = 3; etiqueta = 'Fuerte'; color = '#27ae60'; }
+                        regPwdBar.querySelector('.pass-strength__label').textContent = etiqueta;
+                        regPwdBar.querySelectorAll('.pass-strength__seg').forEach((s, i) => {
+                            s.style.background = i < nivel ? color : '#e0e0e0';
+                        });
+                    });
+                }
 
             }
 
@@ -2971,6 +3090,41 @@ const app = {
                     if (el) el.style.borderColor = '';
                     if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
                 });
+
+            // Sanitización en tiempo real: bloquea espacios al inicio y dobles espacios en campos de texto.
+            // Usa la misma clase .input-rechazado del sistema para el feedback visual de parpadeo.
+            ['edit-nombre1', 'edit-nombre2', 'edit-apellido1', 'edit-apellido2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || el.dataset.sanitizadorActivo) return;
+                el.dataset.sanitizadorActivo = '1';
+
+                const _flashRechazado = (inputEl) => {
+                    if (inputEl._rechazadoTimer) clearTimeout(inputEl._rechazadoTimer);
+                    inputEl.classList.add('input-rechazado');
+                    inputEl._rechazadoTimer = setTimeout(() => inputEl.classList.remove('input-rechazado'), 300);
+                };
+
+                // Bloquea espacios al inicio y colapsa dobles espacios → parpadeo si hubo cambio
+                el.addEventListener('input', function () {
+                    const original = this.value;
+                    const sanitizado = original.replace(/^ +/, '').replace(/ {2,}/g, ' ');
+                    if (sanitizado !== original) {
+                        const pos = this.selectionStart;
+                        this.value = sanitizado;
+                        const diff = original.length - sanitizado.length;
+                        this.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+                        _flashRechazado(this);
+                    }
+                });
+
+                // Parpadeo al intentar escribir cuando ya se alcanzó el maxlength
+                el.addEventListener('keydown', function (e) {
+                    const max = parseInt(this.getAttribute('maxlength') || '0', 10);
+                    if (max && this.value.length >= max && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        _flashRechazado(this);
+                    }
+                });
+            });
         },
 
         // ------------------------------------------------------------------
@@ -3247,6 +3401,32 @@ const app = {
             if (!modal) return;
             // Limpiar campos y errores al abrir (privacidad + estado limpio)
             this._limpiarModalPassword();
+            // Indicador de fortaleza — adjuntar una sola vez
+            const passNueva = document.getElementById('pass-nueva');
+            const passNuevaBar = document.getElementById('pass-nueva-strength');
+            if (passNueva && passNuevaBar && !passNueva.dataset.strengthBound) {
+                passNueva.dataset.strengthBound = '1';
+                passNueva.addEventListener('input', () => {
+                    const v = passNueva.value;
+                    if (!v) { passNuevaBar.style.display = 'none'; return; }
+                    passNuevaBar.style.display = 'flex';
+                    const tipos = [/[A-Z]/.test(v), /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+                    let nivel, etiqueta, color;
+                    if (v.length < 6 || tipos < 2) { nivel = 1; etiqueta = 'Débil'; color = '#e74c3c'; }
+                    else if (v.length < 8 || tipos < 3) { nivel = 2; etiqueta = 'Media'; color = '#e67e22'; }
+                    else { nivel = 3; etiqueta = 'Fuerte'; color = '#27ae60'; }
+                    passNuevaBar.querySelector('.pass-strength__label').textContent = etiqueta;
+                    passNuevaBar.querySelectorAll('.pass-strength__seg').forEach((s, i) => {
+                        s.style.background = i < nivel ? color : '#e0e0e0';
+                    });
+                });
+            }
+            // Rellenar el hint de usuario con la cédula para el gestor de contraseñas del navegador
+            try {
+                const u = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
+                const hint = document.getElementById('pass-username-hint');
+                if (hint) hint.value = u.cedula || u.identificacion || '';
+            } catch (e) {}
             modal.style.display = 'flex';
             // TR-53: ancla en historial para que Atrás nativo cierre el modal
             history.pushState({ tipo: 'modal', id: 'modal-password' }, '', '#modal');
@@ -3268,9 +3448,15 @@ const app = {
             ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.value = ''; el.style.borderColor = ''; el.type = 'password'; }
+            });
+            const bar = document.getElementById('pass-nueva-strength');
+            if (bar) bar.style.display = 'none';
+            ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => {
                 const sp = document.getElementById(`${id}-error`);
                 if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
             });
+            const hint = document.getElementById('pass-username-hint');
+            if (hint) hint.value = '';
             // Ocultar mensaje de éxito interno si quedó visible
             const ok = document.getElementById('pass-success-msg');
             if (ok) ok.style.display = 'none';
@@ -3343,6 +3529,10 @@ const app = {
             }
             if (nueva.length < 6) {
                 this._mostrarErrorPass('pass-nueva', 'La contraseña debe tener al menos 6 caracteres.');
+                return;
+            }
+            if (nueva === actual) {
+                this._mostrarErrorPass('pass-nueva', 'La nueva contraseña debe ser diferente a la actual.');
                 return;
             }
             if (!repetir) {
@@ -3546,6 +3736,9 @@ const app = {
                 errorCedula.style.display = 'none';
             }
 
+            // Limpiar cédula persistida para que la próxima apertura nazca vacía.
+            this._cedulaConsultada = '';
+
             // TR-120: Cierre atómico — solo ocultación visual.
             // Se prohíbe history.back() para no disparar el popstate → irAtras().
             const modal = document.getElementById('modal-consulta-invitado');
@@ -3639,12 +3832,42 @@ const app = {
                 }
                 if (target.classList.contains('btn--imprimir')) {
                     e.preventDefault(); e.stopPropagation();
-                    if(idCita) widget.imprimirCitaInvitado(idCita);
+                    if (!idCita || target.disabled) return;
+
+                    // Bloquear el botón y mostrar spinner para evitar clics dobles
+                    const htmlOriginalImprimir = target.innerHTML;
+                    target.disabled = true;
+                    target.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Preparando...';
+
+                    // imprimirCita usa iframe.onload + setTimeout(300ms) internamente;
+                    // restaurar el botón después de que el diálogo de impresión haya abierto.
+                    setTimeout(() => {
+                        widget.imprimirCitaInvitado(idCita);
+                    }, 60);
+                    setTimeout(() => {
+                        target.disabled = false;
+                        target.innerHTML = htmlOriginalImprimir;
+                    }, 700);
                     return;
                 }
                 if (target.classList.contains('btn--descargar-pdf')) {
                     e.preventDefault(); e.stopPropagation();
-                    if(idCita) widget.descargarPDFCitaInvitado(idCita);
+                    if (!idCita || target.disabled) return;
+
+                    // Bloquear el botón y mostrar spinner para evitar clics dobles
+                    const htmlOriginal = target.innerHTML;
+                    target.disabled = true;
+                    target.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Generando PDF...';
+
+                    // Ceder el hilo al navegador para que repinte ANTES de que jsPDF bloquee el thread
+                    setTimeout(() => {
+                        try {
+                            widget.descargarPDFCitaInvitado(idCita);
+                        } finally {
+                            target.disabled = false;
+                            target.innerHTML = htmlOriginal;
+                        }
+                    }, 60);
                     return;
                 }
                 if (target.classList.contains('btn--vista-c-volver')) {
@@ -3792,8 +4015,8 @@ const app = {
                 this._cedulaConsultada = cedula;
 
                 if (resultados.length === 1 || isAutoConsulta) {
-                    const citaAMostrar = isAutoConsulta && this._pendingDetailId 
-                        ? resultados.find(c => c.id_cita === this._pendingDetailId) || resultados[0] 
+                    const citaAMostrar = isAutoConsulta && this._pendingDetailId
+                        ? resultados.find(c => String(c.id_cita) === String(this._pendingDetailId)) || resultados[0]
                         : resultados[0];
                     // TR-85: Guardar el estado de la cita antes de pintar Vista C
                     this._citaActivaId = citaAMostrar.id_cita;
@@ -3814,7 +4037,17 @@ const app = {
             const fechaFmt = /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha) ? cita.fecha.split('-').reverse().join('/') : cita.fecha;
             const idCitaEstable = cita.id_cita || '';
             const esCancelada = cita.estado === 'Cancelada';
-            const estadoBadge = esCancelada ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>' : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
+            const _fechaCitaVistaC = (() => {
+                const horaC = cita.hora ? String(cita.hora).slice(0, 5) : '00:00';
+                const isoC = cita.fecha && /^\d{4}-\d{2}-\d{2}$/.test(cita.fecha) ? `${cita.fecha}T${horaC}` : null;
+                return isoC ? new Date(isoC) : null;
+            })();
+            const esCompletadaVistaC = !esCancelada && _fechaCitaVistaC && _fechaCitaVistaC < new Date();
+            const estadoBadge = esCancelada
+                ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
+                : esCompletadaVistaC
+                    ? '<span class="cita-estado-badge cita-estado-badge--completada">Completada</span>'
+                    : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
 
             let html = `
                 <div style="text-align: center; margin-bottom: 20px;">
@@ -3874,10 +4107,10 @@ const app = {
 
             if (!esCancelada) {
                 html += `<div class="cita-docs" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-                            <button class="btn btn--documento btn--imprimir" data-id="${idCitaEstable}" onclick="app.widgetInvitado.imprimirCitaInvitado('${idCitaEstable}')">
+                            <button class="btn btn--documento btn--imprimir" data-id="${idCitaEstable}" type="button">
                                 <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
                             </button>
-                            <button class="btn btn--documento btn--descargar-pdf" data-id="${idCitaEstable}" onclick="app.widgetInvitado.descargarPDFCitaInvitado('${idCitaEstable}')">
+                            <button class="btn btn--documento btn--descargar-pdf" data-id="${idCitaEstable}" type="button">
                                 <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Descargar PDF
                             </button>
                         </div>`;
@@ -3937,7 +4170,10 @@ const app = {
             const body = document.getElementById('modal-consulta-invitado-body');
             // TR-85: Guardar cita activa antes de inyectar HTML
             this._citaActivaId = cita.id_cita;
-            if (body) body.innerHTML = this._renderVistaC(cita, true);
+            if (body) {
+                body.innerHTML = this._renderVistaC(cita, true);
+                requestAnimationFrame(() => body.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            }
         },
 
         volverAListado() {
@@ -4043,11 +4279,14 @@ const app = {
             this.cerrarModalConsulta();
             sessionStorage.removeItem(STORAGE_CITA_EN_PROGRESO);
             sessionStorage.removeItem(STORAGE_CITA_POST_LOGIN);
-            app.navegar('citas');
-            setTimeout(() => {
-                // TR-86: posicionarse en Paso 2 (Calendario) ya con el médico preseleccionado.
-                app.citas.mostrarPaso(2);
-            }, 100);
+
+            // Si el usuario ya está en citas.html, navegar() no actúa (mismo pathname).
+            // En ese caso iniciamos el flujo directamente sin recargar la página.
+            if (document.getElementById('view-citas') && typeof app.citas?.iniciarFlujo === 'function') {
+                void app.citas.iniciarFlujo();
+            } else {
+                app.navegar('citas');
+            }
         },
 
         _normalizarCitaInvitado(idStr) {

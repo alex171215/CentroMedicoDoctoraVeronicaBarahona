@@ -1,0 +1,33 @@
+<div class="citas-form-wrapper" bis_skin_checked="1">
+                            <h2 class="citas-form-header">¿Ya
+                                registrado?
+                                <a href="javascript:void(0)" onclick="app.navegar('login')" class="enlace-accion">Acceder</a>
+                            </h2>
+                            <div class="citas-form-divider" bis_skin_checked="1">O</div>
+                            <h3 class="citas-form-subheader" style="color: rgb(59, 73, 163);">Ingrese los datos del Paciente</h3>
+
+                            <form id="form-citas-identificacion" onsubmit="event.preventDefault(); app.citas.avanzarPaso();" novalidate="">
+                                <div class="citas-form-group" bis_skin_checked="1">
+                                    <label for="citas-nombres" class="citas-form-label">Nombres
+                                        completos <span class="citas-form-required">*</span></label>
+                                    <input type="text" id="citas-nombres" class="form-control citas-form-control" required="" placeholder="Ej. Juan Pérez" autocomplete="name" aria-required="true" aria-describedby="error-nombres" data-tr119-enter="1" data-listener-added_cfebd280="true" style="border-color: rgb(13, 169, 159);">
+                                    <span class="error-msg citas-error-msg" id="error-nombres" role="alert" style="display: none;"></span>
+                                </div>
+
+                                <div class="citas-form-group" bis_skin_checked="1">
+                                    <label for="citas-cedula" class="citas-form-label">Cédula
+                                        <span class="citas-form-required">*</span></label>
+                                    <input type="text" id="citas-cedula" class="form-control citas-form-control" required="" placeholder="Ej: 1715811293" maxlength="10" autocomplete="on" aria-required="true" aria-describedby="error-cedula" data-tr119-enter="1" data-listener-added_cfebd280="true" style="border-color: rgb(13, 169, 159);">
+                                    <span class="error-msg citas-error-msg" id="error-cedula" role="alert" style="display: none;"></span>
+                                </div>
+
+                                <div class="citas-form-group citas-form-group--last" bis_skin_checked="1">
+                                    <label for="citas-celular" class="citas-form-label">Celular
+                                        <span class="citas-form-required">*</span></label>
+                                    <input type="tel" id="citas-celular" class="form-control citas-form-control" required="" placeholder="09xxxxxxx" maxlength="10" autocomplete="tel" aria-required="true" aria-describedby="error-celular" data-tr119-enter="1" data-listener-added_cfebd280="true" style="border-color: rgb(13, 169, 159);">
+                                    <span class="error-msg citas-error-msg" id="error-celular" role="alert" style="display: none;"></span>
+                                </div>
+
+                                <button type="submit" id="btn-citas-siguiente" class="btn btn--accion citas-btn-submit" style="opacity: 1; pointer-events: auto; cursor: pointer; background-color: rgb(253, 173, 52);">Siguiente</button>
+                            </form>
+                        </div>

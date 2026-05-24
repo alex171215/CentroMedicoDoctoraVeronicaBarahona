@@ -3,6 +3,7 @@ import { estado, STORAGE_CITA_EN_PROGRESO, STORAGE_CITA_POST_LOGIN, STORAGE_AUTO
 import {
     conCargaGlobal,
     fetchTodasLasCitasAgenda,
+    fetchPacienteRegistroPorCedula,
     insertCitaSupabase,
     updateCitaSupabasePorIdCita,
     upsertPacienteParaAgenda
@@ -201,6 +202,7 @@ export function createCitas() {
                 this.diaSeleccionadoMobile = 0;
                 // TR-80.4 + TR-92.1: purga de hora/slot al cambiar de especialidad (médico único).
                 this._purgaSeleccionHorario();
+                this._limpiarCamposPaso3();
 
                 // Guardar pre-selección para que el login sepa que hay cita en curso
                 sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
@@ -214,6 +216,7 @@ export function createCitas() {
                 this.generarCalendario(true);
             } else if (medicos.length > 1) {
                 this._purgaSeleccionHorario();
+                this._limpiarCamposPaso3();
                 this.mostrarPaso(1);
                 this.renderizarPasoDoctores(especialidad, medicos);
             } else {
@@ -240,27 +243,29 @@ export function createCitas() {
                 .replace(/\s+/g, '-');
         },
 
-        // TR-122: Alias de compatibilidad — resuelve src WebP; llamado desde _abrirCalendarioMedico
+        // TR-122: Alias de compatibilidad — resuelve src thumb; llamado desde _abrirCalendarioMedico
         // y otros puntos que aún pasan imgUrl por sessionStorage (puede llegar como slug antiguo).
-        // Retorna la ruta WebP local; el onerror en la <img> cubre discrepancias de disco.
+        // Retorna la ruta del thumbnail 200×200 de alta calidad; el onerror en la <img> cubre discrepancias de disco.
         obtenerImagenMedico(nombreMed) {
             const slug = this._generarSlugImagenCitas(nombreMed);
-            return 'assets/img/especialistas/webp/' + slug + '.webp';
+            return 'assets/img/especialistas/thumbs/' + slug + '.webp';
         },
 
         prepararResumenMedico(medicoNombre, especialidad, imgUrl, idEspecialista) {
             document.getElementById('citas-doctor-name').textContent = medicoNombre;
             document.getElementById('citas-doctor-specialty').textContent = especialidad || '';
-            // TR-122: slug WebP dinámico — imgUrl ignorado (ya no contiene rutas Unsplash)
-            const webpSrc = 'assets/img/especialistas/webp/' + this._generarSlugImagenCitas(medicoNombre) + '.webp';
+            // Usar thumbnail 200×200 de alta calidad para el calendario (sin pérdida de calidad)
+            const thumbSrc = 'assets/img/especialistas/thumbs/' + this._generarSlugImagenCitas(medicoNombre) + '.webp';
             const imgDoctor = document.getElementById('citas-doctor-img');
             if (imgDoctor) {
                 imgDoctor.loading = 'lazy';
-                imgDoctor.src = webpSrc;
+                imgDoctor.style.objectPosition = '50% 20%';
+                imgDoctor.src = thumbSrc;
                 // H5 — Prevención de errores: fallback a avatar neutro si el archivo no existe en disco.
                 imgDoctor.onerror = function () {
                     this.onerror = null;
-                    this.src = 'assets/img/especialistas/placeholder-doctor.webp';
+                    this.style.objectPosition = '50% 50%';
+                    this.src = 'assets/img/especialistas/thumbs/placeholder-doctor.webp';
                 };
             }
 
@@ -394,6 +399,7 @@ export function createCitas() {
             // TR-80.1 + TR-80.4: Reseteo de contexto temporal al cambiar de médico.
             this.fechaBaseCalendario = new Date();
             this.diaSeleccionadoMobile = 0;
+            this._limpiarCamposPaso3();
 
             sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
                 medico: nombre,
@@ -407,7 +413,36 @@ export function createCitas() {
             this.generarCalendario(true);
         },
 
+        _limpiarCamposPaso3() {
+            ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.value = ''; el.style.borderColor = ''; }
+            });
+            ['error-nombres', 'error-cedula', 'error-celular'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.textContent = ''; el.style.display = 'none'; }
+            });
+        },
+
         mostrarPaso(nuevoPaso) {
+            // Limpiar campos del paso 3 al salir de él hacia cualquier otro paso.
+            if (this.pasoActual === 3 && nuevoPaso !== 3) {
+                // Si avanza hacia adelante (paso 4+), guardar los datos antes de limpiar
+                // para que al volver al paso 3 los campos sigan llenos.
+                if (nuevoPaso > 3) {
+                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
+                    if (nom || ced || cel) {
+                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                    }
+                } else {
+                    // Si retrocede (hacia paso 2 o anterior), descartar datos guardados.
+                    sessionStorage.removeItem('citas_paso3_retorno');
+                }
+                this._limpiarCamposPaso3();
+            }
+
             // TR-92.1: purga total al abandonar el calendario (paso 2 → 0/1).
             if (this.pasoActual === 2 && nuevoPaso !== 2 && nuevoPaso < 2) {
                 this._purgaSeleccionHorario();
@@ -424,6 +459,15 @@ export function createCitas() {
             this.pasoActual = nuevoPaso;
 
             this.actualizarBarraProgreso();
+
+            // Al mostrar el paso 5, actualizar label/aria del botón primario según sesión real en ese momento.
+            if (nuevoPaso === 5) {
+                const btnP5 = document.querySelector('[data-citas-salida="primario"]');
+                const lblP5 = btnP5?.querySelector('[data-citas-salida-label]');
+                const esReg5 = localStorage.getItem('usuarioLogueado') === 'true';
+                if (btnP5) btnP5.setAttribute('aria-label', esReg5 ? 'Ir a Mi Salud para ver tus citas agendadas' : 'Ver el detalle de tu cita en la consulta para invitados');
+                if (lblP5) lblP5.textContent = esReg5 ? 'Ir a Mis Citas' : 'Ver mi cita';
+            }
 
             // --- INSERCIÓN: Auto-Completado para Recuperación de Errores (Heurística Nielsen) ---
             // --- INSERCIÓN: Auto-Completado tras recuperación de error ---
@@ -443,6 +487,23 @@ export function createCitas() {
                         // Consumir el dato para que no quede residual
                         sessionStorage.removeItem('temp_datos_recuperacion');
                     } catch (e) { }
+                } else if (!this.modoProxy) {
+                    // Restaurar campos si el usuario volvió desde el paso 4 (navegación hacia atrás).
+                    // NO restaurar en modo proxy: el formulario debe aparecer vacío para el familiar.
+                    const retornoData = sessionStorage.getItem('citas_paso3_retorno');
+                    if (retornoData) {
+                        try {
+                            const data = JSON.parse(retornoData);
+                            const nomInput = document.getElementById('citas-nombres');
+                            const cedInput = document.getElementById('citas-cedula');
+                            const celInput = document.getElementById('citas-celular');
+
+                            if (nomInput && data.nombres) nomInput.value = data.nombres;
+                            if (cedInput && data.cedula) cedInput.value = data.cedula;
+                            if (celInput && data.celular) celInput.value = data.celular;
+                            // No se consume: persiste por si el usuario vuelve a avanzar/retroceder varias veces.
+                        } catch (e) { }
+                    }
                 }
 
                 const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
@@ -520,11 +581,12 @@ export function createCitas() {
                     this._sincronizarEtiquetaVolverPaso4();
                 } else {
                     // Si no hay datos, volver al paso 2 por seguridad
+                    const _prevSuppress = this._suppressHistorialPush;
                     this._suppressHistorialPush = true;
                     try {
                         this.mostrarPaso(2);
                     } finally {
-                        this._suppressHistorialPush = false;
+                        this._suppressHistorialPush = _prevSuppress;
                     }
                     return;
                 }
@@ -542,9 +604,8 @@ export function createCitas() {
                 const backBtnPaso2 = document.querySelector('#citas-step-2 .btn-back-minimalist');
                 if (backBtnPaso2) {
                     if (this._esTunelReagendamientoTR100()) {
-                        backBtnPaso2.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancelar modificación';
-                        backBtnPaso2.setAttribute('aria-label', 'Cancelar modificación y volver al punto de partida');
-                        backBtnPaso2.onclick = () => this._cancelarModificacionTR100();
+                        // En reagendamiento no se puede volver a elegir médico: ocultar el botón.
+                        backBtnPaso2.style.display = 'none';
                     } else {
                         backBtnPaso2.onclick = () => window.app.citas.irAtras();
                         const prevDom = this.historialPasos.length
@@ -583,6 +644,10 @@ export function createCitas() {
                 document.querySelectorAll('#view-citas .btn-back-minimalist').forEach(btn => {
                     btn.style.display = '';
                 });
+                if (nuevoPaso === 2 && this._esTunelReagendamientoTR100()) {
+                    const backBtnPaso2 = document.querySelector('#citas-step-2 .btn-back-minimalist');
+                    if (backBtnPaso2) backBtnPaso2.style.display = 'none';
+                }
             }
 
             // ─── Paso 4: inyectar aviso si es modificación ───
@@ -755,7 +820,11 @@ export function createCitas() {
 
             document.querySelectorAll('.citas-step').forEach(el => el.style.display = 'none');
             const step2 = document.getElementById('citas-step-2');
-            if (step2) step2.style.display = 'block';
+            if (step2) {
+                step2.style.display = 'block';
+                const backBtn = step2.querySelector('.btn-back-minimalist');
+                if (backBtn) backBtn.style.display = 'none';
+            }
             this.actualizarBarraProgreso();
 
             await this._esperarDatosEspecialistas();
@@ -907,17 +976,11 @@ export function createCitas() {
             window.location.href = 'index.html';
         },
 
-        /** TR-20 / TR-22: salidas del paso 5; primario depende de sesión (Mi Salud vs deep link invitado). */
+        /** TR-20 / TR-22: salidas del paso 5; primario depende de sesión al momento del click (Mi Salud vs deep link invitado). */
         _montarSalidasPaso5() {
             const wrap = document.querySelector('#citas-step-5 .comprobante-botones');
             if (!wrap || wrap.dataset.salidasPaso5Bound === '1') return;
             wrap.dataset.salidasPaso5Bound = '1';
-
-            const esRegistrado = localStorage.getItem('usuarioLogueado') === 'true';
-            const labelPrimario = esRegistrado ? 'Ir a Mis Citas' : 'Ver mi cita';
-            const ariaPrimario = esRegistrado
-                ? 'Ir a Mi Salud para ver tus citas agendadas'
-                : 'Ver el detalle de tu cita en la consulta para invitados';
 
             const limpiarYNavegar = (href) => {
                 this.limpiarSessionFlujoCitas(false);
@@ -927,7 +990,7 @@ export function createCitas() {
             wrap.innerHTML = `
                 <div class="citas-exito-salidas" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:12px;">
                     <button type="button" class="btn btn--primario" data-citas-salida="primario">
-                        <i class="fa-solid fa-notes-medical" aria-hidden="true"></i> ${labelPrimario}
+                        <i class="fa-solid fa-notes-medical" aria-hidden="true"></i> <span data-citas-salida-label>Ver mi cita</span>
                     </button>
                     <button type="button" class="btn btn--secundario" data-citas-salida="inicio" aria-label="Volver a la página de inicio">
                         <i class="fa-solid fa-house" aria-hidden="true"></i> Volver al Inicio
@@ -944,10 +1007,24 @@ export function createCitas() {
             `;
 
             const btnPrim = wrap.querySelector('[data-citas-salida="primario"]');
-            if (btnPrim) btnPrim.setAttribute('aria-label', ariaPrimario);
+            const labelSpan = wrap.querySelector('[data-citas-salida-label]');
+
+            // Actualizar label e aria del botón primario según estado de sesión actual (en el momento de mostrar paso 5).
+            const _actualizarLabelBtnPrimario = () => {
+                const esReg = localStorage.getItem('usuarioLogueado') === 'true';
+                if (btnPrim) {
+                    btnPrim.setAttribute('aria-label', esReg
+                        ? 'Ir a Mi Salud para ver tus citas agendadas'
+                        : 'Ver el detalle de tu cita en la consulta para invitados');
+                }
+                if (labelSpan) labelSpan.textContent = esReg ? 'Ir a Mis Citas' : 'Ver mi cita';
+            };
+            _actualizarLabelBtnPrimario();
 
             btnPrim?.addEventListener('click', (e) => {
                 e.preventDefault();
+                // Re-evaluar sesión en el momento del click (no en el momento del montaje).
+                const esRegistrado = localStorage.getItem('usuarioLogueado') === 'true';
                 if (esRegistrado) {
                     // TR-24 / TR-55: persistir id antes de limpiar sesión del flujo.
                     // sanitas_abrir_detalle_id → consumido por salud.js (TR-24)
@@ -1051,6 +1128,7 @@ export function createCitas() {
             sessionStorage.removeItem('_citaTemporal_respaldo');
             sessionStorage.removeItem('citas_login_restore');
             sessionStorage.removeItem('temp_datos_recuperacion');
+            sessionStorage.removeItem('citas_paso3_retorno');
             sessionStorage.removeItem('cita_desde_login');
             sessionStorage.removeItem('modoModificacion');
             if (!preserveMod) {
@@ -1631,7 +1709,19 @@ export function createCitas() {
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
             // Regresar al paso 2 si estaba en el 3
             if (this.pasoActual === 3) {
+                // 1. Leer los datos del formulario ANTES de que mostrarPaso limpie el DOM.
+                //    El usuario eligió otra hora por colisión — no debería perder lo que ya escribió.
+                const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                const cel = document.getElementById('citas-celular')?.value.trim() || '';
+
+                // 2. Navegar al calendario (limpia campos y borra citas_paso3_retorno internamente).
                 this.mostrarPaso(2);
+
+                // 3. Volver a guardar los datos para que se restauren al llegar de nuevo al paso 3.
+                if (nom || ced || cel) {
+                    sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                }
             }
         },
 
@@ -1653,6 +1743,16 @@ export function createCitas() {
         },
 
         async _esperarDatosEspecialistas(maxMs = 2500) {
+            try {
+                const raw = localStorage.getItem('sanitasFam_db');
+                if (raw) {
+                    const db = JSON.parse(raw);
+                    if (db && Array.isArray(db.cartera_especialistas) && db.cartera_especialistas.length > 0) {
+                        return;
+                    }
+                }
+            } catch (_) { /* continuar con polling */ }
+
             const t0 = Date.now();
             while (Date.now() - t0 < maxMs) {
                 try {
@@ -1679,7 +1779,8 @@ export function createCitas() {
                     preSel = JSON.stringify({
                         medico: this._citaTemporal.medico,
                         especialidad: this._citaTemporal.especialidad || esp || '',
-                        imagen_url: ''
+                        imagen_url: '',
+                        id_especialista: this._citaTemporal.id_especialista ?? null
                     });
                 }
                 if (!esp && this._citaTemporal && this._citaTemporal.especialidad) {
@@ -1865,124 +1966,139 @@ export function createCitas() {
         },
 
         async _irAPaso(paso) {
-            const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
+            this._suppressHistorialPush = true;
+            try {
+                const estaLogueado = localStorage.getItem('usuarioLogueado') === 'true';
 
-            if (paso === 0) {
-                this.renderizarPasoEspecialidades();
-                this.mostrarPaso(0);
-                return;
-            }
-
-            if (paso === 1) {
-                const esp = sessionStorage.getItem('especialidad_seleccionada');
-                let db;
-                try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
-                const medicos = (db.cartera_especialistas || []).filter(e => e.especialidad === esp && e.doctor);
-                if (!esp || !medicos.length) {
+                if (paso === 0) {
                     this.renderizarPasoEspecialidades();
                     this.mostrarPaso(0);
                     return;
                 }
-                if (medicos.length === 1) {
-                    const med = medicos[0];
-                    sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
-                        medico: med.doctor.nombre_completo,
-                        especialidad: esp,
-                        imagen_url: med.imagen_url,
-                        id_especialista: med.id_especialista
-                    }));
-                    this.prepararResumenMedico(med.doctor.nombre_completo, esp, med.imagen_url, med.id_especialista);
-                    this.mostrarPaso(2);
-                    this.generarCalendario(true);
-                    return;
-                }
-                this.renderizarPasoDoctores(esp, medicos);
-                this.mostrarPaso(1);
-                return;
-            }
 
-            if (paso === 5) {
-                const t = this.resumenTicketConfirmado;
-                if (!t || typeof t !== 'object') {
-                    this.renderizarPasoEspecialidades();
-                    this.mostrarPaso(0);
-                    return;
-                }
-                this._aplicarResumenTicketAlDom(t);
-                this.mostrarPaso(5);
-                return;
-            }
-
-            if (paso === 2) {
-                const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
-                let preCita = null;
-                try { preCita = preCitaStr ? JSON.parse(preCitaStr) : null; } catch (_) { preCita = null; }
-                const esp = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
-                if (!preCita?.medico || !esp) {
-                    this.renderizarPasoEspecialidades();
-                    this.mostrarPaso(0);
-                    return;
-                }
-                this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, preCita.id_especialista);
-                this.mostrarPaso(2);
-                this.generarCalendario(true);
-                if (sessionStorage.getItem('cita_hora_confirmada') === 'true') {
-                    const horaGuardada = (sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada || '').trim();
-                    const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
-                    if (horaGuardada) {
-                        this.horaSeleccionada = horaGuardada;
-                        if (fechaISO) this.fechaISOSeleccionada = fechaISO;
-                        this._seleccionarSlotVisual(horaGuardada, fechaISO);
-                    }
-                }
-                return;
-            }
-
-            if (paso === 3) {
-                const modifica = !!sessionStorage.getItem('cita_modificacion');
-                if (estaLogueado && !this.modoProxy && !modifica) {
-                    if (!this.horaSeleccionada) {
-                        const hg = sessionStorage.getItem('cita_hora_seleccionada');
-                        if (hg) this.horaSeleccionada = hg;
-                    }
-                    if (!this.fechaISOSeleccionada) {
-                        const fi = sessionStorage.getItem('cita_fecha_iso');
-                        if (fi) this.fechaISOSeleccionada = fi;
-                    }
-                    if (this.horaSeleccionada) {
-                        this.prepararResumenFinal(true);
+                if (paso === 1) {
+                    const esp = sessionStorage.getItem('especialidad_seleccionada');
+                    let db;
+                    try { db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}'); } catch (_) { db = {}; }
+                    const medicos = (db.cartera_especialistas || []).filter(e => e.especialidad === esp && e.doctor);
+                    if (!esp || !medicos.length) {
+                        this.renderizarPasoEspecialidades();
+                        this.mostrarPaso(0);
                         return;
                     }
-                }
-                this.mostrarPaso(3);
-                return;
-            }
-
-            if (paso === 4) {
-                if (this._citaTemporal) {
-                    this._mostrarResumen(this._citaTemporal);
-                    this.mostrarPaso(4);
+                    if (medicos.length === 1) {
+                        const med = medicos[0];
+                        sessionStorage.setItem('reservaCita_preseleccion', JSON.stringify({
+                            medico: med.doctor.nombre_completo,
+                            especialidad: esp,
+                            imagen_url: med.imagen_url,
+                            id_especialista: med.id_especialista
+                        }));
+                        this.prepararResumenMedico(med.doctor.nombre_completo, esp, med.imagen_url, med.id_especialista);
+                        this.mostrarPaso(2);
+                        this.generarCalendario(true);
+                        return;
+                    }
+                    this.renderizarPasoDoctores(esp, medicos);
+                    this.mostrarPaso(1);
                     return;
                 }
-                const backup = sessionStorage.getItem('_citaTemporal_respaldo');
-                if (backup) {
-                    try {
-                        this._citaTemporal = JSON.parse(backup);
+
+                if (paso === 5) {
+                    const t = this.resumenTicketConfirmado;
+                    if (!t || typeof t !== 'object') {
+                        this.renderizarPasoEspecialidades();
+                        this.mostrarPaso(0);
+                        return;
+                    }
+                    this._aplicarResumenTicketAlDom(t);
+                    this.mostrarPaso(5);
+                    return;
+                }
+
+                if (paso === 2) {
+                    const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
+                    let preCita = null;
+                    try { preCita = preCitaStr ? JSON.parse(preCitaStr) : null; } catch (_) { preCita = null; }
+                    const esp = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
+                    if (!preCita?.medico || !esp) {
+                        this.renderizarPasoEspecialidades();
+                        this.mostrarPaso(0);
+                        return;
+                    }
+                    this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, preCita.id_especialista);
+                    this.mostrarPaso(2);
+                    this.generarCalendario(true);
+                    if (sessionStorage.getItem('cita_hora_confirmada') === 'true') {
+                        const horaGuardada = (sessionStorage.getItem('cita_hora_seleccionada') || this.horaSeleccionada || '').trim();
+                        const fechaISO = sessionStorage.getItem('cita_fecha_iso') || this.fechaISOSeleccionada;
+                        if (horaGuardada) {
+                            this.horaSeleccionada = horaGuardada;
+                            if (fechaISO) this.fechaISOSeleccionada = fechaISO;
+                            this._seleccionarSlotVisual(horaGuardada, fechaISO);
+                        }
+                    }
+                    return;
+                }
+
+                if (paso === 3) {
+                    const modifica = !!sessionStorage.getItem('cita_modificacion');
+                    if (estaLogueado && !this.modoProxy && !modifica) {
+                        if (!this.horaSeleccionada) {
+                            const hg = sessionStorage.getItem('cita_hora_seleccionada');
+                            if (hg) this.horaSeleccionada = hg;
+                        }
+                        if (!this.fechaISOSeleccionada) {
+                            const fi = sessionStorage.getItem('cita_fecha_iso');
+                            if (fi) this.fechaISOSeleccionada = fi;
+                        }
+                        if (this.horaSeleccionada) {
+                            if (!this._doctorActual) {
+                                try {
+                                    const preCitaStr = sessionStorage.getItem('reservaCita_preseleccion');
+                                    const preCita = preCitaStr ? JSON.parse(preCitaStr) : null;
+                                    const espSel = sessionStorage.getItem('especialidad_seleccionada') || preCita?.especialidad;
+                                    if (preCita?.medico) {
+                                        this.prepararResumenMedico(preCita.medico, espSel, preCita.imagen_url, preCita.id_especialista);
+                                    }
+                                } catch (_) { }
+                            }
+                            this.prepararResumenFinal(true);
+                            return;
+                        }
+                    }
+                    this.mostrarPaso(3);
+                    return;
+                }
+
+                if (paso === 4) {
+                    if (this._citaTemporal) {
                         this._mostrarResumen(this._citaTemporal);
                         this.mostrarPaso(4);
                         return;
-                    } catch (_) { /* continuar */ }
-                }
-                if ((this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada')) && estaLogueado) {
-                    if (!this.horaSeleccionada) this.horaSeleccionada = sessionStorage.getItem('cita_hora_seleccionada');
-                    if (!this.fechaISOSeleccionada) {
-                        const fi = sessionStorage.getItem('cita_fecha_iso');
-                        if (fi) this.fechaISOSeleccionada = fi;
                     }
-                    this.prepararResumenFinal(true);
-                    return;
+                    const backup = sessionStorage.getItem('_citaTemporal_respaldo');
+                    if (backup) {
+                        try {
+                            this._citaTemporal = JSON.parse(backup);
+                            this._mostrarResumen(this._citaTemporal);
+                            this.mostrarPaso(4);
+                            return;
+                        } catch (_) { /* continuar */ }
+                    }
+                    if ((this.horaSeleccionada || sessionStorage.getItem('cita_hora_seleccionada')) && estaLogueado) {
+                        if (!this.horaSeleccionada) this.horaSeleccionada = sessionStorage.getItem('cita_hora_seleccionada');
+                        if (!this.fechaISOSeleccionada) {
+                            const fi = sessionStorage.getItem('cita_fecha_iso');
+                            if (fi) this.fechaISOSeleccionada = fi;
+                        }
+                        this.prepararResumenFinal(true);
+                        return;
+                    }
+                    await this._irAPaso(2);
                 }
-                await this._irAPaso(2);
+            } finally {
+                this._suppressHistorialPush = false;
             }
         },
 
@@ -2078,12 +2194,39 @@ export function createCitas() {
             const pwdInv = (ced) => `invitado_${ced}`;
 
             if (estaLogueado && !modoProxy) {
+                // En modo modificación la identidad siempre viene de cita_modificacion
+                // (modoProxy se resetea al iniciar modificación, así que no es fuente fiable).
+                let modCtxFila2 = null;
+                try {
+                    const raw2 = sessionStorage.getItem('cita_modificacion');
+                    if (raw2) modCtxFila2 = JSON.parse(raw2);
+                } catch (_) { /* noop */ }
+
+                if (modCtxFila2 && modCtxFila2.modoModificacion) {
+                    // Identidad del paciente = cita original (propia o de familiar)
+                    const ced = String(modCtxFila2.cedula_paciente || modCtxFila2.cedula || '').trim();
+                    if (!ced) return null;
+                    const fullNom = String(modCtxFila2.paciente || cita.paciente || '').trim();
+                    const { nombres, apellidos } = this._splitNombreCompletoParaPaciente(fullNom);
+                    const celInput = document.getElementById('citas-celular');
+                    const cel = (celInput?.value || '').trim() || '0900000000';
+                    return {
+                        cedula: ced,
+                        nombres: nombres || '',
+                        apellidos: apellidos || '',
+                        correo: `invitado_${ced}@guest.centromedico.local`,
+                        password: pwdInv(ced),
+                        celular: cel,
+                        fecha_nacimiento: defFecha,
+                        es_invitado: true
+                    };
+                }
+
+                // Sin modificación activa — agendar nuevo para el titular
                 let user = null;
                 try {
                     user = JSON.parse(localStorage.getItem('usuarioActivo') || 'null');
-                } catch (_) {
-                    user = null;
-                }
+                } catch (_) { user = null; }
                 if (!user) return null;
                 const ced = String(user.identificacion || user.cedula || '').trim();
                 if (!ced) return null;
@@ -2191,9 +2334,29 @@ export function createCitas() {
             let cedulaTitular = null;
 
             if (logueado && !this.modoProxy) {
-                // ── Titular agendando para sí mismo ──
-                // Resolución de Nombre (H2): cubre ambas convenciones de campo
-                // (nombre_1 del usuario demo vs nombre1 del registro nuevo).
+                // En modo modificación la identidad del paciente siempre viene de cita_modificacion
+                // (la sesión del usuario no es la fuente correcta: podría ser cita propia o de familiar).
+                let usadoModCtx = false;
+                try {
+                    const modCtxId = this._leerContextoModificacion();
+                    if (modCtxId && modCtxId.modoModificacion) {
+                        const cedPac = String(modCtxId.cedula_paciente || modCtxId.cedula || '').trim();
+                        const nomPac = String(modCtxId.paciente || '').trim();
+                        if (cedPac || nomPac) {
+                            paciente = nomPac || 'Paciente';
+                            cedulaPaciente = cedPac;
+                            // cedulaTitular = cuenta logueada
+                            try {
+                                const ua = JSON.parse(localStorage.getItem('usuarioActivo') || 'null');
+                                cedulaTitular = ua?.identificacion || cedPac;
+                            } catch (_) { cedulaTitular = cedPac; }
+                            usadoModCtx = true;
+                        }
+                    }
+                } catch (e) { }
+
+                if (!usadoModCtx) {
+                // ── Titular agendando para sí mismo (sin modificación activa) ──
                 try {
                     const userActivoStr = localStorage.getItem('usuarioActivo');
                     if (userActivoStr) {
@@ -2202,14 +2365,13 @@ export function createCitas() {
                         const n2 = (user.nombre_2 || user.nombre2 || (user.nombres || '').split(/\s+/).slice(1).join(' ') || '').trim();
                         const a1 = (user.apellido_1 || user.apellido1 || (user.apellidos || '').split(/\s+/)[0] || '').trim();
                         const a2 = (user.apellido_2 || user.apellido2 || (user.apellidos || '').split(/\s+/).slice(1).join(' ') || '').trim();
-                        // Formato: Nombre + Apellido (sin campos vacíos intermedios)
                         paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Usuario Sanitas';
                         cedulaPaciente = user.identificacion || '';
                         cedulaTitular = user.identificacion || null;
                     }
                 } catch (e) { }
-                // Fallback de seguridad: si la sesión está corrupta, nombre digno
                 if (!paciente) paciente = 'Usuario Sanitas';
+                }
 
             } else if (logueado && this.modoProxy) {
                 // ── Titular agendando para un familiar (Proxy) ──
@@ -2238,9 +2400,9 @@ export function createCitas() {
                 } catch (_) { /* noop */ }
 
                 if (modCtxInv && modCtxInv.modoModificacion) {
-                    paciente       = modCtxInv.paciente || 'Paciente';
+                    paciente = modCtxInv.paciente || 'Paciente';
                     cedulaPaciente = modCtxInv.cedula_paciente || modCtxInv.cedula || '';
-                    cedulaTitular  = cedulaPaciente;
+                    cedulaTitular = cedulaPaciente;
                 } else {
                     const inputNombres = document.getElementById('cita-nombres') || document.getElementById('citas-nombres');
                     const inputApellidos = document.getElementById('cita-apellidos');
@@ -2267,7 +2429,21 @@ export function createCitas() {
             const idCitaUnico = 'C' + Date.now().toString();
 
             const docSel = this._doctorActual;
-            const idEspCita = docSel?.id_especialista ?? docSel?.id ?? null;
+            let idEspCita = docSel?.id_especialista ?? docSel?.id ?? null;
+            if ((idEspCita == null || idEspCita === '') && nombreMedico) {
+                try {
+                    const dbFb = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+                    if (Array.isArray(dbFb.cartera_especialistas)) {
+                        const found = dbFb.cartera_especialistas.find(
+                            e => e.doctor?.nombre_completo === nombreMedico || e.nombre_completo === nombreMedico
+                        );
+                        if (found) {
+                            idEspCita = found.id_especialista ?? found.id ?? null;
+                            this._doctorActual = found;
+                        }
+                    }
+                } catch (_) { }
+            }
 
             const nuevaCita = {
                 id: idCitaUnico,
@@ -2347,8 +2523,8 @@ export function createCitas() {
                    aria-label="Los siguientes datos son de solo lectura">
                     <i class="fa-solid fa-lock" aria-hidden="true"></i> Datos del paciente (solo lectura)
                 </p>
-                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(cita.paciente || 'No especificado')}</span></div>
-                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(cita.cedula || '—')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val" id="reagendamiento-paciente-nombre">${escapeHtmlCita(modCtx?.paciente || cita.paciente || '…')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(modCtx?.cedula_paciente || modCtx?.cedula || cita.cedula || '—')}</span></div>
             `;
         },
 
@@ -2376,6 +2552,36 @@ export function createCitas() {
 
             if (esReagendamiento && modCtxResumen) {
                 this._renderResumenReagendamiento(summaryDiv, cita, fechaHora, modCtxResumen);
+
+                // Consultar Supabase por la cédula del paciente para obtener el nombre real.
+                // Se actualiza el span de forma asíncrona sin bloquear el render inicial.
+                const cedulaBuscar = String(
+                    modCtxResumen.cedula_paciente || modCtxResumen.cedula || cita.cedula || ''
+                ).trim();
+                if (cedulaBuscar) {
+                    fetchPacienteRegistroPorCedula(cedulaBuscar)
+                        .then(pacienteDb => {
+                            if (!pacienteDb) return;
+                            const nombreDb = [
+                                pacienteDb.nombres || '',
+                                pacienteDb.apellidos || ''
+                            ].join(' ').trim();
+                            if (!nombreDb) return;
+                            const spanNombre = document.getElementById('reagendamiento-paciente-nombre');
+                            if (spanNombre) spanNombre.textContent = nombreDb;
+                            // Actualizar también _citaTemporal para que confirmarCita use el nombre correcto.
+                            if (this._citaTemporal) this._citaTemporal.paciente = nombreDb;
+                            const respaldo = sessionStorage.getItem('_citaTemporal_respaldo');
+                            if (respaldo) {
+                                try {
+                                    const r = JSON.parse(respaldo);
+                                    r.paciente = nombreDb;
+                                    sessionStorage.setItem('_citaTemporal_respaldo', JSON.stringify(r));
+                                } catch (_) { /* noop */ }
+                            }
+                        })
+                        .catch(() => { /* sin acceso a red: nombre permanece como estaba */ });
+                }
             } else {
                 this._renderResumenAgendamientoNuevo(summaryDiv, cita, fechaHora);
             }
@@ -2567,6 +2773,9 @@ export function createCitas() {
                                 id_especialista: idEspUpd,
                                 cedula_paciente: String(filaPac.cedula || cita.cedula || cita.cedula_paciente || '').trim()
                             });
+                            // Propagar el id real de la cita modificada para que resumenTicketConfirmado lo tenga correcto.
+                            cita.id_cita = realId;
+                            cita.id = realId;
 
                             let historial = JSON.parse(localStorage.getItem('sanitas_mis_citas') || '[]');
                             const indexH = historial.findIndex(h => (h.id || h._id) === realId || h.id_cita === realId);
@@ -2604,7 +2813,21 @@ export function createCitas() {
                         this._reconstruirOcupadas();
                     } else {
                         const doc = this._doctorActual;
-                        const idEsp = doc?.id_especialista ?? doc?.id ?? cita.id_especialista ?? null;
+                        let idEsp = doc?.id_especialista ?? doc?.id ?? cita.id_especialista ?? null;
+                        if ((idEsp == null || idEsp === '') && cita.medico) {
+                            try {
+                                const dbFb = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+                                if (Array.isArray(dbFb.cartera_especialistas)) {
+                                    const found = dbFb.cartera_especialistas.find(
+                                        e => e.doctor?.nombre_completo === cita.medico || e.nombre_completo === cita.medico
+                                    ) || dbFb.cartera_especialistas.find(e => e.especialidad === cita.especialidad);
+                                    if (found) {
+                                        idEsp = found.id_especialista ?? found.id ?? null;
+                                        this._doctorActual = found;
+                                    }
+                                }
+                            } catch (_) { }
+                        }
                         if (idEsp == null || idEsp === '') {
                             throw new Error('Falta el especialista (id_especialista). Vuelve al paso 1 y elige un médico.');
                         }
@@ -3947,7 +4170,7 @@ export function createCitas() {
                     <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
                     <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
                     <p class="modal-colision-text" style="margin-bottom: 20px;">
-                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos que ingresaste se borrarán. ¿Deseas continuar?
+                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos que ingresaste se borrarán. ¿Deseas salir?
                     </p>
                     <div class="modal-colision-actions">
                         <button id="btn-buffer-no-volver" class="btn btn--primario btn-full-width btn-margin-bottom">
@@ -4005,7 +4228,7 @@ export function createCitas() {
                     <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
                     <h2 class="modal-colision-title">¿Abandonar reserva?</h2>
                     <p class="modal-colision-text" style="margin-bottom: 20px;">
-                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos ingresados se borrarán. ¿Deseas continuar?
+                        ⚠️ Atención: Estás a punto de salir del agendamiento. Los datos ingresados se borrarán. ¿Deseas salir?
                     </p>
                     <div class="modal-colision-actions">
                         <button id="btn-limite-no-volver" class="btn btn--primario btn-full-width btn-margin-bottom">
@@ -4025,12 +4248,23 @@ export function createCitas() {
             const bindEvents = () => {
                 // Acción 1: Volver al calendario
                 document.getElementById('btn-limite-entendido')?.addEventListener('click', () => {
+                    // Guardar datos del paso 3 ANTES de limpiar para que el usuario no tenga que reescribirlos.
+                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
+
                     this._cerrarModalLimiteDiario();
                     this._bloquearConfirmar();
                     document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
                         .forEach(el => el.classList.remove('time-slot--selected'));
                     this.horaSeleccionada = null;
-                    this.mostrarPaso(2);
+                    this.mostrarPaso(2); // limpia campos y borra citas_paso3_retorno internamente
+
+                    // Restaurar respaldo para que al llegar de nuevo al paso 3 los campos aparezcan llenos.
+                    if (nom || ced || cel) {
+                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                    }
+
                     this.generarCalendario();
                 });
 
@@ -4073,22 +4307,23 @@ export function createCitas() {
             const btnElegir = document.getElementById('btn-buffer-elegir-otro');
             if (btnElegir) {
                 btnElegir.onclick = () => {
-                    // Guardar datos actuales del Paso 3 para no perderlos
-                    const nom = document.getElementById('citas-nombres');
-                    const ced = document.getElementById('citas-cedula');
-                    const cel = document.getElementById('citas-celular');
-                    const tempData = {
-                        nombres: nom ? nom.value.trim() : '',
-                        cedula: ced ? ced.value.trim() : '',
-                        celular: cel ? cel.value.trim() : ''
-                    };
-                    sessionStorage.setItem('temp_datos_recuperacion', JSON.stringify(tempData));
+                    // Leer datos del paso 3 ANTES de que mostrarPaso limpie el DOM.
+                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
+                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
+                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
+
                     this.cerrarModalBuffer();
                     // Resetear selección de hora y retroceder al calendario
                     document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
                         .forEach(el => el.classList.remove('time-slot--selected'));
                     this.horaSeleccionada = null;
-                    this.mostrarPaso(2);
+                    this.mostrarPaso(2); // limpia campos y borra citas_paso3_retorno internamente
+
+                    // Re-guardar para que al volver al paso 3 los campos aparezcan llenos.
+                    if (nom || ced || cel) {
+                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
+                    }
+
                     this.generarCalendario();
                 };
             }

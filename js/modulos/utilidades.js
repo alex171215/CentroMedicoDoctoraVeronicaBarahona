@@ -283,7 +283,7 @@ export const utilidades = {
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(102, 102, 102);
             const nota = doc.splitTextToSize(
-                'Presente este comprobante al momento de su consulta. Para cancelar o reprogramar, comuníquese con anticipación al 099 890 8034.',
+                'Recuerde que solo puede cancelar o reprogramar una cita 24 horas antes de la misma. Además, solo se permite una cita por paciente por especialidad al día',
                 pageWidth - 2 * margin - 12
             );
             doc.text(nota, margin + 6, y + 12);

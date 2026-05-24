@@ -3,12 +3,15 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="js/anti-fouc.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Centro Médico Familiar Dra. Verónica Barahona - Servicios médicos integrales">
     <link rel="icon" type="image/png" href="assets/img/Logo.png">
     <title>Editar perfil — Centro Médico Dra. Verónica Barahona</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://voumbawzjuakmifavivx.supabase.co">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap"
         rel="stylesheet">
@@ -85,7 +88,7 @@
                             <div class="login-field">
                                 <label for="edit-nombre1" class="login-field__label">Primer nombre *</label>
                                 <input type="text" id="edit-nombre1" class="login-field__input"
-                                    autocomplete="given-name" aria-required="true"
+                                    autocomplete="given-name" aria-required="true" maxlength="30"
                                     aria-describedby="edit-nombre1-error">
                                 <span id="edit-nombre1-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -95,7 +98,7 @@
                             <div class="login-field">
                                 <label for="edit-nombre2" class="login-field__label">Segundo nombre</label>
                                 <input type="text" id="edit-nombre2" class="login-field__input"
-                                    autocomplete="additional-name" aria-describedby="edit-nombre2-error">
+                                    autocomplete="additional-name" maxlength="30" aria-describedby="edit-nombre2-error">
                                 <span id="edit-nombre2-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -104,7 +107,7 @@
                             <div class="login-field">
                                 <label for="edit-apellido1" class="login-field__label">Primer apellido *</label>
                                 <input type="text" id="edit-apellido1" class="login-field__input"
-                                    autocomplete="family-name" aria-required="true"
+                                    autocomplete="family-name" aria-required="true" maxlength="30"
                                     aria-describedby="edit-apellido1-error">
                                 <span id="edit-apellido1-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
@@ -114,7 +117,7 @@
                             <div class="login-field">
                                 <label for="edit-apellido2" class="login-field__label">Segundo apellido</label>
                                 <input type="text" id="edit-apellido2" class="login-field__input"
-                                    autocomplete="off" aria-describedby="edit-apellido2-error">
+                                    autocomplete="off" maxlength="30" aria-describedby="edit-apellido2-error">
                                 <span id="edit-apellido2-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -134,7 +137,7 @@
                                 <label for="edit-email" class="login-field__label">Email *</label>
                                 <input type="email" id="edit-email" class="login-field__input"
                                     placeholder="Ej: juan.perez@email.com" autocomplete="email" aria-required="true"
-                                    aria-describedby="edit-email-error">
+                                    maxlength="80" aria-describedby="edit-email-error">
                                 <span id="edit-email-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -360,6 +363,9 @@
             <div class="modal-body">
                 <form id="form-cambiar-password" onsubmit="event.preventDefault(); app.perfil.cambiarPasswordUsuario();">
 
+                    <!-- Campo oculto de usuario para el gestor de contraseñas del navegador -->
+                    <input type="text" id="pass-username-hint" style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;overflow:hidden;" autocomplete="username" tabindex="-1" aria-hidden="true" readonly>
+
                     <!-- Campo 1: Contraseña Actual -->
                     <div class="login-field">
                         <label for="pass-actual" class="login-field__label">Contraseña actual *</label>
@@ -397,6 +403,14 @@
                                 onclick="app.perfil._togglePassVis('pass-nueva', this)">
                                 <i class="fa-regular fa-eye" aria-hidden="true"></i>
                             </button>
+                        </div>
+                        <div class="pass-strength" id="pass-nueva-strength" style="display:none;" aria-live="polite">
+                            <div class="pass-strength__segs">
+                                <span class="pass-strength__seg"></span>
+                                <span class="pass-strength__seg"></span>
+                                <span class="pass-strength__seg"></span>
+                            </div>
+                            <span class="pass-strength__label"></span>
                         </div>
                         <span id="pass-nueva-error" class="login-field__error" role="alert"
                             style="display:none;"></span>

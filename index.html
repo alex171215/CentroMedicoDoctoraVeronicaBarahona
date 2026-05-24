@@ -3,19 +3,21 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="js/anti-fouc.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Centro Médico Familiar Dra. Verónica Barahona - Servicios médicos integrales">
     <link rel="icon" type="image/png" href="assets/img/Logo.png">
     <title>Centro Médico Dra. Verónica Barahona</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://voumbawzjuakmifavivx.supabase.co">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 
 </head>
 
@@ -52,7 +54,8 @@
                 </div>
 
                 <div class="header__action-buttons">
-                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display:inline-block;" onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita">
+                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display:inline-block;"
+                        onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita">
                         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita
                     </button>
                     <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
@@ -61,7 +64,8 @@
                 </div>
 
                 <button id="btn-auth-mobile" class="auth-avatar-btn" aria-label="Menú de perfil móvil"></button>
-                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="main-menu">
+                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false"
+                    aria-controls="main-menu">
                     <i class="fa-solid fa-bars" aria-hidden="true"></i>
                 </button>
             </div>
@@ -75,7 +79,7 @@
                 <!-- Slide 1 -->
                 <div class="hero__slide hero__slide--active hero__slide--inicio">
                     <div class="hero__image-bg"
-                        style="background-image: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%), url('assets/img/diapositiva1.png');"
+                        style="background-image: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%), url('assets/img/diapositiva1.webp');"
                         role="img" aria-label="Doctora atendiendo a paciente"></div>
                     <div class="hero__content">
                         <p class="hero__subtitle">TU SALUD ES NUESTRA PRIORIDAD</p>
@@ -113,7 +117,7 @@
                 <!-- Slide 3 (Especialidades) -->
                 <div class="hero__slide hero__slide--wide">
                     <div class="hero__image-bg"
-                        style="background-image: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%), url('assets/img/Diapositiva2.png');"
+                        style="background-image: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%), url('assets/img/Diapositiva2.webp');"
                         role="img" aria-label="Atención médica integral"></div>
                     <div class="hero__content">
                         <p class="hero__subtitle">ATENCIÓN INTEGRAL</p>
@@ -127,7 +131,7 @@
                 <!-- Slide 4 (Registro — H10: Ayuda y documentación) -->
                 <div class="hero__slide hero__slide--registro">
                     <div class="hero__image-bg"
-                        style="background-image: linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 60%, transparent 100%), url('assets/img/carrusel/webp/medicina-familiar.webp');"
+                        style="background-image: linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 60%, transparent 100%), url('assets/img/Diapositiva3.webp');"
                         role="img" aria-label="Paciente consultando historial médico en línea"></div>
                     <div class="hero__content" style="margin-left: 8%; max-width: 600px;">
                         <p class="hero__subtitle">TU HISTORIAL MÉDICO DIGITAL</p>
@@ -153,7 +157,7 @@
                 <!-- Slide 5 (Política 24h — H5: Prevención de errores) -->
                 <div class="hero__slide hero__slide--policy">
                     <div class="hero__image-bg"
-                        style="background-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.95) 100%), url('assets/img/carrusel/webp/radiodiagnostico.webp');"
+                        style="background-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.95) 100%), url('assets/img/Diapositiva4.webp');"
                         role="img" aria-label="Reloj de gestión de tiempo"></div>
                     <div class="hero__content"
                         style="margin-left: auto; margin-right: 5%; text-align: right; max-width: 550px;">
@@ -212,18 +216,23 @@
         <div id="modal-consulta-invitado" class="modal-overlay modal-consulta" style="display:none;" role="dialog"
             aria-modal="true" aria-labelledby="modal-consulta-invitado-title">
             <div class="modal-content modal-consulta__content" style="max-width: 400px; padding: 30px;">
-                <button class="modal-close" aria-label="Cerrar modal" onclick="app.widgetInvitado.cerrarModalConsulta()">
+                <button class="modal-close" aria-label="Cerrar modal"
+                    onclick="app.widgetInvitado.cerrarModalConsulta()">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
                 <div id="modal-consulta-invitado-body" role="region" aria-live="polite">
                     <!-- Vista A: Input por defecto -->
                     <div id="vista-consulta-input">
                         <div class="widget-invitado__icon" aria-hidden="true" style="margin-bottom: 15px;">
-                            <i class="fa-regular fa-calendar-check" style="font-size: 2.5rem; color: #ffffff !important;"></i>
+                            <i class="fa-regular fa-calendar-check"
+                                style="font-size: 2.5rem; color: #ffffff !important;"></i>
                         </div>
-                        <h3 id="modal-consulta-invitado-title" class="modal-consulta__title" style="margin-bottom: 10px;">Consulta tu cita médica</h3>
-                        <p class="widget-invitado__desc" style="margin-bottom: 25px; color: var(--gray-text); text-align: center;">Ingresa tu cédula para verificar tus citas agendadas.</p>
-                        
+                        <h3 id="modal-consulta-invitado-title" class="modal-consulta__title"
+                            style="margin-bottom: 10px;">Consulta tu cita médica</h3>
+                        <p class="widget-invitado__desc"
+                            style="margin-bottom: 25px; color: var(--gray-text); text-align: center;">Ingresa tu cédula
+                            para verificar tus citas agendadas.</p>
+
                         <div class="widget-invitado__field" style="margin-bottom: 25px; width: 100%; text-align: left;">
                             <label for="widget-cedula" class="widget-invitado__label">Cédula</label>
                             <input type="text" id="widget-cedula" class="widget-invitado__input form-control"
@@ -232,8 +241,9 @@
                             <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
                                 style="display:none;"></span>
                         </div>
-                        
-                        <button type="button" id="btn-consultar-cita" class="btn btn--primario widget-invitado__btn" style="width: 100%;">
+
+                        <button type="button" id="btn-consultar-cita" class="btn btn--primario widget-invitado__btn"
+                            style="width: 100%;">
                             <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar
                         </button>
                     </div>
@@ -269,8 +279,8 @@
                 <h2 id="locations-heading" class="locations__main-title">NUESTRA SEDE EN PIFO</h2>
                 <div class="locations__card">
                     <div class="locations__image-col">
-                        <img src="assets/img/carrusel/webp/medicina-general.webp"
-                            alt="Fachada del Centro Médico" class="locations__img" loading="lazy">
+                        <img src="assets/img/carrusel/webp/medicina-general.webp" alt="Fachada del Centro Médico"
+                            class="locations__img" loading="lazy">
                     </div>
                     <div class="locations__info-col">
                         <div class="locations__header">
@@ -465,7 +475,6 @@
         <button type="submit"></button>
     </form>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="js/data.js"></script>
     <script type="module" src="js/main.js"></script>
 

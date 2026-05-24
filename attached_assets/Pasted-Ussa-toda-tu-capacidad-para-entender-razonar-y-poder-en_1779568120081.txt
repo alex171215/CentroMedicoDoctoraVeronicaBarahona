@@ -1,0 +1,16 @@
+Ussa toda tu capacidad para entender, razonar y poder entender lo que te voy a describir, luego genera el pormpt para optimizar tokens para agreglarlo sin dañar lo que ya funciona: Debemos hacer un arreglo de diseño en este apartado <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-doc-name" bis_skin_checked="1">
+                    <button id="modal-close-btn" class="modal-close" aria-label="Cerrar modal">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                    <div class="modal-header" style="text-align: center; margin-bottom: 20px;" bis_skin_checked="1">
+                        <img id="modal-doc-img" src="assets/img/especialistas/webp/elena-lucia-gomez-fernandez.webp" alt="Foto del especialista" loading="lazy" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 4px solid #0DA99F; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                        <h3 id="modal-doc-name" style="margin-bottom: 5px; font-size: 1.5rem;">Dra. Elena Lucia Gómez Fernández</h3>
+                        <p id="modal-doc-specialty" style="font-weight: bold; margin-bottom: 0;">DERMATOLOGÍA</p>
+                    </div>
+                    <div class="modal-body" bis_skin_checked="1">
+                        <h4 style="margin-bottom: 15px; font-size: 1.1rem; ">Servicios y Actividades:</h4>
+                        <ul id="modal-doc-activities" class="modal-activities-list" style="padding-left: 20px; line-height: 1.6; "><li>Consulta Medica</li><li>Diagnóstico de Enfermedades Dermatológicos</li><li>Tratamiento de Enfermedades Dermatológicos</li><li>Prevención de Enfermedades Dermatológicos</li></ul>
+                    </div>
+                </div>
+
+Debemos hacer que <h3 id="modal-doc-name" style="margin-bottom: 5px; font-size: 1.5rem;">Dra. Elena Lucia Gómez Fernández</h3> este arriba de la especialidad <p id="modal-doc-specialty" style="font-weight: bold; margin-bottom: 0;">DERMATOLOGÍA</p> Esto para todos esos modales y debemos hacer que sea responsivo porque actualmente no se ve bien en las otras pantallas como tablet y celular, es un cambio de diseño nada más no hay que dañar lo que ya funciona

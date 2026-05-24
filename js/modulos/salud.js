@@ -143,6 +143,12 @@ export const salud = {
     async inicializar() {
         if (!document.getElementById('view-mi-salud')) return;
 
+        // Guard: mi-salud solo es accesible para usuarios con sesión activa.
+        if (localStorage.getItem('usuarioLogueado') !== 'true') {
+            window.location.replace('index.html');
+            return;
+        }
+
         const rawRecetas = localStorage.getItem('sanitas_mis_recetas');
         estado.recetas = rawRecetas ? JSON.parse(rawRecetas) : this._recetasDemo;
         estado.citas = [];
@@ -164,8 +170,9 @@ export const salud = {
         const abrirDetalleId = sessionStorage.getItem('sanitas_abrir_detalle_id');
         if (abrirDetalleId) {
             sessionStorage.removeItem('sanitas_abrir_detalle_id');
+            sessionStorage.removeItem('cita_destacada'); // evitar doble disparo en próxima visita
             await this.verDetalleCita(String(abrirDetalleId).trim());
-            return; // ya manejado; evitar doble apertura con cita_destacada
+            return;
         }
 
         // TR-55: Retorno contextual — auto-apertura desde el botón "Ver mi cita" del paso 5
@@ -367,9 +374,13 @@ export const salud = {
                 : c.fecha;
             const idCita = c.id || c._id || String(Date.now());
             const esCancelada = c.estado === 'Cancelada';
+            const fechaCitaItem = this._parsearFechaHoraCita(c);
+            const esCompletada = !esCancelada && fechaCitaItem && fechaCitaItem < new Date();
             const badgeHtml = esCancelada
                 ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
-                : '';
+                : esCompletada
+                    ? '<span class="cita-estado-badge cita-estado-badge--completada">Completada</span>'
+                    : '';
 
             // TR-60: .trim() para limpiar espacio sobrante si apellido está vacío
             const nombrePacienteTarjeta = escapeHtml((c.paciente || c.nombres || '').trim() || 'No especificado');
@@ -418,7 +429,10 @@ export const salud = {
         }
 
         if (!cita) {
-            cita = estado.citas.find(c => c.id === idStr || c.id === idNum || c._id === idStr);
+            cita = estado.citas.find(c =>
+                String(c.id_cita ?? '') === idStr ||
+                c.id === idStr || c.id === idNum || c._id === idStr
+            );
         }
         if (!cita) return;
 
@@ -428,9 +442,13 @@ export const salud = {
 
         const idCita = cita.id || cita._id;
         const esCancelada = cita.estado === 'Cancelada';
+        const fechaCitaDetalle = this._parsearFechaHoraCita(cita);
+        const esCompletadaDetalle = !esCancelada && fechaCitaDetalle && fechaCitaDetalle < new Date();
         const estadoBadge = esCancelada
             ? '<span class="cita-estado-badge cita-estado-badge--cancelada">Cancelada</span>'
-            : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
+            : esCompletadaDetalle
+                ? '<span class="cita-estado-badge cita-estado-badge--completada">Completada</span>'
+                : '<span class="cita-estado-badge cita-estado-badge--activa">Activa</span>';
 
         const detBody = document.getElementById('salud-cita-detalle-body');
         if (!detBody) return;
@@ -526,7 +544,10 @@ export const salud = {
         const det = document.getElementById('salud-cita-detalle');
         if (h) h.style.display = 'none';
         if (lista) lista.style.display = 'none';
-        if (det) det.style.display = 'block';
+        if (det) {
+            det.style.display = 'block';
+            requestAnimationFrame(() => det.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
 
         // TR-52: Registrar ancla en el historial del navegador para que el botón
         // "Atrás" del móvil devuelva al usuario a la lista en vez de expulsarlo.
@@ -644,7 +665,10 @@ export const salud = {
         const rd = document.getElementById('salud-receta-detalle');
         if (rh) rh.style.display = 'none';
         if (rl) rl.style.display = 'none';
-        if (rd) rd.style.display = 'block';
+        if (rd) {
+            rd.style.display = 'block';
+            requestAnimationFrame(() => rd.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
     },
 
     /**
