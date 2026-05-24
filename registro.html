@@ -58,14 +58,17 @@
                 </div>
 
                 <div class="header__action-buttons">
-                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display: inline-block;" onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita</button>
+                    <button id="btn-consultar-cita-header" class="btn btn--secundario" style="display: inline-block;"
+                        onclick="app.widgetInvitado.abrirModalConsulta()" aria-label="Consultar Cita"><i
+                            class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar Cita</button>
                     <button id="btn-auth" class="btn btn--accion" aria-label="Iniciar Sesión">
                         <i class="fa-regular fa-user" aria-hidden="true"></i> Iniciar Sesión
                     </button>
                 </div>
 
                 <button id="btn-auth-mobile" class="auth-avatar-btn" aria-label="Menú de perfil móvil"></button>
-                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="main-menu">
+                <button class="header__menu-toggle" aria-label="Abrir menú de navegación" aria-expanded="false"
+                    aria-controls="main-menu">
                     <i class="fa-solid fa-bars" aria-hidden="true"></i>
                 </button>
             </div>
@@ -218,16 +221,18 @@
                             <div class="login-field">
                                 <label for="reg-password" class="login-field__label">Contraseña *</label>
                                 <div class="login-field__password-wrap">
-                                    <input type="text" id="reg-password" class="login-field__input input-password-masked"
-                                        autocomplete="off" aria-required="true" maxlength="128"
-                                        aria-describedby="reg-password-error">
+                                    <input type="text" id="reg-password"
+                                        class="login-field__input input-password-masked"
+                                        placeholder="Ej: TuContraseña123*" autocomplete="off" aria-required="true"
+                                        maxlength="128" aria-describedby="reg-password-error">
                                     <button type="button" class="login-field__eye"
                                         aria-label="Mostrar u ocultar contraseña"
                                         onclick="app.registro.togglePasswordReg()">
                                         <i class="fa-regular fa-eye" id="reg-eye-icon" aria-hidden="true"></i>
                                     </button>
                                 </div>
-                                <div class="pass-strength" id="reg-pass-strength" style="display:none;" aria-live="polite">
+                                <div class="pass-strength" id="reg-pass-strength" style="display:none;"
+                                    aria-live="polite">
                                     <div class="pass-strength__segs">
                                         <span class="pass-strength__seg"></span>
                                         <span class="pass-strength__seg"></span>
@@ -520,7 +525,9 @@
         </div>
     </div>
 
-    <div id="modal-consulta-invitado" class="modal hidden" role="dialog" aria-modal="true" style="display: none;"><div id="modal-consulta-invitado-body" class="modal-content"></div></div>
+    <div id="modal-consulta-invitado" class="modal hidden" role="dialog" aria-modal="true" style="display: none;">
+        <div id="modal-consulta-invitado-body" class="modal-content"></div>
+    </div>
 </body>
 
 </html>
