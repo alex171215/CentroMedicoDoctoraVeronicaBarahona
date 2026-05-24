@@ -204,14 +204,16 @@ async function buscarUsuario() {
     try {
         // Consulta Supabase: el correo debe existir y pertenecer a un paciente
         // registrado formalmente (es_invitado = false).
-        const { data, error } = await supabase
+        const { data: filas, error } = await supabase
             .from('pacientes')
             .select('cedula, nombres, apellidos, correo')
             .eq('correo', correo)
             .eq('es_invitado', false)
-            .maybeSingle();
+            .limit(1);
 
         if (error) throw error;
+
+        const data = filas && filas.length > 0 ? filas[0] : null;
 
         if (!data) {
             // El correo no existe en el sistema o corresponde a una cuenta de invitado.
