@@ -3847,6 +3847,9 @@ export function createCitas() {
             // 3. Detectar si estamos en modo *modificación*
             const modCtxStr = sessionStorage.getItem('cita_modificacion');
             if (!modCtxStr) return;   // flujo normal, termina
+            // En modo proxy el formulario debe permanecer vacío para que el usuario
+            // ingrese los datos del familiar — no pre-rellenar con datos de la cita original.
+            if (this.modoProxy) return;
 
             let modCtx;
             try { modCtx = JSON.parse(modCtxStr); } catch (e) { return; }
