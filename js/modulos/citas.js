@@ -2192,34 +2192,80 @@ export function createCitas() {
             const pwdInv = (ced) => `invitado_${ced}`;
 
             if (estaLogueado && !modoProxy) {
-                let user = null;
+                // Antes de usar datos del titular, verificar si es modificación de cita de familiar.
+                // modoProxy se resetea al entrar en modo modificación; detectarlo por diferencia de cédula.
+                let modCtxFilaCheck = null;
                 try {
-                    user = JSON.parse(localStorage.getItem('usuarioActivo') || 'null');
-                } catch (_) {
-                    user = null;
+                    const rawCheck = sessionStorage.getItem('cita_modificacion');
+                    if (rawCheck) modCtxFilaCheck = JSON.parse(rawCheck);
+                } catch (_) { /* noop */ }
+
+                if (modCtxFilaCheck && modCtxFilaCheck.modoModificacion) {
+                    let user = null;
+                    try { user = JSON.parse(localStorage.getItem('usuarioActivo') || 'null'); } catch (_) { }
+                    const cedTitular = String(user?.identificacion || '').replace(/\D/g, '').trim();
+                    const cedPaciente = String(modCtxFilaCheck.cedula_paciente || modCtxFilaCheck.cedula || '').replace(/\D/g, '').trim();
+                    if (cedPaciente && cedTitular && cedPaciente !== cedTitular) {
+                        // Cita de familiar — caer a la rama modoModificacion a continuación
+                        // (no retornar aquí; el bloque de abajo se encargará)
+                        // Saltar la rama del titular vacíando modoProxy ficticiamente vía goto-like:
+                        // La rama de modoModificacion ya cubre este caso correctamente.
+                    } else {
+                        // Titular modificando su propia cita — usar datos del titular
+                        if (!user) return null;
+                        const ced = String(user.identificacion || user.cedula || '').trim();
+                        if (!ced) return null;
+                        const nomRaw = (user.nombres || '').trim();
+                        const apeRaw = (user.apellidos || '').trim();
+                        const n1 = (user.nombre1 || user.nombre_1 || '').trim();
+                        const n2 = (user.nombre2 || user.nombre_2 || '').trim();
+                        const a1 = (user.apellido1 || user.apellido_1 || '').trim();
+                        const a2 = (user.apellido2 || user.apellido_2 || '').trim();
+                        const nombres = nomRaw || [n1, n2].filter(Boolean).join(' ').trim() || 'Usuario';
+                        const apellidos = apeRaw || [a1, a2].filter(Boolean).join(' ').trim() || 'Paciente';
+                        const correo = String(user.correo || user.email || '').trim() || `usuario_${ced}@sin-correo.local`;
+                        return {
+                            cedula: ced,
+                            nombres,
+                            apellidos,
+                            correo,
+                            password: String(user.password || pwdInv(ced)).trim() || pwdInv(ced),
+                            celular: String(user.celular || '0900000000').trim(),
+                            fecha_nacimiento: String(user.fecha_nacimiento || user.fechaNac || defFecha).slice(0, 10),
+                            es_invitado: !!user.es_invitado
+                        };
+                    }
+                } else {
+                    // No hay modificación activa — agendar nuevo para el titular
+                    let user = null;
+                    try {
+                        user = JSON.parse(localStorage.getItem('usuarioActivo') || 'null');
+                    } catch (_) {
+                        user = null;
+                    }
+                    if (!user) return null;
+                    const ced = String(user.identificacion || user.cedula || '').trim();
+                    if (!ced) return null;
+                    const nomRaw = (user.nombres || '').trim();
+                    const apeRaw = (user.apellidos || '').trim();
+                    const n1 = (user.nombre1 || user.nombre_1 || '').trim();
+                    const n2 = (user.nombre2 || user.nombre_2 || '').trim();
+                    const a1 = (user.apellido1 || user.apellido_1 || '').trim();
+                    const a2 = (user.apellido2 || user.apellido_2 || '').trim();
+                    const nombres = nomRaw || [n1, n2].filter(Boolean).join(' ').trim() || 'Usuario';
+                    const apellidos = apeRaw || [a1, a2].filter(Boolean).join(' ').trim() || 'Paciente';
+                    const correo = String(user.correo || user.email || '').trim() || `usuario_${ced}@sin-correo.local`;
+                    return {
+                        cedula: ced,
+                        nombres,
+                        apellidos,
+                        correo,
+                        password: String(user.password || pwdInv(ced)).trim() || pwdInv(ced),
+                        celular: String(user.celular || '0900000000').trim(),
+                        fecha_nacimiento: String(user.fecha_nacimiento || user.fechaNac || defFecha).slice(0, 10),
+                        es_invitado: !!user.es_invitado
+                    };
                 }
-                if (!user) return null;
-                const ced = String(user.identificacion || user.cedula || '').trim();
-                if (!ced) return null;
-                const nomRaw = (user.nombres || '').trim();
-                const apeRaw = (user.apellidos || '').trim();
-                const n1 = (user.nombre1 || user.nombre_1 || '').trim();
-                const n2 = (user.nombre2 || user.nombre_2 || '').trim();
-                const a1 = (user.apellido1 || user.apellido_1 || '').trim();
-                const a2 = (user.apellido2 || user.apellido_2 || '').trim();
-                const nombres = nomRaw || [n1, n2].filter(Boolean).join(' ').trim() || 'Usuario';
-                const apellidos = apeRaw || [a1, a2].filter(Boolean).join(' ').trim() || 'Paciente';
-                const correo = String(user.correo || user.email || '').trim() || `usuario_${ced}@sin-correo.local`;
-                return {
-                    cedula: ced,
-                    nombres,
-                    apellidos,
-                    correo,
-                    password: String(user.password || pwdInv(ced)).trim() || pwdInv(ced),
-                    celular: String(user.celular || '0900000000').trim(),
-                    fecha_nacimiento: String(user.fecha_nacimiento || user.fechaNac || defFecha).slice(0, 10),
-                    es_invitado: !!user.es_invitado
-                };
             }
 
             // TR-86: cuando modoModificacion es true el Paso 3 fue omitido;
@@ -2305,6 +2351,30 @@ export function createCitas() {
             let cedulaTitular = null;
 
             if (logueado && !this.modoProxy) {
+                // ── Verificar si es modificación de cita de un familiar ──
+                // modoProxy fue reseteado al entrar en modo modificación; recuperar la identidad
+                // del paciente original desde cita_modificacion cuando la cédula difiere del titular.
+                let esModFamiliar = false;
+                try {
+                    const modCtxCheck = this._leerContextoModificacion();
+                    if (modCtxCheck && modCtxCheck.modoModificacion) {
+                        const userActivoStr = localStorage.getItem('usuarioActivo');
+                        if (userActivoStr) {
+                            const userCheck = JSON.parse(userActivoStr);
+                            const cedTitular = (userCheck.identificacion || '').replace(/\D/g, '').trim();
+                            const cedPaciente = (modCtxCheck.cedula_paciente || modCtxCheck.cedula || '').replace(/\D/g, '').trim();
+                            if (cedPaciente && cedTitular && cedPaciente !== cedTitular) {
+                                // La cita pertenece a un familiar, no al titular
+                                esModFamiliar = true;
+                                paciente = modCtxCheck.paciente || 'Familiar';
+                                cedulaPaciente = cedPaciente;
+                                cedulaTitular = cedTitular;
+                            }
+                        }
+                    }
+                } catch (e) { }
+
+                if (!esModFamiliar) {
                 // ── Titular agendando para sí mismo ──
                 // Resolución de Nombre (H2): cubre ambas convenciones de campo
                 // (nombre_1 del usuario demo vs nombre1 del registro nuevo).
@@ -2324,6 +2394,7 @@ export function createCitas() {
                 } catch (e) { }
                 // Fallback de seguridad: si la sesión está corrupta, nombre digno
                 if (!paciente) paciente = 'Usuario Sanitas';
+                }
 
             } else if (logueado && this.modoProxy) {
                 // ── Titular agendando para un familiar (Proxy) ──
