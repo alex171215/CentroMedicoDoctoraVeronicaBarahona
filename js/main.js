@@ -3892,7 +3892,8 @@ const app = {
                     if (!focused || !['widget-cedula', 'widget-codigo-cita'].includes(focused.id)) return;
                     e.preventDefault();
                     const btn = document.getElementById('btn-consultar-cita');
-                    if (btn) { btn.focus(); btn.click(); }
+                    if (btn) btn.focus();
+                    this.consultar();
                 });
             }
 
