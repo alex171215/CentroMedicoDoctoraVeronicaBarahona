@@ -1097,7 +1097,11 @@ const app = {
                 closeBtn.click();
                 return;
             }
-            // Fallback: ocultar directamente
+            // Fallback: si es el modal de consulta, usar su limpieza específica.
+            if (modal.id === 'modal-consulta-invitado' && app.widgetInvitado?.cerrarModalConsulta) {
+                app.widgetInvitado.cerrarModalConsulta();
+                return;
+            }
             modal.style.display = 'none';
         };
 
@@ -3629,6 +3633,9 @@ const app = {
                 errorCedula.textContent = '';
                 errorCedula.style.display = 'none';
             }
+
+            // Limpiar cédula persistida para que la próxima apertura nazca vacía.
+            this._cedulaConsultada = '';
 
             // TR-120: Cierre atómico — solo ocultación visual.
             // Se prohíbe history.back() para no disparar el popstate → irAtras().
