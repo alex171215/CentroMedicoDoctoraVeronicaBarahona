@@ -3,6 +3,7 @@ import { estado, STORAGE_CITA_EN_PROGRESO, STORAGE_CITA_POST_LOGIN, STORAGE_AUTO
 import {
     conCargaGlobal,
     fetchTodasLasCitasAgenda,
+    fetchPacienteRegistroPorCedula,
     insertCitaSupabase,
     updateCitaSupabasePorIdCita,
     upsertPacienteParaAgenda
@@ -2521,7 +2522,7 @@ export function createCitas() {
                    aria-label="Los siguientes datos son de solo lectura">
                     <i class="fa-solid fa-lock" aria-hidden="true"></i> Datos del paciente (solo lectura)
                 </p>
-                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val">${escapeHtmlCita(modCtx?.paciente || cita.paciente || 'No especificado')}</span></div>
+                <div class="salud-det__row"><span class="salud-det__label">Paciente</span><span class="salud-det__val" id="reagendamiento-paciente-nombre">${escapeHtmlCita(modCtx?.paciente || cita.paciente || '…')}</span></div>
                 <div class="salud-det__row"><span class="salud-det__label">Cédula</span><span class="salud-det__val">${escapeHtmlCita(modCtx?.cedula_paciente || modCtx?.cedula || cita.cedula || '—')}</span></div>
             `;
         },
@@ -2550,6 +2551,36 @@ export function createCitas() {
 
             if (esReagendamiento && modCtxResumen) {
                 this._renderResumenReagendamiento(summaryDiv, cita, fechaHora, modCtxResumen);
+
+                // Consultar Supabase por la cédula del paciente para obtener el nombre real.
+                // Se actualiza el span de forma asíncrona sin bloquear el render inicial.
+                const cedulaBuscar = String(
+                    modCtxResumen.cedula_paciente || modCtxResumen.cedula || cita.cedula || ''
+                ).trim();
+                if (cedulaBuscar) {
+                    fetchPacienteRegistroPorCedula(cedulaBuscar)
+                        .then(pacienteDb => {
+                            if (!pacienteDb) return;
+                            const nombreDb = [
+                                pacienteDb.nombres || '',
+                                pacienteDb.apellidos || ''
+                            ].join(' ').trim();
+                            if (!nombreDb) return;
+                            const spanNombre = document.getElementById('reagendamiento-paciente-nombre');
+                            if (spanNombre) spanNombre.textContent = nombreDb;
+                            // Actualizar también _citaTemporal para que confirmarCita use el nombre correcto.
+                            if (this._citaTemporal) this._citaTemporal.paciente = nombreDb;
+                            const respaldo = sessionStorage.getItem('_citaTemporal_respaldo');
+                            if (respaldo) {
+                                try {
+                                    const r = JSON.parse(respaldo);
+                                    r.paciente = nombreDb;
+                                    sessionStorage.setItem('_citaTemporal_respaldo', JSON.stringify(r));
+                                } catch (_) { /* noop */ }
+                            }
+                        })
+                        .catch(() => { /* sin acceso a red: nombre permanece como estaba */ });
+                }
             } else {
                 this._renderResumenAgendamientoNuevo(summaryDiv, cita, fechaHora);
             }
