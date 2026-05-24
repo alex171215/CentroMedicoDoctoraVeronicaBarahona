@@ -35,6 +35,9 @@ let _cedulaUsuario = '';
 let _countdownInterval = null;
 let _faseActual = 1;           // TR-54: rastreamos la fase activa para irAtras()
 let _suppressHistorialPush = false; // TR-54: bandera anti-bucle del popstate
+let _intentosFallidosFase1 = 0;  // Contador de correos no encontrados
+let _bloqueadoHasta = 0;          // Timestamp hasta el que el botón está bloqueado
+let _bloqueoInterval = null;      // Intervalo del countdown de bloqueo
 
 // ────────────────────────────────────────────────────────────────────────────
 // UTILIDADES DE UI
@@ -81,6 +84,37 @@ function _setBtnLoading(btnId, loading) {
     } else {
         btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
     }
+}
+
+// Activa bloqueo temporal del botón tras demasiados intentos fallidos.
+function _activarBloqueoFase1(segundos) {
+    _bloqueadoHasta = Date.now() + segundos * 1000;
+    clearInterval(_bloqueoInterval);
+    const btn = document.getElementById('rec-btn-fase1');
+    if (btn) {
+        btn.disabled = true;
+        btn.dataset.originalHtml = btn.dataset.originalHtml || btn.innerHTML;
+    }
+    const tick = () => {
+        const restante = Math.ceil((_bloqueadoHasta - Date.now()) / 1000);
+        const span = document.getElementById('rec-ident-error');
+        if (span) {
+            span.textContent = `Demasiados intentos. Espera ${restante} segundo${restante !== 1 ? 's' : ''} para continuar.`;
+            span.style.display = 'block';
+        }
+        if (btn) btn.innerHTML = `<i class="fa-solid fa-clock" aria-hidden="true"></i> Espera ${restante}s…`;
+        if (restante <= 0) {
+            clearInterval(_bloqueoInterval);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalHtml || 'Enviar código';
+            }
+            const span2 = document.getElementById('rec-ident-error');
+            if (span2) { span2.textContent = ''; span2.style.display = 'none'; }
+        }
+    };
+    tick();
+    _bloqueoInterval = setInterval(tick, 1000);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -146,6 +180,9 @@ async function _enviarOTP(correo, nombrePaciente, codigo) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function buscarUsuario() {
+    // Verificar bloqueo temporal por intentos fallidos
+    if (Date.now() < _bloqueadoHasta) return;
+
     _limpiarError('rec-ident');
     const correo = (document.getElementById('rec-identificador')?.value || '').trim();
 
@@ -179,11 +216,18 @@ async function buscarUsuario() {
         if (!data) {
             // El correo no existe en el sistema o corresponde a una cuenta de invitado.
             _setBtnLoading('rec-btn-fase1', false);
-            abrirModalRescate();
+            _intentosFallidosFase1++;
+            if (_intentosFallidosFase1 >= 3) {
+                _intentosFallidosFase1 = 0;
+                _activarBloqueoFase1(30);
+            } else {
+                abrirModalRescate();
+            }
             return;
         }
 
-        // Usuario encontrado — guardar estado y avanzar a Fase 2
+        // Usuario encontrado — reiniciar contador y avanzar a Fase 2
+        _intentosFallidosFase1 = 0;
         _cedulaUsuario = data.cedula;
         _correoUsuario = data.correo || '';
         _otpGenerado = String(Math.floor(100000 + Math.random() * 900000));

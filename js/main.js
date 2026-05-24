@@ -1840,8 +1840,46 @@ const app = {
             if (input) { input.style.borderColor = ''; }
         },
 
+        _intentosFallidos: 0,
+        _bloqueadoHasta: 0,
+        _bloqueoInterval: null,
+
+        _activarBloqueo(segundos) {
+            const self = this;
+            self._bloqueadoHasta = Date.now() + segundos * 1000;
+            clearInterval(self._bloqueoInterval);
+            const btn = document.getElementById('login-submit-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.originalHtml = btn.dataset.originalHtml || btn.innerHTML;
+            }
+            const tick = () => {
+                const restante = Math.ceil((self._bloqueadoHasta - Date.now()) / 1000);
+                const spanPwd = document.getElementById('login-password-error');
+                if (spanPwd) {
+                    spanPwd.textContent = `Demasiados intentos. Espera ${restante} segundo${restante !== 1 ? 's' : ''} para continuar.`;
+                    spanPwd.style.display = 'block';
+                }
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-clock" aria-hidden="true"></i> Espera ${restante}s…`;
+                if (restante <= 0) {
+                    clearInterval(self._bloqueoInterval);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = btn.dataset.originalHtml || 'Iniciar sesión';
+                    }
+                    const span2 = document.getElementById('login-password-error');
+                    if (span2) { span2.textContent = ''; span2.style.display = 'none'; }
+                }
+            };
+            tick();
+            self._bloqueoInterval = setInterval(tick, 1000);
+        },
+
         async enviar(e) {
             e?.preventDefault?.();
+
+            // Verificar bloqueo temporal por intentos fallidos
+            if (Date.now() < this._bloqueadoHasta) return;
 
             const identificacion = (document.getElementById('login-cedula')?.value || '').trim();
             const password = (document.getElementById('login-password')?.value || '').trim();
@@ -1898,15 +1936,27 @@ const app = {
                 const inputPwd = document.getElementById('login-password');
                 const spanPwd = document.getElementById('login-password-error');
 
-                if (inputCed) inputCed.style.borderColor = '#c0392b';
-                if (inputPwd) inputPwd.style.borderColor = '#c0392b';
-                if (spanPwd) {
-                    spanPwd.textContent = 'Número de identificación o contraseña incorrectos.';
-                    spanPwd.style.display = 'block';
+                this._intentosFallidos++;
+
+                if (this._intentosFallidos >= 3) {
+                    this._intentosFallidos = 0;
+                    if (inputCed) inputCed.style.borderColor = '#c0392b';
+                    if (inputPwd) inputPwd.style.borderColor = '#c0392b';
+                    this._activarBloqueo(30);
+                } else {
+                    if (inputCed) inputCed.style.borderColor = '#c0392b';
+                    if (inputPwd) inputPwd.style.borderColor = '#c0392b';
+                    if (spanPwd) {
+                        spanPwd.textContent = `Número de identificación o contraseña incorrectos. Intento ${this._intentosFallidos} de 3.`;
+                        spanPwd.style.display = 'block';
+                    }
                 }
 
                 return;
             }
+
+            // Inicio de sesión exitoso — reiniciar contador de intentos
+            this._intentosFallidos = 0;
 
             const usuarioEncontrado = mapPacienteAUsuarioActivo(fila);
 
