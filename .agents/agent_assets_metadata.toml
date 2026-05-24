@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "q5PUlpKh3MjmIXxWXpNRH"
+uri = "file://assets/img/login_new.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "38fUiFqGEd0yEp41vvKLk"
+uri = "file://assets/img/olvidarpassword_new.png"
+type = "image"
+title = "generated_image"
