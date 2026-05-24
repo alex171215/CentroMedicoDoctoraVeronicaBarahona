@@ -1528,7 +1528,7 @@ export function createCitas() {
                     <h2 id="modal-colision-title" class="modal-colision-title">Conflicto de Horario Detectado</h2>
                     <p class="modal-colision-text">
                         Ya tienes una cita agendada en <strong>${especialidad}</strong> con el/la <strong>${nombreMedico}</strong> para el <strong>${fecha}</strong> a las <strong>${hora}</strong>.
-                        El sistema no permite duplicidad de horarios para un mismo paciente.
+                        El centro permite una cita por paciente por especialidad al día.
                     </p>
                     <div class="modal-colision-actions">
                         <!-- Botón Principal: Elegir otra hora -->
@@ -2356,21 +2356,21 @@ export function createCitas() {
                 } catch (e) { }
 
                 if (!usadoModCtx) {
-                // ── Titular agendando para sí mismo (sin modificación activa) ──
-                try {
-                    const userActivoStr = localStorage.getItem('usuarioActivo');
-                    if (userActivoStr) {
-                        const user = JSON.parse(userActivoStr);
-                        const n1 = (user.nombre_1 || user.nombre1 || (user.nombres || '').split(/\s+/)[0] || '').trim();
-                        const n2 = (user.nombre_2 || user.nombre2 || (user.nombres || '').split(/\s+/).slice(1).join(' ') || '').trim();
-                        const a1 = (user.apellido_1 || user.apellido1 || (user.apellidos || '').split(/\s+/)[0] || '').trim();
-                        const a2 = (user.apellido_2 || user.apellido2 || (user.apellidos || '').split(/\s+/).slice(1).join(' ') || '').trim();
-                        paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Usuario Sanitas';
-                        cedulaPaciente = user.identificacion || '';
-                        cedulaTitular = user.identificacion || null;
-                    }
-                } catch (e) { }
-                if (!paciente) paciente = 'Usuario Sanitas';
+                    // ── Titular agendando para sí mismo (sin modificación activa) ──
+                    try {
+                        const userActivoStr = localStorage.getItem('usuarioActivo');
+                        if (userActivoStr) {
+                            const user = JSON.parse(userActivoStr);
+                            const n1 = (user.nombre_1 || user.nombre1 || (user.nombres || '').split(/\s+/)[0] || '').trim();
+                            const n2 = (user.nombre_2 || user.nombre2 || (user.nombres || '').split(/\s+/).slice(1).join(' ') || '').trim();
+                            const a1 = (user.apellido_1 || user.apellido1 || (user.apellidos || '').split(/\s+/)[0] || '').trim();
+                            const a2 = (user.apellido_2 || user.apellido2 || (user.apellidos || '').split(/\s+/).slice(1).join(' ') || '').trim();
+                            paciente = [n1, n2, a1, a2].filter(Boolean).join(' ') || 'Usuario Sanitas';
+                            cedulaPaciente = user.identificacion || '';
+                            cedulaTitular = user.identificacion || null;
+                        }
+                    } catch (e) { }
+                    if (!paciente) paciente = 'Usuario Sanitas';
                 }
 
             } else if (logueado && this.modoProxy) {
