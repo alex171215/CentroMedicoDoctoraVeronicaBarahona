@@ -2124,6 +2124,26 @@ const app = {
                 regPwd._blurHandler = () => this._validarCampo('reg-password');
                 regPwd.addEventListener('blur', regPwd._blurHandler);
 
+                // Indicador de fortaleza de contraseña
+                const regPwdBar = document.getElementById('reg-pass-strength');
+                if (regPwdBar && !regPwd.dataset.strengthBound) {
+                    regPwd.dataset.strengthBound = '1';
+                    regPwd.addEventListener('input', () => {
+                        const v = regPwd.value;
+                        if (!v) { regPwdBar.style.display = 'none'; return; }
+                        regPwdBar.style.display = 'flex';
+                        const tipos = [/[A-Z]/.test(v), /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+                        let nivel, etiqueta, color;
+                        if (v.length < 6 || tipos < 2) { nivel = 1; etiqueta = 'Débil'; color = '#e74c3c'; }
+                        else if (v.length < 8 || tipos < 3) { nivel = 2; etiqueta = 'Media'; color = '#e67e22'; }
+                        else { nivel = 3; etiqueta = 'Fuerte'; color = '#27ae60'; }
+                        regPwdBar.querySelector('.pass-strength__label').textContent = etiqueta;
+                        regPwdBar.querySelectorAll('.pass-strength__seg').forEach((s, i) => {
+                            s.style.background = i < nivel ? color : '#e0e0e0';
+                        });
+                    });
+                }
+
             }
 
             // — Fecha de nacimiento: solo 'change' (no input en todos los browsers) —
@@ -3381,6 +3401,26 @@ const app = {
             if (!modal) return;
             // Limpiar campos y errores al abrir (privacidad + estado limpio)
             this._limpiarModalPassword();
+            // Indicador de fortaleza — adjuntar una sola vez
+            const passNueva = document.getElementById('pass-nueva');
+            const passNuevaBar = document.getElementById('pass-nueva-strength');
+            if (passNueva && passNuevaBar && !passNueva.dataset.strengthBound) {
+                passNueva.dataset.strengthBound = '1';
+                passNueva.addEventListener('input', () => {
+                    const v = passNueva.value;
+                    if (!v) { passNuevaBar.style.display = 'none'; return; }
+                    passNuevaBar.style.display = 'flex';
+                    const tipos = [/[A-Z]/.test(v), /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+                    let nivel, etiqueta, color;
+                    if (v.length < 6 || tipos < 2) { nivel = 1; etiqueta = 'Débil'; color = '#e74c3c'; }
+                    else if (v.length < 8 || tipos < 3) { nivel = 2; etiqueta = 'Media'; color = '#e67e22'; }
+                    else { nivel = 3; etiqueta = 'Fuerte'; color = '#27ae60'; }
+                    passNuevaBar.querySelector('.pass-strength__label').textContent = etiqueta;
+                    passNuevaBar.querySelectorAll('.pass-strength__seg').forEach((s, i) => {
+                        s.style.background = i < nivel ? color : '#e0e0e0';
+                    });
+                });
+            }
             // Rellenar el hint de usuario con la cédula para el gestor de contraseñas del navegador
             try {
                 const u = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');
@@ -3408,6 +3448,10 @@ const app = {
             ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.value = ''; el.style.borderColor = ''; el.type = 'password'; }
+            });
+            const bar = document.getElementById('pass-nueva-strength');
+            if (bar) bar.style.display = 'none';
+            ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => {
                 const sp = document.getElementById(`${id}-error`);
                 if (sp) { sp.textContent = ''; sp.style.display = 'none'; }
             });

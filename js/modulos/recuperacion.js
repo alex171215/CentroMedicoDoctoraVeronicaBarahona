@@ -28,6 +28,27 @@ if (typeof emailjs !== 'undefined') {
     console.warn('[EmailJS] SDK no cargado. Asegúrate de que el script CDN esté en el <head>.');
 }
 
+// Adjunta el indicador de fortaleza de contraseña a un input dado.
+function _adjuntarFortaleza(inputId, barId) {
+    const inp = document.getElementById(inputId);
+    const bar = document.getElementById(barId);
+    if (!inp || !bar) return;
+    inp.addEventListener('input', () => {
+        const v = inp.value;
+        if (!v) { bar.style.display = 'none'; return; }
+        bar.style.display = 'flex';
+        const tipos = [/[A-Z]/.test(v), /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+        let nivel, etiqueta, color;
+        if (v.length < 6 || tipos < 2) { nivel = 1; etiqueta = 'Débil'; color = '#e74c3c'; }
+        else if (v.length < 8 || tipos < 3) { nivel = 2; etiqueta = 'Media'; color = '#e67e22'; }
+        else { nivel = 3; etiqueta = 'Fuerte'; color = '#27ae60'; }
+        bar.querySelector('.pass-strength__label').textContent = etiqueta;
+        bar.querySelectorAll('.pass-strength__seg').forEach((s, i) => {
+            s.style.background = i < nivel ? color : '#e0e0e0';
+        });
+    });
+}
+
 // ── Estado interno de la máquina de fases ───────────────────────────────────
 let _otpGenerado = '';
 let _correoUsuario = '';
@@ -467,6 +488,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ── Indicador de fortaleza — campo nueva contraseña ─────────────────────
+    _adjuntarFortaleza('rec-new-password', 'rec-pass-strength');
 
     // ── #rec-codigo: sanitización física — solo dígitos (TR-46 §2) ──────────
     const inputCodigo = document.getElementById('rec-codigo');

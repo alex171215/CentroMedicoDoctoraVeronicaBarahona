@@ -6081,3 +6081,30 @@ html.logueado #nav-mi-salud { display: list-item !important; }
     transform: translateX(-50%) translateY(0);
     opacity: 1;
 }
+
+/* ── Indicador de fortaleza de contraseña ───────────────────────────────── */
+.pass-strength {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+.pass-strength__segs {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+.pass-strength__seg {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #e0e0e0;
+    transition: background 0.3s;
+}
+.pass-strength__label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'Roboto', sans-serif;
+    min-width: 44px;
+    color: var(--text-secondary, #666);
+}
