@@ -502,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.key !== 'Enter') return;
                 e.preventDefault();
                 const btn = document.getElementById(btnId);
-                if (btn && !btn.disabled) btn.click();
+                if (btn && !btn.disabled) { btn.focus(); btn.click(); }
             });
         }
         _enlazarEnterRec('rec-identificador', 'rec-btn-fase1');
