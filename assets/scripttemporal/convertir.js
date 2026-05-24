@@ -2,13 +2,13 @@ const sharp = require('sharp');
 const fs = require('fs');
 
 const archivos = [
-  'Diapositiva3.png',
-  'Diapositiva4.png'
+  'login.jpg',
+  'olvidarpassword.jpg'
 ];
 
 archivos.forEach(archivo => {
   if (fs.existsSync(archivo)) {
-    const nombreSalida = archivo.replace('.png', '.webp');
+    const nombreSalida = archivo.replace('.jpg', '.webp');
     sharp(archivo)
       .webp({ quality: 80 })
       .toFile(nombreSalida)
