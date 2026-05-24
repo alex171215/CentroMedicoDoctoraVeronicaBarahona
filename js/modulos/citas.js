@@ -487,8 +487,9 @@ export function createCitas() {
                         // Consumir el dato para que no quede residual
                         sessionStorage.removeItem('temp_datos_recuperacion');
                     } catch (e) { }
-                } else {
+                } else if (!this.modoProxy) {
                     // Restaurar campos si el usuario volvió desde el paso 4 (navegación hacia atrás).
+                    // NO restaurar en modo proxy: el formulario debe aparecer vacío para el familiar.
                     const retornoData = sessionStorage.getItem('citas_paso3_retorno');
                     if (retornoData) {
                         try {
