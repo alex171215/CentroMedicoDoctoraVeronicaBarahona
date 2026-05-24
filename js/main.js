@@ -2167,6 +2167,26 @@ const app = {
                 contenedorRegistro.addEventListener('input', () => this._guardarBorrador());
                 contenedorRegistro.addEventListener('change', () => this._guardarBorrador()); // para selects y date
             }
+            // ── TR-119: Enter en campos de registro avanza al siguiente paso ─
+            (function () {
+                function _enlazarEnterReg(ids, btnId) {
+                    ids.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (!el || el.dataset.tr119Enter === '1') return;
+                        el.dataset.tr119Enter = '1';
+                        el.addEventListener('keydown', (e) => {
+                            if (e.key !== 'Enter') return;
+                            e.preventDefault();
+                            const btn = document.getElementById(btnId);
+                            if (btn) btn.click();
+                        });
+                    });
+                }
+                _enlazarEnterReg(['reg-identificacion', 'reg-nombre1', 'reg-nombre2', 'reg-apellido1', 'reg-apellido2'], 'reg-btn-paso1');
+                _enlazarEnterReg(['reg-celular', 'reg-email', 'reg-password'], 'reg-btn-paso2');
+                _enlazarEnterReg(['reg-codigo'], 'reg-validar-btn');
+            })();
+
             // Reiniciar al paso 1
             this._irAPaso(1);
         },
@@ -3125,6 +3145,20 @@ const app = {
                     }
                 });
             });
+
+            // ── TR-119: Enter en campos de edición guarda los cambios ────────
+            ['edit-nombre1', 'edit-nombre2', 'edit-apellido1', 'edit-apellido2',
+                'edit-celular', 'edit-email'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || el.dataset.tr119Enter === '1') return;
+                el.dataset.tr119Enter = '1';
+                el.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    const btn = document.getElementById('btn-guardar-perfil');
+                    if (btn) btn.click();
+                });
+            });
         },
 
         // ------------------------------------------------------------------
@@ -3421,6 +3455,19 @@ const app = {
                     });
                 });
             }
+            // ── TR-119: Enter en campos del modal confirma el cambio ─────────
+            ['pass-actual', 'pass-nueva', 'pass-repetir'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || el.dataset.tr119Enter === '1') return;
+                el.dataset.tr119Enter = '1';
+                el.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    const btn = document.getElementById('btn-confirmar-password');
+                    if (btn && !btn.disabled) btn.click();
+                });
+            });
+
             // Rellenar el hint de usuario con la cédula para el gestor de contraseñas del navegador
             try {
                 const u = JSON.parse(localStorage.getItem('usuarioActivo') || '{}');

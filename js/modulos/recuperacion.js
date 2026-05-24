@@ -492,6 +492,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Indicador de fortaleza — campo nueva contraseña ─────────────────────
     _adjuntarFortaleza('rec-new-password', 'rec-pass-strength');
 
+    // ── TR-119: Enter en campos de recuperación avanza la fase ───────────────
+    (function () {
+        function _enlazarEnterRec(inputId, btnId) {
+            const inp = document.getElementById(inputId);
+            if (!inp || inp.dataset.tr119Enter === '1') return;
+            inp.dataset.tr119Enter = '1';
+            inp.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const btn = document.getElementById(btnId);
+                if (btn && !btn.disabled) btn.click();
+            });
+        }
+        _enlazarEnterRec('rec-identificador', 'rec-btn-fase1');
+        _enlazarEnterRec('rec-codigo', 'rec-btn-fase2');
+        _enlazarEnterRec('rec-new-password', 'rec-btn-fase2');
+    })();
+
     // ── #rec-codigo: sanitización física — solo dígitos (TR-46 §2) ──────────
     const inputCodigo = document.getElementById('rec-codigo');
     if (inputCodigo) {
