@@ -41,9 +41,11 @@
                 <div class="header__nav-wrapper" id="main-menu">
                     <ul class="header__nav-list">
                         <li class="header__nav-item"><a href="index.html" class="header__nav-link">Inicio</a></li>
-                        <li class="header__nav-item"><a href="especialistas.html" class="header__nav-link">Especialistas</a></li>
+                        <li class="header__nav-item"><a href="especialistas.html"
+                                class="header__nav-link">Especialistas</a></li>
 
-                        <li class="header__nav-item" id="nav-mi-salud" style="display:none;"><a href="mi-salud.html" class="header__nav-link">Mi Salud</a></li>
+                        <li class="header__nav-item" id="nav-mi-salud" style="display:none;"><a href="mi-salud.html"
+                                class="header__nav-link">Mi Salud</a></li>
                         <li class="header__nav-item"><a href="citas.html" class="header__nav-link">Agendar Cita</a></li>
                         <li class="header__nav-item"><a href="contacto.html" class="header__nav-link">Contacto</a></li>
                     </ul>
@@ -71,8 +73,8 @@
 
                 <!-- Columna Izquierda: Imagen -->
                 <div class="login-panel login-panel--image"
-                    style="background-image: url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600');"
-                    role="img" aria-label="Ambiente médico seguro"></div>
+                    style="background-image: url('assets/img/olvidarpassword.webp');" role="img"
+                    aria-label="Ambiente médico seguro"></div>
 
                 <!-- Columna Derecha: Formulario -->
                 <div class="login-panel login-panel--form">
@@ -84,15 +86,16 @@
                         <div id="rec-fase-1">
                             <h2 id="recuperar-heading" class="login-title">Recuperar contraseña</h2>
                             <p style="color:var(--text-secondary,#666);margin-bottom:20px;font-size:0.95rem;">
-                                Ingresa el correo electrónico con el que te registraste y te enviaremos un código de verificación.
+                                Ingresa el correo electrónico con el que te registraste y te enviaremos un código de
+                                verificación.
                             </p>
 
                             <div class="login-field">
                                 <label for="rec-identificador" class="login-field__label">Correo electrónico</label>
                                 <input type="email" id="rec-identificador" name="rec-identificador"
                                     class="login-field__input" placeholder="Ej: tu-correo@email.com"
-                                    autocomplete="email" inputmode="email" maxlength="80"
-                                    aria-required="true" aria-describedby="rec-ident-error">
+                                    autocomplete="email" inputmode="email" maxlength="80" aria-required="true"
+                                    aria-describedby="rec-ident-error">
                                 <span id="rec-ident-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>
@@ -115,10 +118,12 @@
                         <div id="rec-fase-2" style="display:none;">
                             <h2 class="login-title">Verifica tu identidad</h2>
                             <p style="color:var(--text-secondary,#666);margin-bottom:8px;font-size:0.95rem;">
-                                Enviamos un código a: <strong id="rec-correo-show" style="color:var(--action-color);"></strong>
+                                Enviamos un código a: <strong id="rec-correo-show"
+                                    style="color:var(--action-color);"></strong>
                             </p>
                             <p style="color:var(--text-secondary,#666);margin-bottom:20px;font-size:0.85rem;">
-                                El código expira en: <span id="rec-countdown" style="font-weight:700;color:var(--action-color);">01:00</span>
+                                El código expira en: <span id="rec-countdown"
+                                    style="font-weight:700;color:var(--action-color);">01:00</span>
                             </p>
 
                             <div class="login-field">
@@ -136,15 +141,16 @@
                                 <div class="login-field__password-wrap">
                                     <input type="password" id="rec-new-password" name="rec-new-password"
                                         class="login-field__input" placeholder="Mínimo 6 caracteres"
-                                        autocomplete="new-password" aria-required="true"
-                                        maxlength="128" aria-describedby="rec-pass-error">
+                                        autocomplete="new-password" aria-required="true" maxlength="128"
+                                        aria-describedby="rec-pass-error">
                                     <button type="button" class="login-field__eye" id="rec-toggle-pw"
                                         aria-label="Mostrar u ocultar contraseña"
                                         onclick="recuperacion._togglePassword()">
                                         <i class="fa-regular fa-eye" id="rec-eye-icon" aria-hidden="true"></i>
                                     </button>
                                 </div>
-                                <div class="pass-strength" id="rec-pass-strength" style="display:none;" aria-live="polite">
+                                <div class="pass-strength" id="rec-pass-strength" style="display:none;"
+                                    aria-live="polite">
                                     <div class="pass-strength__segs">
                                         <span class="pass-strength__seg"></span>
                                         <span class="pass-strength__seg"></span>
@@ -161,7 +167,8 @@
                                 Cambiar contraseña
                             </button>
 
-                            <p id="rec-resend-txt" style="margin-top:12px;font-size:0.875rem;text-align:center;color:var(--text-secondary,#666);">
+                            <p id="rec-resend-txt"
+                                style="margin-top:12px;font-size:0.875rem;text-align:center;color:var(--text-secondary,#666);">
                                 ¿No recibiste el código?
                             </p>
 
@@ -181,7 +188,8 @@
                             </div>
                             <h2 class="login-title" style="font-size:1.5rem;">¡Contraseña actualizada!</h2>
                             <p style="color:var(--text-secondary,#666);margin-bottom:28px;font-size:0.95rem;">
-                                Tu contraseña ha sido cambiada correctamente. Ya puedes iniciar sesión con tus nuevas credenciales.
+                                Tu contraseña ha sido cambiada correctamente. Ya puedes iniciar sesión con tus nuevas
+                                credenciales.
                             </p>
                             <a href="login.html" class="btn btn--accion login-submit"
                                 style="display:inline-block;text-decoration:none;">
@@ -217,7 +225,8 @@
                     <h3 class="footer__title">ATENCIÓN</h3>
                     <ul class="footer__address-list">
                         <li>
-                            <a href="https://maps.app.goo.gl/YwkDycizBWUpwCPo9" target="_blank" rel="noopener noreferrer">
+                            <a href="https://maps.app.goo.gl/YwkDycizBWUpwCPo9" target="_blank"
+                                rel="noopener noreferrer">
                                 <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
                                 <span>Pifo, Ignacio Jarrín y Tulio Garzón<br>170175 Quito</span>
                             </a>
@@ -264,16 +273,13 @@
          TR-44 §3: MODAL DE RESCATE — Correo no registrado
          Oculto por defecto; recuperacion.js lo activa/desactiva.
          ═══════════════════════════════════════════════════════════════════ -->
-    <div id="modal-rescate-overlay" class="perfil-overlay"
-         style="display:none; z-index:9000;"
-         role="dialog" aria-modal="true"
-         aria-labelledby="modal-rescate-titulo">
+    <div id="modal-rescate-overlay" class="perfil-overlay" style="display:none; z-index:9000;" role="dialog"
+        aria-modal="true" aria-labelledby="modal-rescate-titulo">
         <div class="perfil-modal" style="width:90%; max-width:420px; text-align:center; padding:40px 32px;">
 
             <div style="font-size:2.8rem; margin-bottom:16px;">📭</div>
 
-            <h2 id="modal-rescate-titulo"
-                style="font-family:'Montserrat',sans-serif; font-size:1.15rem;
+            <h2 id="modal-rescate-titulo" style="font-family:'Montserrat',sans-serif; font-size:1.15rem;
                        font-weight:700; color:var(--text-main); margin-bottom:12px;">
                 Correo no encontrado
             </h2>
@@ -284,17 +290,14 @@
                 ¿Deseas crear una cuenta nueva?
             </p>
 
-            <button type="button" id="modal-rescate-btn-registro"
-                class="btn btn--accion login-submit"
-                style="margin-top:0; margin-bottom:12px;"
-                onclick="window.location.href='registro.html'">
+            <button type="button" id="modal-rescate-btn-registro" class="btn btn--accion login-submit"
+                style="margin-top:0; margin-bottom:12px;" onclick="window.location.href='registro.html'">
                 <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
                 Crear cuenta
             </button>
 
-            <button type="button" id="modal-rescate-btn-cancelar"
-                class="btn" onclick="recuperacion.cerrarModalRescate()"
-                style="width:100%; padding:12px; border:1.5px solid #c8d0e0;
+            <button type="button" id="modal-rescate-btn-cancelar" class="btn"
+                onclick="recuperacion.cerrarModalRescate()" style="width:100%; padding:12px; border:1.5px solid #c8d0e0;
                        border-radius:8px; background:transparent;
                        font-family:'Roboto',sans-serif; font-size:0.9rem;
                        cursor:pointer; color:var(--gray-text,#666);
@@ -315,11 +318,14 @@
                 <h3 class="modal-header__title">Cerrar Sesión</h3>
             </div>
             <div class="modal-body">
-                <p style="text-align: center; margin-top: 10px;">¿Estás seguro de que deseas cerrar tu sesión actual?</p>
+                <p style="text-align: center; margin-top: 10px;">¿Estás seguro de que deseas cerrar tu sesión actual?
+                </p>
             </div>
             <div class="modal-actions" style="display: flex; flex-direction: column; gap: 12px;">
-                <button type="button" class="btn btn--primario" onclick="app.ejecutarLogout()">Sí, cerrar sesión</button>
-                <button type="button" class="btn btn--secundario modal-cerrar" style="background-color: #d32f2f; color: white;" onclick="app.cerrarModalLogout()">Cancelar</button>
+                <button type="button" class="btn btn--primario" onclick="app.ejecutarLogout()">Sí, cerrar
+                    sesión</button>
+                <button type="button" class="btn btn--secundario modal-cerrar"
+                    style="background-color: #d32f2f; color: white;" onclick="app.cerrarModalLogout()">Cancelar</button>
             </div>
         </div>
     </div>
