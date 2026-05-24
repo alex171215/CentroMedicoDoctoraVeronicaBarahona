@@ -1,0 +1,16 @@
+<div id="modal-consulta-invitado" class="modal modal-overlay modal-consulta" role="dialog" aria-modal="true" style="" aria-hidden="false"><div class="modal-content modal-consulta__content" style="max-width: 400px; padding: 30px;"><button type="button" class="modal-close" aria-label="Cerrar modal"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button><div id="modal-consulta-invitado-body" role="region" aria-live="polite">
+            <div id="vista-consulta-input">
+                <div class="widget-invitado__icon" aria-hidden="true" style="margin-bottom: 15px; text-align: center;">
+                    <i class="fa-regular fa-calendar-check" style="font-size: 2.5rem; color: #ffffff !important;"></i>
+                </div>
+                <h3 id="modal-consulta-invitado-title" class="modal-consulta__title" style="margin-bottom: 10px; text-align: center;">Consulta tu cita médica</h3>
+                <p class="widget-invitado__desc" style="margin-bottom: 25px; color: var(--gray-text); text-align: center;">Ingresa tu cédula para verificar tus citas agendadas.</p>
+                <div class="widget-invitado__field" style="margin-bottom: 25px; width: 100%; text-align: left;">
+                    <label for="widget-cedula" class="widget-invitado__label">Cédula</label>
+                    <input type="text" id="widget-cedula" class="widget-invitado__input form-control" placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" aria-required="true" aria-describedby="widget-cedula-error" name="username" autocomplete="off" style="width: 100%;" value="" data-tr119-enter="1">
+                    <span id="widget-cedula-error" class="widget-invitado__error" role="alert" style="display: none; color: rgb(211, 47, 47); font-size: 0.85rem; margin-top: 5px;"></span>
+                </div>
+                <button type="button" id="btn-consultar-cita" class="btn btn--primario widget-invitado__btn" style="width: 100%;">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Consultar
+                </button>
+            </div></div></div></div>

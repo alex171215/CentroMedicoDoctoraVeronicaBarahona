@@ -3879,6 +3879,23 @@ const app = {
             }
             this._bindVistaA();
 
+            // TR-119: Delegación de Enter al contenedor ESTABLE del modal.
+            // #modal-consulta-invitado nunca se reemplaza en el DOM (solo su body
+            // interior cambia con innerHTML), por lo que este listener sobrevive
+            // a toda reconstrucción dinámica del contenido (TR-90 normalizarShellMPA).
+            const modalEstable = document.getElementById('modal-consulta-invitado');
+            if (modalEstable && !modalEstable.dataset.enterDelegated) {
+                modalEstable.dataset.enterDelegated = '1';
+                modalEstable.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Enter') return;
+                    const focused = document.activeElement;
+                    if (!focused || !['widget-cedula', 'widget-codigo-cita'].includes(focused.id)) return;
+                    e.preventDefault();
+                    const btn = document.getElementById('btn-consultar-cita');
+                    if (btn) { btn.focus(); btn.click(); }
+                });
+            }
+
             // TR-85: Delegación de Eventos Inmortal en document
             document.addEventListener('click', (e) => {
                 const target = e.target.closest('button, a');
