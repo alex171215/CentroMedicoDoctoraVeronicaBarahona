@@ -1497,6 +1497,16 @@ const app = {
                         input._flashTimeout = setTimeout(() => input.classList.remove('input-rechazado'), 300);
                     }
                 });
+
+                // TR-119: Enter en el buscador ejecuta el filtro explícitamente
+                if (!buscador.dataset.tr119Enter) {
+                    buscador.dataset.tr119Enter = '1';
+                    buscador.addEventListener('keydown', (e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        this.manejarFiltro({ target: buscador });
+                    });
+                }
             }
 
             // Modal overlay click (Cerrar)
@@ -1773,7 +1783,7 @@ const app = {
                     if (e.key !== 'Enter') return;
                     e.preventDefault();
                     const submitBtn = document.getElementById('login-submit-btn');
-                    if (submitBtn) submitBtn.click();
+                    if (submitBtn) { submitBtn.focus(); submitBtn.click(); }
                 });
             });
 
@@ -2178,7 +2188,7 @@ const app = {
                             if (e.key !== 'Enter') return;
                             e.preventDefault();
                             const btn = document.getElementById(btnId);
-                            if (btn) btn.click();
+                            if (btn) { btn.focus(); btn.click(); }
                         });
                     });
                 }
@@ -3156,7 +3166,7 @@ const app = {
                     if (e.key !== 'Enter') return;
                     e.preventDefault();
                     const btn = document.getElementById('btn-guardar-perfil');
-                    if (btn) btn.click();
+                    if (btn) { btn.focus(); btn.click(); }
                 });
             });
         },
@@ -3464,7 +3474,7 @@ const app = {
                     if (e.key !== 'Enter') return;
                     e.preventDefault();
                     const btn = document.getElementById('btn-confirmar-password');
-                    if (btn && !btn.disabled) btn.click();
+                    if (btn && !btn.disabled) { btn.focus(); btn.click(); }
                 });
             });
 
@@ -3814,7 +3824,7 @@ const app = {
                 if (e.key !== 'Enter') return;
                 e.preventDefault();
                 const btn = document.getElementById('btn-consultar-cita');
-                if (btn) btn.click();
+                if (btn) { btn.focus(); btn.click(); }
             });
         },
 
