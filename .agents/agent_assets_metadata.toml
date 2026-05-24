@@ -12,3 +12,9 @@ id = "38fUiFqGEd0yEp41vvKLk"
 uri = "file://assets/img/olvidarpassword_new.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "HK2Yvj0HM4-qKbyOebf5M"
+uri = "file://assets/img/fachada-clinica.png"
+type = "image"
+title = "generated_image"
