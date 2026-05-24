@@ -477,6 +477,76 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ── Menú hamburguesa móvil ───────────────────────────────────────────────
+    const menuToggle = document.querySelector('.header__menu-toggle');
+    const mainMenu = document.getElementById('main-menu');
+    if (menuToggle && mainMenu) {
+        const headerEl = menuToggle.closest('header');
+        if (headerEl) headerEl.style.position = 'relative';
+
+        const cerrarMenu = () => {
+            menuToggle.setAttribute('aria-expanded', 'false');
+            mainMenu.classList.remove('active');
+            const icon = menuToggle.querySelector('i');
+            if (icon) icon.classList.replace('fa-xmark', 'fa-bars');
+        };
+
+        menuToggle.addEventListener('click', () => {
+            const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
+            menuToggle.setAttribute('aria-expanded', String(!isExpanded));
+            mainMenu.classList.toggle('active');
+            const icon = menuToggle.querySelector('i');
+            if (icon) {
+                if (!isExpanded) icon.classList.replace('fa-bars', 'fa-xmark');
+                else icon.classList.replace('fa-xmark', 'fa-bars');
+            }
+        });
+
+        mainMenu.querySelectorAll('.header__nav-link').forEach(link => {
+            link.addEventListener('click', () => cerrarMenu());
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mainMenu.classList.contains('active')) {
+                cerrarMenu();
+                menuToggle.focus();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (mainMenu.classList.contains('active') &&
+                !mainMenu.contains(e.target) &&
+                !menuToggle.contains(e.target)) {
+                cerrarMenu();
+            }
+        });
+    }
+
+    // ── Botón de autenticación móvil (btn-auth-mobile) ───────────────────────
+    const btnMovil = document.getElementById('btn-auth-mobile');
+    if (btnMovil) {
+        const usuarioLogueado = localStorage.getItem('usuarioLogueado');
+        if (usuarioLogueado === 'true') {
+            try {
+                const userActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
+                const inicial = userActivo?.nombre_1?.charAt(0).toUpperCase()
+                    || userActivo?.nombres?.charAt(0).toUpperCase()
+                    || 'U';
+                btnMovil.textContent = inicial;
+            } catch (_) {
+                btnMovil.innerHTML = '<i class="fa-solid fa-user"></i>';
+            }
+            btnMovil.addEventListener('click', () => {
+                window.location.href = 'mi-salud.html';
+            });
+        } else {
+            btnMovil.innerHTML = '<i class="fa-solid fa-user"></i>';
+            btnMovil.addEventListener('click', () => {
+                window.location.href = 'login.html';
+            });
+        }
+    }
 });
 
 // TR-54: Inicializar en Fase 1 sin crear entrada extra en el historial.
