@@ -214,7 +214,7 @@ const app = {
                 // TR-128: solo dígitos en login
                 val = val.replace(/[^0-9]/g, '');
             }
-            else if (id === 'widget-cedula' || id === 'citas-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
+            else if (id === 'widget-cedula' || id === 'citas-cedula' || id === 'reg-identificacion' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
                 val = val.replace(/[^0-9]/g, '');
             }
             else if (id === 'buscador-especialistas' || id.includes('nombre') || id.includes('apellido')) {
