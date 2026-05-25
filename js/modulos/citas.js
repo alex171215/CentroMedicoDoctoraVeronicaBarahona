@@ -1714,7 +1714,7 @@ export function createCitas() {
             document.getElementById('btn-slot-salir-confirmar')?.addEventListener('click', () => {
                 this.cerrarModalColision();
                 this.hardResetCitas();
-                this.mostrarPaso(1);
+                this.finalizarFlujoCita({ navegar: true });
             });
         },
 
