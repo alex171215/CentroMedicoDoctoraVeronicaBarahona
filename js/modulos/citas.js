@@ -1672,8 +1672,14 @@ export function createCitas() {
                 this._bloquearConfirmar();
                 document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
                 this.horaSeleccionada = null;
-                this._refrescarOcupadasDesdeSupabase().then(() => this.generarCalendario());
-                this.mostrarPaso(2);
+                this.historialPasos = this.historialPasos.filter(p => p < 2);
+                this._suppressHistorialPush = true;
+                try {
+                    this._refrescarOcupadasDesdeSupabase().then(() => this.generarCalendario());
+                    this.mostrarPaso(2);
+                } finally {
+                    this._suppressHistorialPush = false;
+                }
             });
             document.getElementById('btn-slot-salir')?.addEventListener('click', () => {
                 this._mostrarConfirmacionSalidaSlot();
