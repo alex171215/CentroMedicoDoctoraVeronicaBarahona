@@ -1537,13 +1537,22 @@ export function createCitas() {
             const nombreMedico = cita.medico || 'No especificado';
             const especialidad = cita.especialidad || 'la especialidad';
 
+            // Sugerencia de hora alternativa
+            const [h, m] = hora.split(':').map(Number);
+            let minSugerido = h * 60 + m + 30; // 30 mins después
+            let hSug = Math.floor(minSugerido / 60);
+            let mSug = minSugerido % 60;
+            const horaSugerida = `${String(hSug).padStart(2, '0')}:${String(mSug).padStart(2, '0')}`;
+
             modal.innerHTML = `
                 <div class="modal-content modal-colision-content" id="colision-content-inner">
                     <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true"></i>
                     <h2 id="modal-colision-title" class="modal-colision-title">Conflicto de Horario Detectado</h2>
                     <p class="modal-colision-text">
                         Ya tienes una cita agendada en <strong>${especialidad}</strong> con el/la <strong>${nombreMedico}</strong> para el <strong>${fecha}</strong> a las <strong>${hora}</strong>.
-                        El centro permite una cita por paciente por especialidad al día.
+                    </p>
+                    <p class="modal-colision-text" style="margin-top: 10px; color: var(--color-primario); font-weight: 500;">
+                        💡 Te sugerimos buscar disponibilidad a partir de las <strong>${horaSugerida}</strong>.
                     </p>
                     <div class="modal-colision-actions">
                         <!-- Botón Principal: Elegir otra hora -->
@@ -1551,11 +1560,10 @@ export function createCitas() {
                             Elegir otra hora
                         </button>
 
-                        <!-- Botón secundario: Gestionar cita previa -->
-                        <button id="btn-gestionar-cita" class="btn btn--secundario btn-full-width">
-                            <i class="fa-solid fa-gear" aria-hidden="true" style="margin-right: 8px;"></i> Gestionar cita anterior
+                        <!-- Botón secundario: Abandonar reserva -->
+                        <button id="btn-colision-abandonar" class="btn btn--secundario btn-full-width">
+                            Abandonar reserva
                         </button>
-                        <p class="text-warning-small">(⚠️ Abandonarás esta pantalla y perderás la selección actual)</p>
                     </div>
                 </div>
             `;
@@ -1567,16 +1575,14 @@ export function createCitas() {
                 this.resetearSeleccionOtraHora();
             });
 
-            document.getElementById('btn-gestionar-cita')?.addEventListener('click', () => {
-                this._mostrarConfirmacionGestion(cita, fecha, hora, fechaISO);
+            document.getElementById('btn-colision-abandonar')?.addEventListener('click', () => {
+                this._mostrarConfirmacionAbandonoColision();
             });
         },
 
         // Agregar justo después de _mostrarModalColision
 
-        _mostrarConfirmacionGestion(cita, fecha, hora, fechaISO) {
-            this._citaEnConflicto = cita;   // ← guardar referencia
-
+        _mostrarConfirmacionAbandonoColision() {
             const modal = document.getElementById('modal-colision-cita');
             if (!modal) return;
             const contentDiv = modal.querySelector('#colision-content-inner');
@@ -1585,17 +1591,17 @@ export function createCitas() {
             this._colisionOriginalHtml = contentDiv.innerHTML;
 
             contentDiv.innerHTML = `
-                <i class="fa-solid fa-circle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
-                <h2 style="margin-bottom: 15px; color: var(--text-main);">¿Ir a la cita anterior?</h2>
+                <i class="fa-solid fa-triangle-exclamation fa-3x alert-colision-icon" aria-hidden="true" style="color: #e67e22;"></i>
+                <h2 style="margin-bottom: 15px; color: var(--text-main);">¿Abandonar reserva?</h2>
                 <p class="modal-colision-text" style="color: var(--gray-text); margin-bottom: 20px;">
-                    Si vas a gestionar tu cita anterior, la reserva actual se descartará. ¿Deseas continuar?
+                    Si abandonas la reserva, perderás la selección actual. ¿Deseas continuar?
                 </p>
                 <div class="modal-colision-actions">
                     <button id="btn-volver-opciones" class="btn btn--secundario btn-full-width btn-margin-bottom">
                         Cancelar (Volver a las opciones)
                     </button>
-                    <button id="btn-ir-cita-anterior" class="btn btn--primario btn-full-width">
-                        Sí, ir a mi cita anterior
+                    <button id="btn-confirmar-abandono" class="btn btn--primario btn-full-width">
+                        Sí, abandonar reserva
                     </button>
                 </div>
             `;
@@ -1604,9 +1610,23 @@ export function createCitas() {
                 this._restaurarModalColision();
             });
 
-            document.getElementById('btn-ir-cita-anterior')?.addEventListener('click', () => {
+            document.getElementById('btn-confirmar-abandono')?.addEventListener('click', () => {
                 this.cerrarModalColision();
-                this.gestionarConflicto(cita.codigo || '', cita.cedula, fechaISO, cita.id_cita);
+
+                // Hard Reset: eliminar todo rastro de la reserva
+                [
+                    'reservaCita_preseleccion',
+                    'especialidad_seleccionada',
+                    'cita_modificacion',
+                    'cita_hora_seleccionada',
+                    'cita_fecha_iso',
+                    'temp_datos_recuperacion'
+                ].forEach(key => sessionStorage.removeItem(key));
+
+                const form = document.getElementById('form-paso3');
+                if (form) form.reset();
+
+                window.location.href = 'index.html';
             });
         },
 
@@ -1615,19 +1635,18 @@ export function createCitas() {
             if (contentDiv && this._colisionOriginalHtml) {
                 contentDiv.innerHTML = this._colisionOriginalHtml;
 
-                // Reasignar eventos con la cita guardada
-                const cita = this._citaEnConflicto;
+                // Reasignar eventos
                 const bOtra = document.getElementById('btn-colision-otra');
-                const bGes = document.getElementById('btn-gestionar-cita');
+                const bAban = document.getElementById('btn-colision-abandonar');
                 if (bOtra) {
                     bOtra.addEventListener('click', () => {
                         this.cerrarModalColision();
                         this.resetearSeleccionOtraHora();
                     });
                 }
-                if (bGes && cita) {
-                    bGes.addEventListener('click', () => {
-                        this._mostrarConfirmacionGestion(cita, '', '', '');   // fecha/hora no se usan en el mensaje de confirmación
+                if (bAban) {
+                    bAban.addEventListener('click', () => {
+                        this._mostrarConfirmacionAbandonoColision();
                     });
                 }
             }
@@ -1822,6 +1841,8 @@ export function createCitas() {
             // Limpiar selección de hora
             this._bloquearConfirmar();
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
+            this.horaSeleccionada = null;
+
             // Regresar al paso 2 si estaba en el 3
             if (this.pasoActual === 3) {
                 // 1. Leer los datos del formulario ANTES de que mostrarPaso limpie el DOM.
@@ -1830,14 +1851,24 @@ export function createCitas() {
                 const ced = document.getElementById('citas-cedula')?.value.trim() || '';
                 const cel = document.getElementById('citas-celular')?.value.trim() || '';
 
-                // 2. Navegar al calendario (limpia campos y borra citas_paso3_retorno internamente).
-                this.mostrarPaso(2);
+                // 2. Limpiar historial a solo pasos anteriores al calendario (0 y 1)
+                this.historialPasos = this.historialPasos.filter(p => p < 2);
+                
+                // 3. Navegar al calendario suprimiendo el push
+                this._suppressHistorialPush = true;
+                try {
+                    this.mostrarPaso(2);
+                } finally {
+                    this._suppressHistorialPush = false;
+                }
 
-                // 3. Volver a guardar los datos para que se restauren al llegar de nuevo al paso 3.
+                // 4. Volver a guardar los datos para que se restauren al llegar de nuevo al paso 3.
                 if (nom || ced || cel) {
                     sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
                 }
             }
+            
+            this.generarCalendario();
         },
 
         _guardarEstadoParaLogin() {
@@ -2247,23 +2278,30 @@ export function createCitas() {
 
             if (!estaLogueado) {
                 // Guardar el id de la cita para abrir su detalle automáticamente
-                window.app.widgetInvitado._pendingDetailId = idCita;
+                if (window.app && window.app.widgetInvitado) {
+                    window.app.widgetInvitado._pendingDetailId = idCita;
 
-                window.app.navegar('home');
-
-                setTimeout(() => {
                     const inputCedula = document.getElementById('widget-cedula');
                     const inputFecha = document.getElementById('widget-fecha-cita');
+
                     if (inputCedula && inputFecha) {
                         inputCedula.value = cedula;
                         inputFecha.value = fechaISO;
                         inputCedula.classList.remove('input-error');
                         inputFecha.classList.remove('input-error');
-                        if (window.app.widgetInvitado && typeof window.app.widgetInvitado.consultar === 'function') {
+
+                        // Abrir modal sin navegar
+                        if (typeof window.app.widgetInvitado.abrirModalConsulta === 'function') {
+                            window.app.widgetInvitado.abrirModalConsulta();
+                        } else if (typeof window.app.widgetInvitado.inicializar === 'function') {
+                            window.app.widgetInvitado.inicializar();
+                        }
+
+                        if (typeof window.app.widgetInvitado.consultar === 'function') {
                             window.app.widgetInvitado.consultar();
                         }
                     }
-                }, 100);
+                }
             } else {
                 // Logueado: guardar deep link y navegar
                 if (idCita) {
@@ -2847,7 +2885,7 @@ export function createCitas() {
                     try {
                         const pre = JSON.parse(sessionStorage.getItem('reservaCita_preseleccion') || '{}');
                         idEspSlot = pre.id_especialista ?? null;
-                    } catch (_) {}
+                    } catch (_) { }
                 }
                 if (!idEspSlot) {
                     try {
@@ -2859,7 +2897,7 @@ export function createCitas() {
                             );
                             idEspSlot = found?.id_especialista ?? found?.id ?? null;
                         }
-                    } catch (_) {}
+                    } catch (_) { }
                 }
                 const horaSlot = String(
                     cita.hora ||
@@ -3100,7 +3138,7 @@ export function createCitas() {
                     try {
                         const p = JSON.parse(sessionStorage.getItem('reservaCita_preseleccion') || '{}');
                         idEspecialista = p.id_especialista;
-                    } catch (_) {}
+                    } catch (_) { }
                 }
                 if (!idEspecialista) return;
 
