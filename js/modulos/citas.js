@@ -7,7 +7,8 @@ import {
     insertCitaSupabase,
     updateCitaSupabasePorIdCita,
     upsertPacienteParaAgenda,
-    fetchCitasOcupadasPorEspecialista
+    fetchCitasOcupadasPorEspecialista,
+    existeCitaParaSlot
 } from './supabaseServicio.js';
 
 function escapeHtmlCita(s) {
@@ -1625,8 +1626,7 @@ export function createCitas() {
 
         async _verificarSlotTomadoPorOtro(idEspecialista, fechaISO, hora) {
             try {
-                const rows = await fetchCitasOcupadasPorEspecialista(idEspecialista);
-                return rows.some(r => r.fecha === fechaISO && r.hora === hora);
+                return await existeCitaParaSlot(idEspecialista, fechaISO, hora);
             } catch (_) {
                 return false;
             }
@@ -2823,8 +2823,31 @@ export function createCitas() {
 
             if (!modCtx) {
                 const docSlot = this._doctorActual;
-                const idEspSlot = docSlot?.id_especialista ?? docSlot?.id ?? cita.id_especialista ?? null;
-                const horaSlot = cita.hora || (this.horaSeleccionada?.includes(',') ? this.horaSeleccionada.split(', ')[1] : '');
+                let idEspSlot = docSlot?.id_especialista ?? docSlot?.id ?? cita.id_especialista ?? null;
+                if (!idEspSlot) {
+                    try {
+                        const pre = JSON.parse(sessionStorage.getItem('reservaCita_preseleccion') || '{}');
+                        idEspSlot = pre.id_especialista ?? null;
+                    } catch (_) {}
+                }
+                if (!idEspSlot) {
+                    try {
+                        const db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
+                        const nombreBuscar = cita.medico || document.getElementById('citas-doctor-name')?.textContent?.trim() || '';
+                        if (nombreBuscar && Array.isArray(db.cartera_especialistas)) {
+                            const found = db.cartera_especialistas.find(
+                                e => e.doctor?.nombre_completo === nombreBuscar || e.nombre_completo === nombreBuscar
+                            );
+                            idEspSlot = found?.id_especialista ?? found?.id ?? null;
+                        }
+                    } catch (_) {}
+                }
+                const horaSlot = String(
+                    cita.hora ||
+                    (this.horaSeleccionada?.includes(',') ? this.horaSeleccionada.split(', ')[1] : this.horaSeleccionada) ||
+                    ''
+                ).trim().substring(0, 5);
+
                 if (idEspSlot && fechaISO && horaSlot) {
                     const slotTomado = await this._verificarSlotTomadoPorOtro(idEspSlot, fechaISO, horaSlot);
                     if (slotTomado) {

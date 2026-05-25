@@ -400,6 +400,25 @@ export async function fetchCitasOcupadasPorEspecialista(idEspecialista) {
     return data || [];
 }
 
+/**
+ * Verifica si ya existe una cita activa para un especialista en una fecha y hora exactas.
+ * Normaliza la hora a "HH:MM" para tolerar valores "HH:MM:SS" que devuelve PostgreSQL.
+ * Se usa como protección contra reservas simultáneas desde distintos dispositivos.
+ */
+export async function existeCitaParaSlot(idEspecialista, fechaISO, hora) {
+    const id = idEspecialista != null ? String(idEspecialista).trim() : '';
+    const horaCorta = String(hora || '').trim().substring(0, 5);
+    if (!id || !fechaISO || !horaCorta) return false;
+    const { data, error } = await supabase
+        .from('citas')
+        .select('id_cita, hora')
+        .eq('id_especialista', id)
+        .eq('fecha', fechaISO)
+        .neq('estado', 'Cancelada');
+    if (error) throw error;
+    return (data || []).some(r => String(r.hora || '').trim().substring(0, 5) === horaCorta);
+}
+
 export async function fetchEspecialistasSupabase() {
     const SELECT_ESP =
         'id_especialista, especialidad, nombre_completo, duracion_minutos, horarios_atencion, actividades';
