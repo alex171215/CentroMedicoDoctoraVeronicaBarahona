@@ -1750,11 +1750,10 @@ const app = {
         inicializar() {
             const inputCedula = document.getElementById('login-cedula');
             if (inputCedula) {
-                // TR-42: whitelist alfanumérca — permite cédulas (dígitos) y pasaportes (letras+dígitos).
-                // Bloquea espacios, <, >, ', ", ; y cualquier carácter XSS/SQLi.
+                // TR-128: solo dígitos — bloquea letras, espacios y cualquier carácter no numérico.
                 inputCedula.addEventListener('input', (e) => {
                     const antes = e.target.value;
-                    const despues = antes.replace(/[^a-zA-Z0-9]/g, '');
+                    const despues = antes.replace(/[^0-9]/g, '');
                     if (antes !== despues) {
                         const pos = e.target.selectionStart;
                         e.target.value = despues;
@@ -1762,12 +1761,12 @@ const app = {
                     }
                 });
 
-                // TR-46 §1: Validación de formato en blur (H5 – feedback inmediato al salir del campo)
+                // TR-128: Validación Módulo 10 en blur (feedback inmediato al salir del campo)
                 inputCedula.addEventListener('blur', () => {
                     const val = inputCedula.value.trim();
-                    if (val.length === 0) return; // campo vacío: se valida en submit, no aquí
-                    if (val.length < 6 || val.length > 13) {
-                        this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
+                    if (val.length === 0) return;
+                    if (val.length !== 10 || !utilidades.validarCedulaEcuatoriana(val)) {
+                        this._mostrarError('login-cedula', 'Por favor, ingrese una Cédula de Identidad válida.');
                     } else {
                         this._limpiarError('login-cedula');
                     }
@@ -1898,20 +1897,13 @@ const app = {
             this._limpiarError('login-cedula');
             this._limpiarError('login-password');
 
-            // TR-42 §1: Solo cédula/pasaporte. Correo queda prohibido en el login.
+            // TR-128: Solo Cédula de Identidad ecuatoriana con Módulo 10.
             if (identificacion.length === 0) {
                 this._mostrarError('login-cedula', 'Ingresa tu número de identificación.');
                 valido = false;
-            } else if (identificacion.length === 10) {
-                // Cédula ecuatoriana: validar dígito verificador
-                if (!utilidades.validarCedulaEcuatoriana(identificacion)) {
-                    this._mostrarError('login-cedula', 'La cédula ingresada no es válida.');
-                    valido = false;
-                }
-            } else if (identificacion.length >= 6 && identificacion.length <= 13) {
-                // Pasaporte u otros documentos — longitud válida, no hay algoritmo de suma
-            } else {
-                this._mostrarError('login-cedula', 'La identificación debe tener entre 6 y 13 caracteres.');
+            } else if (identificacion.length !== 10 || !/^\d{10}$/.test(identificacion) ||
+                       !utilidades.validarCedulaEcuatoriana(identificacion)) {
+                this._mostrarError('login-cedula', 'Por favor, ingrese una Cédula de Identidad válida.');
                 valido = false;
             }
 
@@ -2006,7 +1998,7 @@ const app = {
     registro: {
 
         _pasoActual: 1,
-        _tipoDoc: '',   // 'Cédula' | 'Pasaporte'
+        _tipoDoc: 'Cédula',   // TR-128: siempre Cédula de Identidad
         _sexo: '',
         _codigoOTPGenerado: '',
         _countdownInterval: null,
@@ -2028,13 +2020,7 @@ const app = {
             // app._aplicarLimitesFechaGlobal() que se ejecuta en app.inicializar().
             // No es necesario establecer atributos de fecha aquí.
 
-            const docInput = document.getElementById('reg-tipo-doc');
-            const identInput = document.getElementById('reg-identificacion');
-            if (identInput) {
-                identInput.disabled = !this._tipoDoc;
-                if (!this._tipoDoc) identInput.value = '';
-            }
-            // El input readonly se actualiza vía seleccionarDoc(); no se necesita listener de 'change'.
+            // TR-128: el campo de cédula siempre habilitado — no requiere selección previa de tipo de doc.
 
             // ── Sanitización en tiempo real + ON-BLUR (valida) ──
             // Reglas OWASP por tipo de campo:
@@ -2061,19 +2047,12 @@ const app = {
                 el.addEventListener('blur', el._blurHandler);
             });
 
-            // — Identificación: sanitización CONDICIONAL según tipo de documento —
-            // Cédula   → solo dígitos         `/[^0-9]/g`
-            // Pasaporte → alfanumérico         `/[^a-zA-Z0-9]/g`
-            // Si no hay tipo seleccionado aún, no se sanitiza (campo deshabilitado).
+            // — Identificación: TR-128 solo dígitos (Cédula de Identidad ecuatoriana) —
             const regIdent = document.getElementById('reg-identificacion');
             if (regIdent) {
                 regIdent.removeEventListener('input', regIdent._inputHandler);
                 regIdent._inputHandler = () => {
-                    if (this._tipoDoc === 'Cédula') {
-                        app._sanitizarInput(regIdent, /[^0-9]/g);
-                    } else if (this._tipoDoc === 'Pasaporte') {
-                        app._sanitizarInput(regIdent, /[^a-zA-Z0-9]/g);
-                    }
+                    app._sanitizarInput(regIdent, /[^0-9]/g);
                     this._limpiarError('reg-ident');
                 };
                 regIdent.addEventListener('input', regIdent._inputHandler);
@@ -2238,25 +2217,8 @@ const app = {
                 if (el) el.value = borrador[id] || '';
             });
 
-            if (borrador._tipoDoc) this._tipoDoc = borrador._tipoDoc;
+            // TR-128: _tipoDoc siempre es 'Cédula'; ignorar cualquier valor del borrador
             if (borrador._sexo) this._sexo = borrador._sexo;
-
-            // Restaurar el input visible de tipo de documento
-            const docInput = document.getElementById('reg-tipo-doc');
-            if (docInput && this._tipoDoc) docInput.value = this._tipoDoc;
-
-            // Si ya hay un tipo de documento, habilitar el input y ajustar placeholder/maxlength
-            if (this._tipoDoc) {
-                const identInput = document.getElementById('reg-identificacion');
-                if (identInput) {
-                    identInput.disabled = false;
-                    identInput.placeholder = this._tipoDoc === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
-                    identInput.maxLength = this._tipoDoc === 'Cédula' ? 10 : 13;
-                }
-                // Marcar el radio correspondiente en el modal
-                const radio = document.querySelector(`#modal-tipo-doc input[type="radio"][value="${this._tipoDoc}"]`);
-                if (radio) radio.checked = true;
-            }
         },
 
         // Verifica si el borrador ha expirado (>3 min) y lo elimina limpiando además los inputs
@@ -2292,7 +2254,7 @@ const app = {
                 });
 
                 // Restablecer estados internos
-                this._tipoDoc = '';
+                this._tipoDoc = 'Cédula';
                 this._sexo = '';
                 this._codigoOTPGenerado = '';
             }
@@ -2526,30 +2488,17 @@ const app = {
 
                 /* ── IDENTIFICACIÓN ── */
                 case 'reg-identificacion': {
+                    // TR-128: solo Cédula de Identidad con Módulo 10
                     const ident = (document.getElementById(id)?.value || '').trim();
-                    if (!this._tipoDoc) {
-                        // Sin tipo de doc no podemos validar; se mostrará error al pulsar Siguiente
-                        return true;
-                    }
                     if (ident.length === 0) {
                         this._mostrarError('reg-ident',
-                            'Por favor, ingresa tu número de identificación antes de continuar.');
+                            'Por favor, ingresa tu Cédula de Identidad antes de continuar.');
                         return false;
                     }
-                    if (this._tipoDoc === 'Cédula') {
-                        if (!/^\d{10}$/.test(ident) || !app.citas.validarCedulaEcuatoriana(ident)) {
-                            this._mostrarError('reg-ident',
-                                'La cédula debe tener exactamente 10 números y ser válida. ' +
-                                'Verifica que no falten dígitos o ingresa una cédula ecuatoriana correcta.');
-                            return false;
-                        }
-                    } else if (this._tipoDoc === 'Pasaporte') {
-                        if (ident.length < 6) {
-                            this._mostrarError('reg-ident',
-                                'El número de pasaporte debe tener al menos 6 caracteres. ' +
-                                'Revisa que lo estés escribiendo tal como aparece en tu documento.');
-                            return false;
-                        }
+                    if (!/^\d{10}$/.test(ident) || !utilidades.validarCedulaEcuatoriana(ident)) {
+                        this._mostrarError('reg-ident',
+                            'Por favor, ingrese una Cédula de Identidad válida.');
+                        return false;
                     }
                     this._marcarExito('reg-identificacion');
                     return true;
@@ -2696,15 +2645,7 @@ const app = {
             let ok = true;
 
             if (paso === 1) {
-                this._tipoDoc = this._tipoDoc || '';
-                this._limpiarError('reg-tipo-doc');
-                if (!this._tipoDoc) {
-                    this._mostrarError('reg-tipo-doc',
-                        'Por favor, selecciona el tipo de documento antes de continuar.');
-                    ok = false;
-                }
-
-                // Tipo de documento seleccionado → validar identificación
+                // TR-128: tipo de documento fijo en 'Cédula' — no se valida selector
                 if (!this._validarCampo('reg-identificacion')) ok = false;
 
                 // Nombres y Apellidos
@@ -2830,7 +2771,7 @@ const app = {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
-            this._tipoDoc = '';
+            this._tipoDoc = 'Cédula';
             this._sexo = '';
             this._codigoOTPGenerado = '';
 
@@ -2856,45 +2797,11 @@ const app = {
             }
         },
 
-        abrirModalDoc() {
-            const m = document.getElementById('modal-tipo-doc');
-            if (m) {
-                m.style.display = 'flex';
-                // TR-53: ancla en historial para que Atrás nativo cierre el modal
-                history.pushState({ tipo: 'modal', id: 'modal-tipo-doc' }, '', '#modal');
-            }
-            // Foco al primer radio para accesibilidad
-            setTimeout(() => m?.querySelector('input[type="radio"]')?.focus(), 50);
-        },
-        cerrarModalDoc() {
-            const m = document.getElementById('modal-tipo-doc');
-            if (m) m.style.display = 'none';
-            // Devolver foco al input que abrió el modal
-            document.getElementById('reg-tipo-doc')?.focus();
-        },
-        seleccionarDoc(tipo) {
-            this._tipoDoc = tipo;
-
-            // Actualizar input visible
-            const input = document.getElementById('reg-tipo-doc');
-            if (input) input.value = tipo;
-
-            // Forzar checked en el radio del modal (reactividad aunque repita opción)
-            const radio = document.querySelector(`#modal-tipo-doc input[type="radio"][value="${tipo}"]`);
-            if (radio) radio.checked = true;
-
-            // Habilitar y ajustar el campo de identificación
-            const identInput = document.getElementById('reg-identificacion');
-            if (identInput) {
-                identInput.disabled = false;
-                identInput.placeholder = tipo === 'Cédula' ? 'Ej: 1712345678' : 'Ej: AB123456';
-                identInput.maxLength = tipo === 'Cédula' ? 10 : 13;
-                identInput.value = '';
-            }
-
-            this.cerrarModalDoc();
-            this._limpiarError('reg-tipo-doc');
-        },
+        // TR-128: modal de tipo de documento eliminado — funciones conservadas como no-ops
+        // para compatibilidad con cualquier código externo que aún las invoque.
+        abrirModalDoc() { /* no-op TR-128 */ },
+        cerrarModalDoc() { /* no-op TR-128 */ },
+        seleccionarDoc() { /* no-op TR-128 */ },
 
         // _renovarOTP — TR-118: js/modulos/registro.js (registroOtpControl)
 
@@ -2986,7 +2893,7 @@ const app = {
             errores.forEach(id => this._limpiarError(id));
 
             // 4. Restablecer estado interno (valores por defecto del objeto)
-            this._tipoDoc = '';
+            this._tipoDoc = 'Cédula';
             this._sexo = '';
             this._codigoOTPGenerado = '';
             this._pasoActual = 1;

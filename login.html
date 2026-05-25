@@ -84,12 +84,13 @@
 
                         <div id="login-form" class="login-form">
 
-                            <!-- Campo: Identificación -->
+                            <!-- Campo: Cédula de Identidad (TR-128) -->
                             <div class="login-field">
-                                <label for="login-cedula" class="login-field__label">Número de identificación</label>
+                                <label for="login-cedula" class="login-field__label">Cédula de Identidad</label>
                                 <input type="text" id="login-cedula" name="cedula" class="login-field__input"
-                                    placeholder="Cédula o pasaporte" autocomplete="off" inputmode="numeric"
-                                    maxlength="13" aria-required="true" aria-describedby="login-cedula-error">
+                                    placeholder="Ej: 1712345678" autocomplete="username" inputmode="numeric"
+                                    maxlength="10" pattern="[0-9]*" aria-required="true"
+                                    aria-describedby="login-cedula-error">
                                 <span id="login-cedula-error" class="login-field__error" role="alert"
                                     style="display:none;"></span>
                             </div>

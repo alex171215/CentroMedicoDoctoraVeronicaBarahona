@@ -1,0 +1,29 @@
+Actúa como Ingeniero Senior de Software experto en consistencia de interfaces (Heurística #4), accesibilidad móvil y validación rigurosa de datos en Vanilla JS. Vamos a realizar una unificación semántica completa bajo la directiva TR-134 para erradicar la opción de 'Pasaporte' tanto del formulario de registro como del inicio de sesión, estandarizando todo el proyecto bajo 'Cédula de Identidad' blindada con el algoritmo de Módulo 10.
+
+Restricciones de Integridad Críticas (No tocar flujos estables):
+
+Queda estrictamente PROHIBIDO modificar la base de datos de Supabase, las micro-interacciones responsivas de la cabecera móvil, la máscara CSS de ocultamiento de contraseñas o el enlace contextual de éxito de citas que ya funcionan a la perfección.
+
+Toda modificación se limita estrictamente a las estructuras HTML de los formularios y a las funciones de validación de identidad en JavaScript.
+
+Instrucciones Obligatorias de Modificación y Parcheo:
+
+Refactorización en los HTML de Registro y Login ( index.html, login.html, citas.html ):
+
+Localiza los campos de identificación del usuario tanto en el formulario de creación de cuenta como en la pantalla de inicio de sesión.
+
+Eliminación del Selector: Remueve por completo del DOM cualquier selector (<select>, checkboxes o radio buttons) que permita alternar entre 'Cédula' o 'Pasaporte'.
+
+Activación del Teclado Numérico Celular: Configura fijamente el label del input como 'Cédula de Identidad' e inyecta en la etiqueta <input> de forma obligatoria los atributos: type='text', inputmode='numeric', maxlength='10', pattern='[0-9]*' y un atributo autocomplete='username'. Esto forzará la apertura del teclado de números en dispositivos móviles y cumplirá las pautas de accesibilidad WCAG 2.2.
+
+Sanitización del Campo en Tiempo Real (Heurística #5):
+
+Añade un escuchador de eventos input o keydown sobre los campos de cédula de registro y login para bloquear la entrada de letras. Utiliza una expresión regular (ej. this.value = this.value.replace(/[^0-9]/g, '')) para limpiar el campo instantáneamente si el usuario intenta tipear caracteres alfanuméricos.
+
+Implementación de la Validación de Módulo 10 (Ecuador):
+
+Diseña o unifica una función helper ejecutable (ej. _validarCedulaM10(cedula)) que evalúe los 10 dígitos mediante el algoritmo estándar de Módulo 10 (coeficientes 2,1,2,1..., verificación del tercer dígito menor a 6 y validación del residuo contra el dígito verificador final).
+
+Modifica las funciones de envío del login y del asistente de registro para que, al dispararse el evento de confirmación o el blur del campo, se evalúe la cédula con el algoritmo. Si la validación matemática falla, detén la ejecución de la promesa, enfoca el campo de error e inyecta un texto explícito debajo: 'Por favor, ingrese una Cédula de Identidad válida'.
+
+Comprueba la consistencia sintáctica de los archivos modificados con node -c, valida que no existan errores en la consola del navegador y actualiza la bitácora técnica en docs/design_sessions/active-design.md bajo el título 'Estandarización, Invocación Táctil Numérica y Validación Módulo 10 del Atributo Cédula de Identidad TR-134'.
