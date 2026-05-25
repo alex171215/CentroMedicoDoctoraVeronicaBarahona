@@ -4464,7 +4464,16 @@ export function createCitas() {
                     document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
                         .forEach(el => el.classList.remove('time-slot--selected'));
                     this.horaSeleccionada = null;
-                    this.mostrarPaso(2); // limpia campos y borra citas_paso3_retorno internamente
+
+                    // Limpiar historial a solo pasos anteriores al calendario (0 y 1),
+                    // para que Volver desde el paso 2 lleve al paso 1 (médicos) correctamente.
+                    this.historialPasos = this.historialPasos.filter(p => p < 2);
+                    this._suppressHistorialPush = true;
+                    try {
+                        this.mostrarPaso(2);
+                    } finally {
+                        this._suppressHistorialPush = false;
+                    }
 
                     // Restaurar respaldo para que al llegar de nuevo al paso 3 los campos aparezcan llenos.
                     if (nom || ced || cel) {
@@ -4523,7 +4532,16 @@ export function createCitas() {
                     document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
                         .forEach(el => el.classList.remove('time-slot--selected'));
                     this.horaSeleccionada = null;
-                    this.mostrarPaso(2); // limpia campos y borra citas_paso3_retorno internamente
+
+                    // Limpiar historial a solo pasos anteriores al calendario (0 y 1),
+                    // para que Volver desde el paso 2 lleve al paso 1 (médicos) correctamente.
+                    this.historialPasos = this.historialPasos.filter(p => p < 2);
+                    this._suppressHistorialPush = true;
+                    try {
+                        this.mostrarPaso(2);
+                    } finally {
+                        this._suppressHistorialPush = false;
+                    }
 
                     // Re-guardar para que al volver al paso 3 los campos aparezcan llenos.
                     if (nom || ced || cel) {
