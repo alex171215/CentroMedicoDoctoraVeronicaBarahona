@@ -1669,8 +1669,11 @@ export function createCitas() {
         _adjuntarEventosModalSlot() {
             document.getElementById('btn-slot-otra-hora')?.addEventListener('click', () => {
                 this.cerrarModalColision();
+                this._bloquearConfirmar();
+                document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
+                this.horaSeleccionada = null;
                 this._refrescarOcupadasDesdeSupabase().then(() => this.generarCalendario());
-                this.resetearSeleccionOtraHora();
+                this.mostrarPaso(2);
             });
             document.getElementById('btn-slot-salir')?.addEventListener('click', () => {
                 this._mostrarConfirmacionSalidaSlot();
@@ -1711,6 +1714,7 @@ export function createCitas() {
             document.getElementById('btn-slot-salir-confirmar')?.addEventListener('click', () => {
                 this.cerrarModalColision();
                 this.hardResetCitas();
+                this.mostrarPaso(1);
             });
         },
 
