@@ -383,6 +383,23 @@ export function transformarParaSupabase(data) {
     return flatData;
 }
 
+/**
+ * Devuelve todas las citas activas (no canceladas) de un especialista.
+ * Se usa para determinar qué horarios ya están ocupados en el calendario,
+ * garantizando consistencia entre dispositivos.
+ */
+export async function fetchCitasOcupadasPorEspecialista(idEspecialista) {
+    const id = idEspecialista != null ? String(idEspecialista).trim() : '';
+    if (!id) return [];
+    const { data, error } = await supabase
+        .from('citas')
+        .select('id_especialista, fecha, hora, estado')
+        .eq('id_especialista', id)
+        .neq('estado', 'Cancelada');
+    if (error) throw error;
+    return data || [];
+}
+
 export async function fetchEspecialistasSupabase() {
     const SELECT_ESP =
         'id_especialista, especialidad, nombre_completo, duracion_minutos, horarios_atencion, actividades';
