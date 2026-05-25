@@ -605,8 +605,11 @@ export function createCitas() {
 
             // --- FIN DE LA INSERCIÓN ---
 
-            // Resetear modoProxy al entrar al paso 2 (por si venía de otro flujo)
-            if (this.pasoActual !== 2 && nuevoPaso === 2) {
+            // Resetear modoProxy al entrar al paso 2 desde cualquier paso.
+            // NOTA: this.pasoActual ya fue actualizado a nuevoPaso en la línea anterior,
+            // por lo que la condición original (this.pasoActual !== 2 && nuevoPaso === 2)
+            // era siempre false (contradicción). Se simplifica a solo nuevoPaso === 2.
+            if (nuevoPaso === 2) {
                 this.modoProxy = false;
             }
 
