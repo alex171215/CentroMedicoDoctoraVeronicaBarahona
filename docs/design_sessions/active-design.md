@@ -1753,3 +1753,65 @@ El botón **nace visible** desde el primer byte del HTML parseado.
 - Restricciones de integridad: Supabase, stepper radial, aceleradores de teclado → **intactos**
 
 ### Estado: ✅ CERRADO — TR-123/124 implementados. El carrusel del Home ahora carga exclusivamente desde activos locales WebP con estrategia fetchpriority/lazy. El botón Consultar Cita nace visible en el HTML sin dependencia de Supabase ni lag visual.
+
+---
+
+## Estandarización, Invocación Táctil Numérica y Validación Módulo 10 del Atributo Cédula de Identidad TR-128
+
+**Fecha:** 2026-05-25
+**Requisitos aplicados:** TR-128
+**Archivos modificados:** `registro.html`, `login.html`, `js/main.js`
+
+### Objetivo
+
+Erradicar la opción de "Pasaporte" del formulario de registro y del inicio de sesión, unificando toda la plataforma bajo el identificador "Cédula de Identidad" con validación estricta de Módulo 10 (algoritmo ecuatoriano), teclado numérico móvil y sanitización en tiempo real.
+
+### Cambios en HTML
+
+#### `registro.html`
+- Eliminado el bloque completo del campo `#reg-tipo-doc` (input readonly + chevron + span de error) que abría el modal de selección de documento.
+- Eliminado el modal `#modal-tipo-doc` con sus opciones de radio "Cédula" y "Pasaporte".
+- El campo `#reg-identificacion` se convirtió en campo único y siempre habilitado:
+  - Label: `Cédula de Identidad *`
+  - Atributos: `type="text"`, `inputmode="numeric"`, `maxlength="10"`, `pattern="[0-9]*"`, `autocomplete="username"`
+
+#### `login.html`
+- Label actualizado: `Número de identificación` → `Cédula de Identidad`
+- Placeholder actualizado: `Cédula o pasaporte` → `Ej: 1712345678`
+- `maxlength` reducido: `13` → `10`
+- Agregados: `pattern="[0-9]*"`, `autocomplete="username"`
+- Ya tenía `inputmode="numeric"` ✓
+
+### Cambios en JavaScript (`js/main.js`)
+
+#### Módulo `login`
+- **Sanitizador `input`**: Cambiado de `/[^a-zA-Z0-9]/g` a `/[^0-9]/g` — bloquea letras en tiempo real.
+- **Validador `blur`**: Reemplazado el chequeo de longitud 6-13 por validación completa Módulo 10 (`utilidades.validarCedulaEcuatoriana`). Mensaje: "Por favor, ingrese una Cédula de Identidad válida."
+- **`enviar()`**: Eliminada la rama de Pasaporte (longitud 6-13). Ahora se valida siempre con `!/^\d{10}$/.test(id) || !utilidades.validarCedulaEcuatoriana(id)`. Mensaje unificado: "Por favor, ingrese una Cédula de Identidad válida."
+
+#### Módulo `registro`
+- **`_tipoDoc`**: Valor inicial cambiado de `''` a `'Cédula'` (fijo permanentemente).
+- **`inicializar()`**: Eliminada la lógica de `identInput.disabled = !this._tipoDoc`. El campo se inicializa siempre habilitado. Sanitizador simplificado a `/[^0-9]/g` (antes era condicional Cédula/Pasaporte).
+- **`_validarCampo('reg-identificacion')`**: Eliminada la guarda `if (!this._tipoDoc)` y la rama Pasaporte. Validación siempre con `utilidades.validarCedulaEcuatoriana`. Mensaje: "Por favor, ingrese una Cédula de Identidad válida."
+- **`_validarPaso(1)`**: Eliminado el bloque de validación de `reg-tipo-doc` (selector de documento) — ya no existe en el DOM.
+- **`_cargarBorrador()`**: Eliminada la restauración del selector de tipo de documento y del radio checked en el modal.
+- **`_verificarExpiracionBorrador()`**, **`cancelarRegistro()`**, **`validarCodigo()`**: `this._tipoDoc = ''` → `this._tipoDoc = 'Cédula'` en todos los puntos de reset.
+- **`abrirModalDoc()`, `cerrarModalDoc()`, `seleccionarDoc()`**: Convertidas a no-ops para compatibilidad con código de terceros o caché de navegador.
+
+### Algoritmo Módulo 10 Ecuador (ya implementado en `utilidades.validarCedulaEcuatoriana`)
+
+1. Longitud exacta: 10 dígitos.
+2. Los dos primeros dígitos (provincia): entre 01 y 24.
+3. Tercer dígito: debe ser < 6 (persona natural).
+4. Coeficientes: `[2, 1, 2, 1, 2, 1, 2, 1, 2]` aplicados a los 9 primeros dígitos.
+5. Si producto ≥ 10, restar 9.
+6. Sumar todos los resultados. Si `suma % 10 === 0`, verificador es 0; si no, es `10 - (suma % 10)`.
+7. El dígito verificador debe coincidir con el décimo dígito.
+
+### Verificación de Integridad
+
+- `node -c` con `"type":"module"` → **`main.js SYNTAX OK`**, **`citas.js SYNTAX OK`**
+- Restricciones prohibidas (Supabase DB, micro-interacciones header, CSS password mask, enlace éxito citas) → **intactas**
+- Campos que ya cumplían TR-128 (`#citas-cedula`, `#widget-cedula`) → **no modificados**
+
+### Estado: ✅ CERRADO — TR-128 implementado. Toda la plataforma opera bajo Cédula de Identidad ecuatoriana con Módulo 10, teclado numérico móvil y sanitización en tiempo real. La opción Pasaporte ha sido completamente erradicada del DOM y de la lógica de validación.
