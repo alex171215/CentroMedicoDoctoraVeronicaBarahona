@@ -3179,7 +3179,15 @@ export function createCitas() {
             } else {
                 this.actualizarEstadoBotonSiguiente();
             }
-            this.mostrarPaso(3);
+            // Suprimir push al historial: el paso 4 no debe quedar registrado como
+            // destino de "Volver" desde el paso 3. El historial ya tiene el paso 2
+            // (calendario) que es el destino correcto al presionar "Volver".
+            this._suppressHistorialPush = true;
+            try {
+                this.mostrarPaso(3);
+            } finally {
+                this._suppressHistorialPush = false;
+            }
         },
 
         descargarComprobantePDF() {
