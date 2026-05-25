@@ -1623,6 +1623,97 @@ export function createCitas() {
             }
         },
 
+        async _verificarSlotTomadoPorOtro(idEspecialista, fechaISO, hora) {
+            try {
+                const rows = await fetchCitasOcupadasPorEspecialista(idEspecialista);
+                return rows.some(r => r.fecha === fechaISO && r.hora === hora);
+            } catch (_) {
+                return false;
+            }
+        },
+
+        _mostrarModalSlotOcupado(medicoNombre, horaLabel) {
+            let modal = document.getElementById('modal-colision-cita');
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = 'modal-colision-cita';
+            modal.className = 'modal-overlay';
+            modal.setAttribute('role', 'alertdialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'modal-slot-title');
+            modal.style.display = 'flex';
+            modal.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); });
+
+            modal.innerHTML = `
+                <div class="modal-content modal-colision-content" id="colision-content-inner">
+                    <i class="fa-solid fa-calendar-xmark fa-3x alert-colision-icon" aria-hidden="true" style="color: #e74c3c;"></i>
+                    <h2 id="modal-slot-title" class="modal-colision-title">Horario ya reservado</h2>
+                    <p class="modal-colision-text">
+                        Otro paciente confirmó el turno de las <strong>${horaLabel}</strong> con <strong>${medicoNombre}</strong> justo antes que tú. Este horario ya no está disponible.
+                    </p>
+                    <div class="modal-colision-actions">
+                        <button id="btn-slot-otra-hora" class="btn btn--primario btn-full-width btn-margin-bottom">
+                            <i class="fa-solid fa-calendar-plus" aria-hidden="true" style="margin-right: 8px;"></i>Elegir otra hora
+                        </button>
+                        <button id="btn-slot-salir" class="btn btn--secundario btn-full-width">
+                            Salir de la reserva
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            this._adjuntarEventosModalSlot();
+        },
+
+        _adjuntarEventosModalSlot() {
+            document.getElementById('btn-slot-otra-hora')?.addEventListener('click', () => {
+                this.cerrarModalColision();
+                this._refrescarOcupadasDesdeSupabase().then(() => this.generarCalendario());
+                this.resetearSeleccionOtraHora();
+            });
+            document.getElementById('btn-slot-salir')?.addEventListener('click', () => {
+                this._mostrarConfirmacionSalidaSlot();
+            });
+        },
+
+        _mostrarConfirmacionSalidaSlot() {
+            const modal = document.getElementById('modal-colision-cita');
+            if (!modal) return;
+            const contentDiv = modal.querySelector('#colision-content-inner');
+            if (!contentDiv) return;
+
+            this._slotOcupadoOriginalHtml = contentDiv.innerHTML;
+
+            contentDiv.innerHTML = `
+                <i class="fa-solid fa-circle-question fa-3x" aria-hidden="true" style="color: #e67e22; margin-bottom: 15px;"></i>
+                <h2 style="margin-bottom: 15px; color: var(--text-main);">¿Salir de la reserva?</h2>
+                <p class="modal-colision-text" style="color: var(--gray-text); margin-bottom: 20px;">
+                    Si sales ahora, se descartará toda la selección actual. Podrás volver a agendar cuando quieras.
+                </p>
+                <div class="modal-colision-actions">
+                    <button id="btn-slot-salir-cancelar" class="btn btn--secundario btn-full-width btn-margin-bottom">
+                        Cancelar
+                    </button>
+                    <button id="btn-slot-salir-confirmar" class="btn btn--primario btn-full-width" style="background: #e74c3c; border-color: #e74c3c;">
+                        <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true" style="margin-right: 8px;"></i>Sí, salir
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('btn-slot-salir-cancelar')?.addEventListener('click', () => {
+                const cd = document.getElementById('colision-content-inner');
+                if (cd && this._slotOcupadoOriginalHtml) {
+                    cd.innerHTML = this._slotOcupadoOriginalHtml;
+                    this._adjuntarEventosModalSlot();
+                }
+            });
+            document.getElementById('btn-slot-salir-confirmar')?.addEventListener('click', () => {
+                this.cerrarModalColision();
+                this.hardResetCitas();
+            });
+        },
+
         mostrarConfirmacionCancelacion(idCita, callback) {
             // Reutilizar modal existente o crear uno nuevo
             let modal = document.getElementById('modal-confirmar-cancelacion');
@@ -2729,6 +2820,20 @@ export function createCitas() {
             const eraTunelReagendamiento = this._esTunelReagendamientoTR100();
 
             const fechaISO = this.fechaISOSeleccionada || sessionStorage.getItem('cita_fecha_iso') || cita.fecha;
+
+            if (!modCtx) {
+                const docSlot = this._doctorActual;
+                const idEspSlot = docSlot?.id_especialista ?? docSlot?.id ?? cita.id_especialista ?? null;
+                const horaSlot = cita.hora || (this.horaSeleccionada?.includes(',') ? this.horaSeleccionada.split(', ')[1] : '');
+                if (idEspSlot && fechaISO && horaSlot) {
+                    const slotTomado = await this._verificarSlotTomadoPorOtro(idEspSlot, fechaISO, horaSlot);
+                    if (slotTomado) {
+                        const medicoLabel = cita.medico || document.getElementById('citas-doctor-name')?.textContent?.trim() || 'el médico';
+                        this._mostrarModalSlotOcupado(medicoLabel, horaSlot);
+                        return;
+                    }
+                }
+            }
 
             try {
                 await conCargaGlobal(async () => {
