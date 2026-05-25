@@ -251,12 +251,20 @@ const app = {
                         clearTimeout(inputEl._msgRechazoTimer);
                         delete inputEl._msgRechazoTimer;
                     }
-                    setTimeout(() => {
+                    // Guardar handle del defer para poder cancelarlo si el usuario
+                    // escribe un carácter válido antes de que el setTimeout(0) dispare.
+                    if (inputEl._msgRechazoDefer) clearTimeout(inputEl._msgRechazoDefer);
+                    inputEl._msgRechazoDefer = setTimeout(() => {
+                        delete inputEl._msgRechazoDefer;
                         const ariaId = inputEl.getAttribute('aria-describedby');
                         const errorSpan = ariaId ? document.getElementById(ariaId) : null;
-                        if (errorSpan && !errorSpan.textContent.trim()) {
+                        if (errorSpan) {
+                            // Siempre sobrescribir: _limpiarEstadoVisualInputTR99 oculta el span
+                            // pero NO limpia textContent, así que la condición anterior
+                            // (!trim()) fallaba si había un error de blur previo.
                             errorSpan.textContent = 'Carácter no permitido';
                             errorSpan.style.display = 'block';
+                            if (inputEl._msgRechazoTimer) clearTimeout(inputEl._msgRechazoTimer);
                             inputEl._msgRechazoTimer = setTimeout(() => {
                                 if (errorSpan.textContent === 'Carácter no permitido') {
                                     errorSpan.textContent = '';
@@ -568,6 +576,10 @@ const app = {
         }
 
         // TR-128: limpiar mensaje "Carácter no permitido" en el span de error de cédula
+        if (inputEl._msgRechazoDefer) {
+            clearTimeout(inputEl._msgRechazoDefer);
+            delete inputEl._msgRechazoDefer;
+        }
         if (inputEl._msgRechazoTimer) {
             clearTimeout(inputEl._msgRechazoTimer);
             delete inputEl._msgRechazoTimer;
