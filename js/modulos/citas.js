@@ -1851,8 +1851,8 @@ export function createCitas() {
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
             this.horaSeleccionada = null;
 
-            // Regresar al paso 2 si estaba en el 3 o 4
-            if (this.pasoActual === 3 || this.pasoActual === 4) {
+            // Siempre regresar al paso 2 (Calendario)
+            if (this.pasoActual !== 2) {
                 // 1. Leer los datos del formulario ANTES de que mostrarPaso limpie el DOM.
                 //    El usuario eligió otra hora por colisión — no debería perder lo que ya escribió.
                 const nom = document.getElementById('citas-nombres')?.value.trim() || '';
