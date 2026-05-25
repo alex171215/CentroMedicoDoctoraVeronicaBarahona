@@ -432,9 +432,10 @@ export function createCitas() {
         mostrarPaso(nuevoPaso) {
             // Limpiar campos del paso 3 al salir de él hacia cualquier otro paso.
             if (this.pasoActual === 3 && nuevoPaso !== 3) {
-                // Si avanza hacia adelante (paso 4+), guardar los datos antes de limpiar
-                // para que al volver al paso 3 los campos sigan llenos.
-                if (nuevoPaso > 3) {
+                if (nuevoPaso >= 2) {
+                    // Avanza al paso 4+ o retrocede al calendario (paso 2):
+                    // guardar los datos para que al volver al paso 3 los campos sigan llenos.
+                    // El usuario solo está revisando/cambiando la hora, no el médico ni la especialidad.
                     const nom = document.getElementById('citas-nombres')?.value.trim() || '';
                     const ced = document.getElementById('citas-cedula')?.value.trim() || '';
                     const cel = document.getElementById('citas-celular')?.value.trim() || '';
@@ -442,7 +443,8 @@ export function createCitas() {
                         sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
                     }
                 } else {
-                    // Si retrocede (hacia paso 2 o anterior), descartar datos guardados.
+                    // Retrocede a médicos (paso 1) o especialidades (paso 0):
+                    // descarta los datos porque el paciente está eligiendo un médico distinto.
                     sessionStorage.removeItem('citas_paso3_retorno');
                 }
                 this._limpiarCamposPaso3();
@@ -451,6 +453,8 @@ export function createCitas() {
             // TR-92.1: purga total al abandonar el calendario (paso 2 → 0/1).
             if (this.pasoActual === 2 && nuevoPaso !== 2 && nuevoPaso < 2) {
                 this._purgaSeleccionHorario();
+                // El usuario elige otro médico/especialidad: descartar datos del formulario.
+                sessionStorage.removeItem('citas_paso3_retorno');
             }
 
             if (this.pasoActual !== nuevoPaso && !this._suppressHistorialPush) {
@@ -492,9 +496,11 @@ export function createCitas() {
                         // Consumir el dato para que no quede residual
                         sessionStorage.removeItem('temp_datos_recuperacion');
                     } catch (e) { }
-                } else if (!this.modoProxy) {
+                } else {
                     // Restaurar campos si el usuario volvió desde el paso 4 (navegación hacia atrás).
-                    // NO restaurar en modo proxy: el formulario debe aparecer vacío para el familiar.
+                    // Aplica tanto para titular como para modo proxy: si el usuario ya llenó
+                    // los datos del familiar y vuelve desde revisión, debe ver lo que escribió.
+                    // El vaciado inicial en avanzarPaso() ya garantiza que el proxy empiece limpio.
                     const retornoData = sessionStorage.getItem('citas_paso3_retorno');
                     if (retornoData) {
                         try {
@@ -3153,6 +3159,8 @@ export function createCitas() {
         // Activar modo proxy desde el resumen
         activarProxyDesdeResumen() {
             this.modoProxy = true;
+            // Descartar datos guardados del paso 3 anterior para que el familiar empiece limpio.
+            sessionStorage.removeItem('citas_paso3_retorno');
             // Limpiar los campos del Paso 3 y mostrarlo
             ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
                 const el = document.getElementById(id);
