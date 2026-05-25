@@ -6,7 +6,8 @@ import {
     fetchPacienteRegistroPorCedula,
     insertCitaSupabase,
     updateCitaSupabasePorIdCita,
-    upsertPacienteParaAgenda
+    upsertPacienteParaAgenda,
+    fetchCitasOcupadasPorEspecialista
 } from './supabaseServicio.js';
 
 function escapeHtmlCita(s) {
@@ -177,6 +178,7 @@ export function createCitas() {
 
                 this.prepararResumenMedico(preCita.medico, esp, preCita.imagen_url, idEspPre);
                 this.mostrarPaso(2);
+                await this._refrescarOcupadasDesdeSupabase();
                 this.generarCalendario(true);
             } else if (preEspecialidad) {
                 this.evaluarEspecialidad(preEspecialidad);
@@ -185,7 +187,7 @@ export function createCitas() {
             }
         },
 
-        evaluarEspecialidad(especialidad) {
+        async evaluarEspecialidad(especialidad) {
             sessionStorage.setItem('especialidad_seleccionada', especialidad);
             const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
             if (!db || !db.cartera_especialistas) return;
@@ -213,6 +215,7 @@ export function createCitas() {
                 }));
                 this.prepararResumenMedico(med.doctor.nombre_completo, especialidad, med.imagen_url, med.id_especialista);
                 this.mostrarPaso(2);
+                await this._refrescarOcupadasDesdeSupabase();
                 this.generarCalendario(true);
             } else if (medicos.length > 1) {
                 this._purgaSeleccionHorario();
@@ -391,7 +394,7 @@ export function createCitas() {
             this._abrirCalendarioMedico(med);
         },
 
-        _abrirCalendarioMedico(med) {
+        async _abrirCalendarioMedico(med) {
             const nombre = med.doctor.nombre_completo;
             const especialidad = med.especialidad;
             const img = this.obtenerImagenMedico(nombre, especialidad, med.imagen_url);
@@ -410,6 +413,7 @@ export function createCitas() {
 
             this.prepararResumenMedico(nombre, especialidad, img, med.id_especialista);
             this.mostrarPaso(2);
+            await this._refrescarOcupadasDesdeSupabase();
             this.generarCalendario(true);
         },
 
@@ -829,6 +833,7 @@ export function createCitas() {
 
             await this._esperarDatosEspecialistas();
             this._montarSalidasPaso5();
+            await this._refrescarOcupadasDesdeSupabase();
             this.generarCalendario(true);
         },
 
@@ -2937,6 +2942,48 @@ export function createCitas() {
             });
         },
 
+        /**
+         * Consulta Supabase para obtener los horarios ya reservados del especialista
+         * actual y actualiza localStorage, garantizando consistencia entre dispositivos.
+         */
+        async _refrescarOcupadasDesdeSupabase() {
+            try {
+                let idEspecialista = this._doctorActual?.id_especialista ?? this._doctorActual?.id ?? null;
+                if (!idEspecialista) {
+                    try {
+                        const p = JSON.parse(sessionStorage.getItem('reservaCita_preseleccion') || '{}');
+                        idEspecialista = p.id_especialista;
+                    } catch (_) {}
+                }
+                if (!idEspecialista) return;
+
+                const medicoNombre = document.getElementById('citas-doctor-name')?.textContent?.trim() || '';
+                const rows = await fetchCitasOcupadasPorEspecialista(idEspecialista);
+
+                const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+                const ocupadas = rows.map(row => {
+                    let d = new Date();
+                    if (row.fecha && row.fecha.includes('-')) {
+                        const [year, month, day] = row.fecha.split('-');
+                        d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+                    }
+                    const fechaHoraFormato = `${diasNombres[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}, ${row.hora}`;
+                    return {
+                        medico: medicoNombre,
+                        fecha: row.fecha,
+                        hora: row.hora,
+                        fechaHora: fechaHoraFormato
+                    };
+                });
+
+                localStorage.setItem('sanitas_citas_ocupadas', JSON.stringify(ocupadas));
+            } catch (err) {
+                console.warn('[Citas] No se pudieron refrescar horarios ocupados desde Supabase:', err);
+            }
+        },
+
         // Reconstruir ocupadas a partir de sanitas_citas (evitar duplicados)
         _reconstruirOcupadas() {
             const citasPublicas = JSON.parse(localStorage.getItem('sanitas_citas') || '[]');
@@ -3410,7 +3457,7 @@ export function createCitas() {
             }
         },
 
-        cambiarSemana(direccion) {
+        async cambiarSemana(direccion) {
             // ── TR-79: Límites estrictos de navegación temporal ──
             // Definición de límites (normalizados a medianoche para comparaciones exactas)
             const hoy = new Date();
@@ -3470,10 +3517,11 @@ export function createCitas() {
             }
 
             this.fechaBaseCalendario.setDate(this.fechaBaseCalendario.getDate() + (direccion * 7));
+            await this._refrescarOcupadasDesdeSupabase();
             this.generarCalendario();
         },
 
-        cambiarDiaMobile(direccion) {
+        async cambiarDiaMobile(direccion) {
             // ── TR-79: Límites estrictos de navegación temporal (móvil) ──
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
@@ -3566,6 +3614,7 @@ export function createCitas() {
             // Si el bucle agotó las iteraciones sin encontrar un día válido,
             // se renderiza de todas formas (mostrará el empty state).
 
+            await this._refrescarOcupadasDesdeSupabase();
             this.generarCalendario();
         },
 
