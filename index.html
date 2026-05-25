@@ -236,8 +236,9 @@
                         <div class="widget-invitado__field" style="margin-bottom: 25px; width: 100%; text-align: left;">
                             <label for="widget-cedula" class="widget-invitado__label">Cédula</label>
                             <input type="text" id="widget-cedula" class="widget-invitado__input form-control"
-                                placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" aria-required="true"
-                                aria-describedby="widget-cedula-error" autocomplete="on" style="width: 100%;">
+                                placeholder="Ej: 1712345678" inputmode="numeric" maxlength="10" pattern="[0-9]*"
+                                aria-required="true" aria-describedby="widget-cedula-error"
+                                autocomplete="on" style="width: 100%;">
                             <span id="widget-cedula-error" class="widget-invitado__error" role="alert"
                                 style="display:none;"></span>
                         </div>

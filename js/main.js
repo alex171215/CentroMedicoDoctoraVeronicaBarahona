@@ -211,7 +211,8 @@ const app = {
 
             // 2. Mapeo Estricto por ID
             if (id === 'login-cedula') {
-                val = val.replace(/[^a-zA-Z0-9]/g, '');
+                // TR-128: solo dígitos en login
+                val = val.replace(/[^0-9]/g, '');
             }
             else if (id === 'widget-cedula' || id === 'citas-cedula' || id.includes('codigo') || id.includes('celular') || id.includes('telefono')) {
                 val = val.replace(/[^0-9]/g, '');
@@ -241,32 +242,57 @@ const app = {
                     ], { duration: 400, easing: 'ease-out' });
                 } catch (err) { }
 
-                // TR-73: Prevención de Overlap — Oculta el error nativo mientras el tooltip flota
-                const errorNativo = this._obtenerErrorNativoInput(inputEl);
-                if (errorNativo) errorNativo.style.setProperty('opacity', '0', 'important');
+                // TR-128: Campos de cédula — mostrar mensaje en el span de error estándar
+                // Se usa setTimeout(0) para diferir la inyección del mensaje hasta que todos
+                // los handlers síncronos del elemento (que limpian el span) hayan terminado.
+                const CAMPOS_CEDULA = ['login-cedula', 'widget-cedula', 'citas-cedula', 'reg-identificacion'];
+                if (CAMPOS_CEDULA.includes(id)) {
+                    if (inputEl._msgRechazoTimer) {
+                        clearTimeout(inputEl._msgRechazoTimer);
+                        delete inputEl._msgRechazoTimer;
+                    }
+                    setTimeout(() => {
+                        const ariaId = inputEl.getAttribute('aria-describedby');
+                        const errorSpan = ariaId ? document.getElementById(ariaId) : null;
+                        if (errorSpan && !errorSpan.textContent.trim()) {
+                            errorSpan.textContent = 'Carácter no permitido';
+                            errorSpan.style.display = 'block';
+                            inputEl._msgRechazoTimer = setTimeout(() => {
+                                if (errorSpan.textContent === 'Carácter no permitido') {
+                                    errorSpan.textContent = '';
+                                    errorSpan.style.display = 'none';
+                                }
+                                delete inputEl._msgRechazoTimer;
+                            }, 1500);
+                        }
+                    }, 0);
+                } else {
+                    // Otros campos: tooltip flotante (no afecta layout)
+                    // TR-73: Prevención de Overlap — Oculta el error nativo mientras el tooltip flota
+                    const errorNativo = this._obtenerErrorNativoInput(inputEl);
+                    if (errorNativo) errorNativo.style.setProperty('opacity', '0', 'important');
 
-                // Inyección de Tooltip Flotante (Evita romper Layouts como la Lupa)
-                let tooltipWrapper = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
-                if (!tooltipWrapper) {
-                    tooltipWrapper = document.createElement('div');
-                    tooltipWrapper.className = 'sanitizer-wrapper-zero';
-                    // Contenedor fantasma: no ocupa espacio, pero sirve de ancla
-                    tooltipWrapper.style.cssText = 'position: relative; width: 100%; height: 0; overflow: visible; pointer-events: none; z-index: 9999; display: block !important;';
+                    // Inyección de Tooltip Flotante (Evita romper Layouts como la Lupa)
+                    let tooltipWrapper = inputEl.parentNode.querySelector('.sanitizer-wrapper-zero');
+                    if (!tooltipWrapper) {
+                        tooltipWrapper = document.createElement('div');
+                        tooltipWrapper.className = 'sanitizer-wrapper-zero';
+                        tooltipWrapper.style.cssText = 'position: relative; width: 100%; height: 0; overflow: visible; pointer-events: none; z-index: 9999; display: block !important;';
 
-                    const msgSpan = document.createElement('span');
-                    // Tooltip físico absoluto
-                    msgSpan.style.cssText = 'position: absolute; left: 0; top: 4px; color: #d32f2f; font-size: 0.875rem; font-weight: 500; font-family: inherit; white-space: nowrap; background: transparent; padding: 0; box-shadow: none;';
-                    msgSpan.textContent = 'Carácter no permitido';
+                        const msgSpan = document.createElement('span');
+                        msgSpan.style.cssText = 'position: absolute; left: 0; top: 4px; color: #d32f2f; font-size: 0.875rem; font-weight: 500; font-family: inherit; white-space: nowrap; background: transparent; padding: 0; box-shadow: none;';
+                        msgSpan.textContent = 'Carácter no permitido';
 
-                    tooltipWrapper.appendChild(msgSpan);
-                    inputEl.insertAdjacentElement('afterend', tooltipWrapper);
+                        tooltipWrapper.appendChild(msgSpan);
+                        inputEl.insertAdjacentElement('afterend', tooltipWrapper);
+                    }
+
+                    // TTL 2.5s — fallback si el usuario deja de escribir sin blur
+                    if (inputEl._sanitizerTooltipTimer) clearTimeout(inputEl._sanitizerTooltipTimer);
+                    inputEl._sanitizerTooltipTimer = setTimeout(() => {
+                        this._limpiarFeedbackSanitizer(inputEl);
+                    }, 2500);
                 }
-
-                // TTL 2.5s — fallback si el usuario deja de escribir sin blur
-                if (inputEl._sanitizerTooltipTimer) clearTimeout(inputEl._sanitizerTooltipTimer);
-                inputEl._sanitizerTooltipTimer = setTimeout(() => {
-                    this._limpiarFeedbackSanitizer(inputEl);
-                }, 2500);
             }
         }, { capture: true });
 
@@ -539,6 +565,18 @@ const app = {
         if (inputEl._sanitizerTooltipTimer) {
             clearTimeout(inputEl._sanitizerTooltipTimer);
             delete inputEl._sanitizerTooltipTimer;
+        }
+
+        // TR-128: limpiar mensaje "Carácter no permitido" en el span de error de cédula
+        if (inputEl._msgRechazoTimer) {
+            clearTimeout(inputEl._msgRechazoTimer);
+            delete inputEl._msgRechazoTimer;
+            const ariaId = inputEl.getAttribute('aria-describedby');
+            const errorSpan = ariaId ? document.getElementById(ariaId) : null;
+            if (errorSpan && errorSpan.textContent === 'Carácter no permitido') {
+                errorSpan.textContent = '';
+                errorSpan.style.display = 'none';
+            }
         }
         const legacyId = inputEl.id;
         if (legacyId && window.sanitizerTimers?.[legacyId]) {
@@ -3741,11 +3779,15 @@ const app = {
             const btnConsultar = document.getElementById('btn-consultar-cita');
 
             if (inputCedula) {
-                inputCedula.oninput = (e) => {
-                    e.target.value = e.target.value.replace(/\D/g, '');
+                inputCedula.oninput = () => {
                     inputCedula.classList.remove('input-error');
+                    // No limpiar el errorSpan aquí: el sanitizador global (capture)
+                    // ya limpia el valor y muestra "Carácter no permitido" via setTimeout(0).
+                    // Limpiar incondicionalmente aquí cancelaría ese mensaje antes de que aparezca.
                     const errorSpan = document.getElementById('widget-cedula-error');
-                    if (errorSpan) errorSpan.style.display = 'none';
+                    if (errorSpan && errorSpan.textContent !== 'Carácter no permitido') {
+                        errorSpan.style.display = 'none';
+                    }
                 };
                 // onkeydown = asignación idempotente: siempre sobrescribe sin depender
                 // del atributo data-tr119-enter que puede viajar en el innerHTML al
