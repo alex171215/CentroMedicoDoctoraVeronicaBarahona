@@ -492,9 +492,11 @@ export function createCitas() {
                         // Consumir el dato para que no quede residual
                         sessionStorage.removeItem('temp_datos_recuperacion');
                     } catch (e) { }
-                } else if (!this.modoProxy) {
+                } else {
                     // Restaurar campos si el usuario volvió desde el paso 4 (navegación hacia atrás).
-                    // NO restaurar en modo proxy: el formulario debe aparecer vacío para el familiar.
+                    // Aplica tanto para titular como para modo proxy: si el usuario ya llenó
+                    // los datos del familiar y vuelve desde revisión, debe ver lo que escribió.
+                    // El vaciado inicial en avanzarPaso() ya garantiza que el proxy empiece limpio.
                     const retornoData = sessionStorage.getItem('citas_paso3_retorno');
                     if (retornoData) {
                         try {
@@ -3153,6 +3155,8 @@ export function createCitas() {
         // Activar modo proxy desde el resumen
         activarProxyDesdeResumen() {
             this.modoProxy = true;
+            // Descartar datos guardados del paso 3 anterior para que el familiar empiece limpio.
+            sessionStorage.removeItem('citas_paso3_retorno');
             // Limpiar los campos del Paso 3 y mostrarlo
             ['citas-nombres', 'citas-cedula', 'citas-celular'].forEach(id => {
                 const el = document.getElementById(id);
