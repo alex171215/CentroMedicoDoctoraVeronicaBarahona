@@ -1468,7 +1468,7 @@ export function createCitas() {
             }
 
             if (citaColision && !esColisionMismaCita) {
-                this._mostrarModalColision(citaColision, fecha, hora, fechaISO);
+                this._mostrarModalColision(citaColision, fecha, hora, fechaISO, duracionNueva);
                 return;
             }
 
@@ -1516,7 +1516,7 @@ export function createCitas() {
         },
         // Dentro de app.citas
 
-        _mostrarModalColision(cita, fecha, hora, fechaISO) {
+        _mostrarModalColision(cita, fecha, hora, fechaISO, duracionNueva = 30) {
             let modal = document.getElementById('modal-colision-cita');
             if (modal) modal.remove();
 
@@ -1537,9 +1537,17 @@ export function createCitas() {
             const nombreMedico = cita.medico || 'No especificado';
             const especialidad = cita.especialidad || 'la especialidad';
 
-            // Sugerencia de hora alternativa
+            // Calcular duración real de la cita previa para sugerir un buen horario
+            const db = JSON.parse(localStorage.getItem('sanitasFam_db'));
+            let duracionExistente = 30;
+            if (db && db.cartera_especialistas) {
+                const esp = db.cartera_especialistas.find(e => e.especialidad === cita.especialidad);
+                if (esp) duracionExistente = esp.duracion_minutos || 30;
+            }
+
+            // Sugerencia de hora alternativa: Fin de la cita + 30 mins de traslado
             const [h, m] = hora.split(':').map(Number);
-            let minSugerido = h * 60 + m + 30; // 30 mins después
+            let minSugerido = h * 60 + m + duracionExistente + 30;
             let hSug = Math.floor(minSugerido / 60);
             let mSug = minSugerido % 60;
             const horaSugerida = `${String(hSug).padStart(2, '0')}:${String(mSug).padStart(2, '0')}`;
@@ -1843,8 +1851,8 @@ export function createCitas() {
             document.querySelectorAll('#citas-calendar-grid .time-slot--selected').forEach(el => el.classList.remove('time-slot--selected'));
             this.horaSeleccionada = null;
 
-            // Regresar al paso 2 si estaba en el 3
-            if (this.pasoActual === 3) {
+            // Regresar al paso 2 si estaba en el 3 o 4
+            if (this.pasoActual === 3 || this.pasoActual === 4) {
                 // 1. Leer los datos del formulario ANTES de que mostrarPaso limpie el DOM.
                 //    El usuario eligió otra hora por colisión — no debería perder lo que ya escribió.
                 const nom = document.getElementById('citas-nombres')?.value.trim() || '';
@@ -1867,6 +1875,15 @@ export function createCitas() {
                     sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
                 }
             }
+
+            // TR-FIX: Restaurar imagen del médico explícitamente en caso de problemas de carga (SPA navigation)
+            try {
+                const preData = sessionStorage.getItem('reservaCita_preseleccion');
+                if (preData) {
+                    const data = JSON.parse(preData);
+                    this.prepararResumenMedico(data.medico, data.especialidad, data.imagen_url, data.id_especialista);
+                }
+            } catch(e) {}
             
             this.generarCalendario();
         },
@@ -4563,33 +4580,8 @@ export function createCitas() {
             const btnElegir = document.getElementById('btn-buffer-elegir-otro');
             if (btnElegir) {
                 btnElegir.onclick = () => {
-                    // Leer datos del paso 3 ANTES de que mostrarPaso limpie el DOM.
-                    const nom = document.getElementById('citas-nombres')?.value.trim() || '';
-                    const ced = document.getElementById('citas-cedula')?.value.trim() || '';
-                    const cel = document.getElementById('citas-celular')?.value.trim() || '';
-
                     this.cerrarModalBuffer();
-                    // Resetear selección de hora y retroceder al calendario
-                    document.querySelectorAll('#citas-calendar-grid .time-slot--selected')
-                        .forEach(el => el.classList.remove('time-slot--selected'));
-                    this.horaSeleccionada = null;
-
-                    // Limpiar historial a solo pasos anteriores al calendario (0 y 1),
-                    // para que Volver desde el paso 2 lleve al paso 1 (médicos) correctamente.
-                    this.historialPasos = this.historialPasos.filter(p => p < 2);
-                    this._suppressHistorialPush = true;
-                    try {
-                        this.mostrarPaso(2);
-                    } finally {
-                        this._suppressHistorialPush = false;
-                    }
-
-                    // Re-guardar para que al volver al paso 3 los campos aparezcan llenos.
-                    if (nom || ced || cel) {
-                        sessionStorage.setItem('citas_paso3_retorno', JSON.stringify({ nombres: nom, cedula: ced, celular: cel }));
-                    }
-
-                    this.generarCalendario();
+                    this.resetearSeleccionOtraHora();
                 };
             }
 
