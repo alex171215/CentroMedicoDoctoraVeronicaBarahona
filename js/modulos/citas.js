@@ -2278,9 +2278,9 @@ export function createCitas() {
                         // Actualizar el botón de confirmación
                         const btnConfirmar = document.getElementById('btn-confirmar-cita');
                         if (btnConfirmar) {
-                            btnConfirmar.style.opacity = '1';
-                            btnConfirmar.style.pointerEvents = 'auto';
                             btnConfirmar.disabled = false;
+                            btnConfirmar.removeAttribute('aria-disabled');
+                            btnConfirmar.classList.remove('btn--disabled-state');
                         }
                         break;
                     }
@@ -3603,9 +3603,9 @@ export function createCitas() {
                 this.deshabilitarHorarios();
                 const btnConfirmar = document.getElementById('btn-confirmar-cita');
                 if (btnConfirmar) {
-                    btnConfirmar.style.opacity = '1';
-                    btnConfirmar.style.pointerEvents = 'auto';
                     btnConfirmar.disabled = false;
+                    btnConfirmar.removeAttribute('aria-disabled');
+                    btnConfirmar.classList.remove('btn--disabled-state');
                 }
             } else {
                 this._bloquearConfirmar();
@@ -4075,19 +4075,20 @@ export function createCitas() {
             if (fechaISO) this.fechaISOSeleccionada = fechaISO;
             const btnConfirmar = document.getElementById('btn-confirmar-cita');
             if (btnConfirmar) {
-                btnConfirmar.style.opacity = '1';
-                btnConfirmar.style.pointerEvents = 'auto';
                 btnConfirmar.disabled = false;
+                btnConfirmar.removeAttribute('aria-disabled');
+                btnConfirmar.classList.remove('btn--disabled-state');
             }
             this._persistirProgresoCita();
         },
 
+        /** TR-129: Bloquea #btn-confirmar-cita usando semántica nativa en lugar de CSS inline. */
         _bloquearConfirmar() {
             const btnConfirmar = document.getElementById('btn-confirmar-cita');
             if (btnConfirmar) {
-                btnConfirmar.style.opacity = '0.5';
-                btnConfirmar.style.pointerEvents = 'none';
-                btnConfirmar.disabled = true;   // ← nuevo
+                btnConfirmar.disabled = true;
+                btnConfirmar.setAttribute('aria-disabled', 'true');
+                btnConfirmar.classList.add('btn--disabled-state');
             }
         },
 
@@ -4256,15 +4257,16 @@ export function createCitas() {
             }
         },
 
-        // TR-99.2 / TR-99.3: Limpieza efímera al escribir (Heurística #9).
-        // Oculta el span de error y devuelve el input a apariencia neutra sin
-        // invocar validadores ni alterar #btn-citas-siguiente.
+        // TR-99.2 / TR-99.3 + TR-131: Limpieza efímera al escribir (Heurística #9).
+        // Oculta el span de error, devuelve el input a apariencia neutra y
+        // resetea aria-invalid a 'false' para mantener el árbol de accesibilidad consistente.
         _limpiarEstadoVisualInputTR99(input, errorId) {
             if (!input) return;
             input.classList.remove('input-error', 'input-success', 'input-rechazado');
             input.style.removeProperty('border-color');
             input.style.removeProperty('background-color');
             input.style.removeProperty('box-shadow');
+            input.setAttribute('aria-invalid', 'false');
             const errorEl = document.getElementById(errorId);
             if (errorEl) {
                 errorEl.style.display = 'none';
@@ -4272,15 +4274,17 @@ export function createCitas() {
             }
         },
 
-        // Helper único: aplica borde de color y mensaje de error al campo.
+        /** TR-131: Helper único — aplica borde de color, aria-invalid y mensaje de error al campo. */
         _setEstadoCampo(input, errorId, esValido, mensaje = '') {
             if (!input) return;
             const error = document.getElementById(errorId);
             if (esValido) {
                 input.style.borderColor = '#0DA99F';
+                input.setAttribute('aria-invalid', 'false');
                 if (error) error.style.display = 'none';
             } else {
                 input.style.borderColor = '#e74c3c';
+                input.setAttribute('aria-invalid', 'true');
                 if (error) {
                     if (mensaje) error.textContent = mensaje;
                     error.style.display = 'block';

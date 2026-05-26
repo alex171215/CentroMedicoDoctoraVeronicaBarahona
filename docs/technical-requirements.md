@@ -941,3 +941,20 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 1. **Homogeneidad Absoluta del Atributo Identificador:** Se prohíbe de forma estricta la coexistencia de múltiples tipos de documentos de identidad con máscaras de caracteres divergentes. Todo el ecosistema de la MPA (Formularios de Registro, Inicio de Sesión y Widget de Consulta de Invitados) operará de forma unificada y exclusiva bajo el identificador 'Cédula de Identidad'.
 2. **Ergonomía de Entrada Móvil y Sanitización Directa:** Todos los inputs de cédula (`#reg-cedula`, `#login-cedula`, `#widget-cedula`) incorporarán de forma obligatoria los atributos `inputmode="numeric"`, `maxlength="10"` y `pattern="[0-9]*"` para invocar de forma automática el teclado numérico nativo en dispositivos móviles. Los escuchadores de eventos interceptarán la entrada para descartar inmediatamente cualquier carácter alfabético o símbolo especial.
 3. **Validación Determinista mediante Módulo 10:** Se implementará una subrutina algorítmica centralizada para procesar el cálculo del dígito verificador ecuatoriano (Módulo 10). El sistema denegará de forma incondicional el paso en los wizards o la ejecución de promesas asíncronas hacia Supabase si el número de cédula provisto no supera la verificación matemática del algoritmo, desplegando un microcopy semántico de advertencia.
+
+
+## TR-129: Semántica Nativa de Estados de Bloqueo (WCAG 2.1.1 / H5)
+1. **Atributo Homogéneo:** Queda prohibido simular la desactivación de botones críticos (como `#btn-confirmar-cita`) mediante CSS inline (`pointer-events: none`). El elemento portará nativamente el atributo `disabled` en el HTML de origen.
+2. **Mutación de Estado en JS:** La lógica de control en `js/modulos/citas.js` habilitará o deshabilitará el paso final mutando directamente la propiedad booleana `.disabled = true/false` del nodo, sincronizando el árbol de accesibilidad.
+
+## TR-130: Operabilidad Bidireccional de Inputs de Control (WCAG 2.1.1 - Teclado)
+1. **Gatillos por Teclado:** Los campos de texto de solo lectura utilizados como selectores flotantes (como `#reg-sexo`) interceptarán obligatoriamente el evento `keydown`.
+2. **Mapeo de Teclas de Confirmación:** Si el usuario enfoca el elemento mediante navegación por tabulación y presiona la tecla `Enter` o la `Barra Espaciadora`, el script detendrá el comportamiento por defecto (`preventDefault`) y disparará la subrutina de apertura del modal correspondiente (`abrirModalSexo`).
+
+## TR-131: Estado Dinámico de Invalidez Semántica (WCAG 3.3.1 - Identificación de Errores)
+1. **Inyección de aria-invalid:** Las rutinas globales de validación del lado del cliente ejecutadas en el evento `blur` (tanto en `js/main.js` como en módulos específicos) actualizarán sincrónicamente el atributo `aria-invalid`.
+2. **Sincronización:** Cuando un campo falle la regla de negocio, se inyectará de forma explícita `setAttribute('aria-invalid', 'true')`. Al corregirse la infracción, mutará a `setAttribute('aria-invalid', 'false')`.
+
+## TR-132: Encapsulamiento de Foco en Modales Activos (WCAG 2.4.3 - Orden del Foco)
+1. **Focus Trap Reutilizable:** Se implementará una función helper ligera y omnipresente en `js/utilidades.js` para atrapar el foco táctil y por teclado dentro de cualquier modal activo (`#modal-sexo`, `#modal-consulta-invitado`, `#modal-perfil`).
+2. **Ciclo de Tabulación Cerrado:** Al estar abierto el contenedor flotante, el escuchador de eventos detectará la tecla `Tab` o `Shift + Tab`. Si el foco intenta abandonar el modal pasando el último o el primer elemento interactivo, el puntero del DOM será re-enrutado de forma circular hacia el extremo opuesto del mismo contenedor.

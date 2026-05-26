@@ -1206,6 +1206,24 @@ const app = {
                 }
             }
         });
+
+        // ── 4. Focus Guard (captura): redirige el foco si escapa del modal ──
+        // Necesario porque los radio buttons agrupados (mismo `name`) funcionan como
+        // un solo Tab stop: el navegador mueve el foco fuera del modal antes de que
+        // el listener keydown pueda interceptarlo. focusin en fase capture actúa
+        // sobre el nuevo destino inmediatamente después de que el navegador lo fijó.
+        document.addEventListener('focusin', (e) => {
+            const modal = _modalActivo();
+            if (!modal) return;                         // ningún modal activo
+            if (modal.contains(e.target)) return;      // foco dentro del modal — OK
+            // El foco escapó al exterior: redirigir al primer elemento del modal
+            const focusables = Array.from(modal.querySelectorAll(FOCUSABLES))
+                .filter(el => {
+                    const s = window.getComputedStyle(el);
+                    return s.display !== 'none' && s.visibility !== 'hidden' && !el.disabled;
+                });
+            if (focusables.length) focusables[0].focus();
+        }, true); // true = fase capture, intercepta antes que otros focusin handlers
     },
 
     scrollAlFooter: function () {
@@ -2860,15 +2878,78 @@ const app = {
         // ------------------------------------------------------------------
         abrirModalSexo() {
             const m = document.getElementById('modal-sexo');
-            if (m) {
-                m.style.display = 'flex';
-                // TR-53: ancla en historial para que Atrás nativo cierre el modal
-                history.pushState({ tipo: 'modal', id: 'modal-sexo' }, '', '#modal');
+            if (!m) return;
+            m.style.display = 'flex';
+            // TR-53: ancla en historial para que Atrás nativo cierre el modal
+            history.pushState({ tipo: 'modal', id: 'modal-sexo' }, '', '#modal');
+
+            // TR-132: Patrón Centinela (Sentinel Node) ─────────────────────────
+            // Los radio buttons con el mismo `name` son UN SOLO Tab-stop. Sin
+            // centinelas, Tab desde el grupo salta directamente fuera del modal
+            // y los listeners keydown/focusin no lo alcanzan a tiempo.
+            //
+            // Se inyectan dos nodos invisibles en los extremos del .reg-modal:
+            //   sentTop    → intercepta Shift+Tab desde el primer elemento real
+            //   sentBottom → intercepta Tab desde el grupo de radios (último stop)
+            //
+            // Al recibir foco redirigen inmediatamente dentro del modal.
+            const inner    = m.querySelector('.reg-modal');
+            const closeBtn = m.querySelector('.reg-modal__close');
+
+            const _mkSentinel = () => {
+                const s = document.createElement('span');
+                s.tabIndex = 0;
+                s.setAttribute('aria-hidden', 'true');
+                s.style.cssText = [
+                    'position:absolute', 'width:1px', 'height:1px',
+                    'overflow:hidden', 'opacity:0', 'outline:none',
+                    'border:none', 'padding:0', 'margin:0'
+                ].join(';');
+                return s;
+            };
+
+            // Centinela SUPERIOR ─────────────────────────────────────────────
+            // Activado por: Shift+Tab desde el botón Cerrar (primer elemento real).
+            // Acción: lleva el foco al último <label> del modal (Mujer).
+            // Los <label> tienen tabindex=0 y son los Tab-stops individuales;
+            // los <input type="radio"> tienen tabindex=-1 (fuera del Tab order).
+            const sentTop = _mkSentinel();
+            sentTop.addEventListener('focus', () => {
+                const options = m.querySelectorAll('.reg-modal__option[tabindex="0"]');
+                (options.length ? options[options.length - 1] : closeBtn).focus();
+            });
+
+            // Centinela INFERIOR ─────────────────────────────────────────────
+            // Activado por: Tab desde el grupo de radios (único Tab-stop del grupo).
+            // Acción: lleva el foco de regreso al botón Cerrar.
+            const sentBottom = _mkSentinel();
+            sentBottom.addEventListener('focus', () => {
+                (closeBtn || m.querySelector('button')).focus();
+            });
+
+            if (inner) {
+                inner.insertBefore(sentTop, inner.firstChild);
+                inner.appendChild(sentBottom);
             }
+            this._focusSentinels  = [sentTop, sentBottom];
+            this._triggerModalSexo = document.getElementById('reg-sexo');
+
+            // Auto-enfocar el botón Cerrar al abrir (primer elemento real del modal)
+            requestAnimationFrame(() => { if (closeBtn) closeBtn.focus(); });
         },
         cerrarModalSexo() {
             const m = document.getElementById('modal-sexo');
             if (m) m.style.display = 'none';
+            // TR-132: eliminar centinelas inyectados
+            if (this._focusSentinels) {
+                this._focusSentinels.forEach(s => { if (s.parentNode) s.remove(); });
+                this._focusSentinels = null;
+            }
+            // TR-132: retornar foco al campo que abrió el modal
+            if (this._triggerModalSexo && typeof this._triggerModalSexo.focus === 'function') {
+                this._triggerModalSexo.focus();
+            }
+            this._triggerModalSexo = null;
         },
         seleccionarSexo(sexo) {
             this._sexo = sexo;
