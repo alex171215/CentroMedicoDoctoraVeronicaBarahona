@@ -1861,7 +1861,7 @@ export function createCitas() {
 
                 // 2. Limpiar historial a solo pasos anteriores al calendario (0 y 1)
                 this.historialPasos = this.historialPasos.filter(p => p < 2);
-                
+
                 // 3. Navegar al calendario suprimiendo el push
                 this._suppressHistorialPush = true;
                 try {
@@ -1883,8 +1883,8 @@ export function createCitas() {
                     const data = JSON.parse(preData);
                     this.prepararResumenMedico(data.medico, data.especialidad, data.imagen_url, data.id_especialista);
                 }
-            } catch(e) {}
-            
+            } catch (e) { }
+
             this.generarCalendario();
         },
 
@@ -2671,7 +2671,7 @@ export function createCitas() {
                             border-radius:8px;padding:10px 14px;margin-bottom:14px;
                             display:flex;align-items:center;gap:10px;font-size:0.9rem;">
                     <i class="fa-solid fa-shield-halved" aria-hidden="true" style="color:#0DA99F;font-size:1.2rem;"></i>
-                    <span><strong>Identidad protegida.</strong> Solo cambia la fecha y hora de la cita.</span>
+                    <span><strong>Datos bloqueados por seguridad.</strong> Durante un reagendamiento solo es posible cambiar la fecha y hora.</span>
                 </div>
                 <div class="salud-det__row"><span class="salud-det__label">Especialidad</span><span class="salud-det__val">${escapeHtmlCita(cita.especialidad)}</span></div>
                 <div class="salud-det__row"><span class="salud-det__label">Médico</span><span class="salud-det__val">${escapeHtmlCita(cita.medico || 'No especificado')}</span></div>
