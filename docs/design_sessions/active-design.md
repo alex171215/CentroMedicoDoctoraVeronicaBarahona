@@ -1815,3 +1815,149 @@ Erradicar la opción de "Pasaporte" del formulario de registro y del inicio de s
 - Campos que ya cumplían TR-128 (`#citas-cedula`, `#widget-cedula`) → **no modificados**
 
 ### Estado: ✅ CERRADO — TR-128 implementado. Toda la plataforma opera bajo Cédula de Identidad ecuatoriana con Módulo 10, teclado numérico móvil y sanitización en tiempo real. La opción Pasaporte ha sido completamente erradicada del DOM y de la lógica de validación.
+
+---
+
+## Blindaje de Accesibilidad Semántica, Operabilidad por Teclado y Focus Trap TR-129 al 132
+
+### Fecha: 2026-05-26
+
+### Objetivo
+
+Resolución de 4 brechas críticas de usabilidad y operabilidad semántica detectadas en la auditoría de comportamiento técnico del sistema. Las correcciones son pinpoint y aisladas; no se alteraron esquemas Supabase, el túnel de reagendamiento, el enmascaramiento de contraseñas ni la inyección de imágenes WebP.
+
+---
+
+### TR-129 — Semántica Nativa de Estados de Bloqueo (WCAG 2.1.1 / H5)
+
+**Archivos modificados:** `citas.html`, `js/modulos/citas.js`, `css/styles.css`
+
+**Problema:** El botón `#btn-confirmar-cita` simulaba su estado deshabilitado mediante `style="opacity: 0.5; pointer-events: none;"` inline. Para los lectores de pantalla y el árbol de accesibilidad, el botón permanecía activo y operable.
+
+**Cambios implementados:**
+
+1. **`citas.html`** — Se eliminó el estilo inline y se añadieron los atributos nativos `disabled` y `aria-disabled="true"`, más la clase semántica `btn--disabled-state`.
+
+2. **`js/modulos/citas.js`** — Los 4 puntos de mutación del botón fueron migrados:
+   - **3 puntos de activación** (líneas 2279-2284, 3604-3609, 4076-4081): Eliminadas mutaciones `style.opacity`/`style.pointerEvents`; ahora ejecutan `disabled = false`, `removeAttribute('aria-disabled')` y `classList.remove('btn--disabled-state')`.
+   - **`_bloquearConfirmar()`** (línea 4085): Eliminadas mutaciones de estilo; ahora ejecuta `disabled = true`, `setAttribute('aria-disabled', 'true')` y `classList.add('btn--disabled-state')`.
+
+3. **`css/styles.css`** — Se añadió la regla `.btn--disabled-state, .btn:disabled, .btn[disabled]` con `opacity: 0.5; cursor: not-allowed; pointer-events: none;` para gestionar el aspecto visual desde el cascade CSS.
+
+```diff
+// citas.html — antes
+- style=" opacity: 0.5; pointer-events: none; font-weight: bold;"
+// citas.html — después
++ disabled aria-disabled="true" class="btn btn--primario btn--disabled-state"
+
+// citas.js — _bloquearConfirmar() — antes
+- btnConfirmar.style.opacity = '0.5';
+- btnConfirmar.style.pointerEvents = 'none';
++ btnConfirmar.disabled = true;
++ btnConfirmar.setAttribute('aria-disabled', 'true');
++ btnConfirmar.classList.add('btn--disabled-state');
+```
+
+---
+
+### TR-130 — Operabilidad Bidireccional de Inputs de Control (WCAG 2.1.1 — Teclado)
+
+**Archivo modificado:** `registro.html`
+
+**Problema:** El campo `#reg-sexo` (un `<input type="text" readonly>` que abre un modal flotante) solo respondía a `onclick`. Un usuario que navegara con `Tab` y presionara `Enter` o `Espacio` no podía abrir el modal, violando WCAG 2.1.1 (Teclado).
+
+**Cambio implementado:** Se añadió el atributo `onkeydown` directamente al input:
+
+```diff
+- onclick="app.registro.abrirModalSexo()"
++ onclick="app.registro.abrirModalSexo()"
++ onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.registro.abrirModalSexo();}"
+```
+
+El `event.preventDefault()` bloquea el comportamiento por defecto de la Barra Espaciadora (desplazamiento de página) al estar el foco sobre el input.
+
+---
+
+### TR-131 — Estado Dinámico de Invalidez Semántica (WCAG 3.3.1 — Identificación de Errores)
+
+**Archivo modificado:** `js/modulos/citas.js`
+
+**Problema:** Las rutinas de validación del Paso 3 de agendamiento aplicaban bordes rojos/verdes y mostraban spans de error de forma visual, pero ningún campo `<input>` recibía el atributo estándar `aria-invalid`. Los lectores de pantalla carecían de una señal programática del estado de validez.
+
+**Cambios implementados en los 2 helpers canónicos de validación:**
+
+1. **`_setEstadoCampo(input, errorId, esValido, mensaje)`** — La función central que pinta el borde y muestra/oculta el span de error ahora también inyecta `aria-invalid`:
+   - Rama válida: `input.setAttribute('aria-invalid', 'false')`
+   - Rama inválida: `input.setAttribute('aria-invalid', 'true')`
+
+2. **`_limpiarEstadoVisualInputTR99(input, errorId)`** — La función de limpieza efímera al escribir ahora también ejecuta `input.setAttribute('aria-invalid', 'false')` para mantener el árbol de accesibilidad consistente mientras el usuario corrige.
+
+```diff
+// _setEstadoCampo — rama válida
+  input.style.borderColor = '#0DA99F';
++ input.setAttribute('aria-invalid', 'false');
+
+// _setEstadoCampo — rama inválida
+  input.style.borderColor = '#e74c3c';
++ input.setAttribute('aria-invalid', 'true');
+
+// _limpiarEstadoVisualInputTR99
+  input.style.removeProperty('box-shadow');
++ input.setAttribute('aria-invalid', 'false');
+```
+
+---
+
+### TR-132 — Encapsulamiento de Foco en Modales Activos (WCAG 2.4.3 — Orden del Foco)
+
+**Archivos modificados:** `js/modulos/utilidades.js`, `js/main.js`
+
+**Problema:** Los modales `#modal-sexo`, `#modal-consulta-invitado` y `#modal-perfil` declaraban `role="dialog" aria-modal="true"` pero carecían de un mecanismo en JavaScript que impidiera al foco escapar del modal al presionar `Tab` repetidamente.
+
+**Nota:** Se detectó que `_initModalAccessibility()` en `main.js` (líneas 1115-1208) ya implementaba un Focus Trap global basado en clases CSS de overlay (`.modal-overlay`, `.perfil-overlay`, `.reg-modal-overlay`). La presente implementación complementa esta lógica añadiendo:
+
+1. **`utilidades.initFocusTrap(modalId, trigger)`** — Nueva función pública en `js/modulos/utilidades.js`:
+   - Localiza todos los elementos focusables visibles dentro del modal.
+   - Auto-enfoca el primer elemento al abrir (via `requestAnimationFrame`).
+   - Instala un listener `keydown` sobre el nodo raíz del modal que implementa el ciclo cerrado: `Tab` en último elemento → vuelve al primero; `Shift+Tab` en primer elemento → va al último.
+   - **Retorna una función de limpieza** que: (a) remueve el listener `keydown`, (b) devuelve el foco al elemento `trigger` que disparó la apertura.
+
+2. **Integración en `#modal-sexo`** — `abrirModalSexo()` en `main.js` ahora:
+   - Llama a `utilidades.initFocusTrap('modal-sexo', trigger)` donde `trigger` es `document.getElementById('reg-sexo')`.
+   - Guarda la función de limpieza en `this._cleanupFocusTrapSexo`.
+   - `cerrarModalSexo()` llama a la función de limpieza, lo que libera el listener y retorna el foco al `#reg-sexo`.
+
+```javascript
+// Patrón de uso:
+abrirModalSexo() {
+    m.style.display = 'flex';
+    const trigger = document.getElementById('reg-sexo');
+    this._cleanupFocusTrapSexo = utilidades.initFocusTrap('modal-sexo', trigger);
+},
+cerrarModalSexo() {
+    m.style.display = 'none';
+    if (typeof this._cleanupFocusTrapSexo === 'function') {
+        this._cleanupFocusTrapSexo();
+        this._cleanupFocusTrapSexo = null;
+    }
+},
+```
+
+---
+
+### Verificación de Integridad
+
+| Archivo | Chequeo | Resultado |
+|---|---|---|
+| `js/main.js` | `Get-Content | node --input-type=module --check` | ✅ Sin errores |
+| `js/modulos/citas.js` | `Get-Content | node --input-type=module --check` | ✅ Sin errores |
+| `js/modulos/utilidades.js` | `Get-Content | node --input-type=module --check` | ✅ Sin errores |
+
+**Restricciones preservadas:**
+- ✅ Esquemas y promesas Supabase: **intactos**
+- ✅ Túnel aislado de reagendamiento: **intacto**
+- ✅ Enmascaramiento CSS de contraseñas: **intacto**
+- ✅ Inyección dinámica de fotos WebP locales: **intacta**
+- ✅ Sin herramientas destructivas (replace.js, reset): modificaciones manuales y pinpoint
+
+### Estado: ✅ CERRADO — TR-129 al TR-132 implementados. El sistema cumple WCAG 2.1.1 (Teclado), WCAG 3.3.1 (Identificación de Errores) y WCAG 2.4.3 (Orden del Foco) en los puntos críticos auditados.

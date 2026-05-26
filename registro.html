@@ -153,7 +153,8 @@
                                 <div class="reg-select-wrap">
                                     <input type="text" id="reg-sexo" class="login-field__input reg-select-input"
                                         readonly placeholder="Seleccionar…" aria-haspopup="dialog" aria-required="true"
-                                        aria-describedby="reg-sexo-error" onclick="app.registro.abrirModalSexo()">
+                                        aria-describedby="reg-sexo-error" onclick="app.registro.abrirModalSexo()"
+                                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();app.registro.abrirModalSexo();}">
                                     <i class="fa-solid fa-chevron-down reg-select-arrow" aria-hidden="true"></i>
                                 </div>
                                 <span id="reg-sexo-error" class="login-field__error" role="alert"
@@ -303,13 +304,15 @@
                     </button>
                 </div>
                 <ul class="reg-modal__list" role="listbox" aria-label="Sexo">
-                    <li><label class="reg-modal__option">
-                            <input type="radio" name="sexo-radio" value="Hombre"
+                    <li><label class="reg-modal__option" tabindex="0" role="radio"
+                                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
+                            <input type="radio" name="sexo-radio" value="Hombre" tabindex="-1"
                                 onchange="app.registro.seleccionarSexo('Hombre')">
                             <span class="reg-modal__radio-circle"></span>Hombre
                         </label></li>
-                    <li><label class="reg-modal__option">
-                            <input type="radio" name="sexo-radio" value="Mujer"
+                    <li><label class="reg-modal__option" tabindex="0" role="radio"
+                                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
+                            <input type="radio" name="sexo-radio" value="Mujer" tabindex="-1"
                                 onchange="app.registro.seleccionarSexo('Mujer')">
                             <span class="reg-modal__radio-circle"></span>Mujer
                         </label></li>

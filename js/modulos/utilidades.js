@@ -579,5 +579,78 @@ export const utilidades = {
             console.error('Error al generar PDF de receta:', e);
             alert('Error al generar PDF. Asegúrate de que la librería jsPDF esté cargada.');
         }
+    },
+
+    /**
+     * TR-132: Encapsulamiento de Foco en Modales Activos (WCAG 2.4.3)
+     *
+     * Instala un ciclo de tabulación cerrado dentro de `modalId`.
+     * Llama a esta función al ABRIR el modal y guarda el retorno (cleanup fn).
+     * Llama a la función retornada al CERRAR el modal para liberar el listener
+     * y devolver el foco al elemento que disparó la apertura.
+     *
+     * @param {string}      modalId   — id del nodo raíz del modal
+     * @param {Element|null} trigger  — elemento que invocó la apertura (para retornar foco)
+     * @returns {Function}            — función de limpieza (llamar al cerrar)
+     */
+    initFocusTrap(modalId, trigger = null) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return () => {};
+
+        const FOCUSABLE_SELECTORS = [
+            'a[href]',
+            'button:not([disabled])',
+            'input:not([disabled])',
+            'select:not([disabled])',
+            'textarea:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])'
+        ].join(', ');
+
+        /** Retorna los elementos focusables visibles dentro del modal */
+        const getFocusables = () =>
+            Array.from(modal.querySelectorAll(FOCUSABLE_SELECTORS)).filter(el => {
+                const s = window.getComputedStyle(el);
+                return s.display !== 'none' && s.visibility !== 'hidden' && !el.disabled;
+            });
+
+        // Enfocar el primer elemento al abrir
+        requestAnimationFrame(() => {
+            const focusables = getFocusables();
+            if (focusables.length) focusables[0].focus();
+        });
+
+        // Handler de teclado: Tab y Shift+Tab ciclan dentro del modal
+        const onKeydown = (e) => {
+            if (e.key !== 'Tab') return;
+            const focusables = getFocusables();
+            if (!focusables.length) { e.preventDefault(); return; }
+
+            const first = focusables[0];
+            const last  = focusables[focusables.length - 1];
+
+            if (e.shiftKey) {
+                // Shift+Tab: si estamos en el primero (o fuera del modal), ir al último
+                if (document.activeElement === first || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                // Tab: si estamos en el último (o fuera del modal), ir al primero
+                if (document.activeElement === last || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+
+        modal.addEventListener('keydown', onKeydown);
+
+        // Devuelve la función de limpieza: retirar listener y restaurar foco
+        return () => {
+            modal.removeEventListener('keydown', onKeydown);
+            if (trigger && typeof trigger.focus === 'function') {
+                trigger.focus();
+            }
+        };
     }
 };

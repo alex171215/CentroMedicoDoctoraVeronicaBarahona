@@ -244,6 +244,15 @@ textarea:focus-visible {
     /* Rojo mÃ¡s oscuro al hacer hover */
 }
 
+/* TR-129: Estado deshabilitado semántico — reemplaza el inline opacity/pointer-events */
+.btn--disabled-state,
+.btn:disabled,
+.btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .enlace-accion {
     color: var(--action-color);
     text-decoration: underline;
@@ -3648,6 +3657,23 @@ a[href^="mailto:"]:focus-visible,
     height: 10px;
     border-radius: 50%;
     background: var(--action-color);
+}
+
+/* TR-132 / WCAG 2.4.7 — Foco visible en opciones de radio (inputs nativos ocultos)
+   Los <label> son ahora los elementos Tab-focusables (tabindex=0).
+   :focus-visible aplica cuando el label recibe foco por teclado (no por clic). */
+.reg-modal__option:focus-visible {
+    background: #edf9f8;
+    outline: 3px solid var(--action-color, #0DA99F);
+    outline-offset: -3px;
+    border-radius: 4px;
+}
+
+/* Foco visible en el botón Cerrar del modal */
+.reg-modal__close:focus-visible {
+    outline: 3px solid var(--action-color, #0DA99F);
+    outline-offset: 2px;
+    color: var(--text-main);
 }
 
 @media (max-width: 767px) {
