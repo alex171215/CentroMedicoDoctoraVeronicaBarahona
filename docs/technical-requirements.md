@@ -958,3 +958,8 @@ Para prevenir errores lógicos y cumplir con la legalidad de uso del software:
 ## TR-132: Encapsulamiento de Foco en Modales Activos (WCAG 2.4.3 - Orden del Foco)
 1. **Focus Trap Reutilizable:** Se implementará una función helper ligera y omnipresente en `js/utilidades.js` para atrapar el foco táctil y por teclado dentro de cualquier modal activo (`#modal-sexo`, `#modal-consulta-invitado`, `#modal-perfil`).
 2. **Ciclo de Tabulación Cerrado:** Al estar abierto el contenedor flotante, el escuchador de eventos detectará la tecla `Tab` o `Shift + Tab`. Si el foco intenta abandonar el modal pasando el último o el primer elemento interactivo, el puntero del DOM será re-enrutado de forma circular hacia el extremo opuesto del mismo contenedor.
+
+
+## TR-133: Accesibilidad de Navegación Continua (Sticky Header - H7)
+1. **Anclaje No Destructivo (Sticky):** El contenedor principal de la cabecera unificada empleará la propiedad CSS `position: sticky; top: 0;` para fijarse al límite superior del viewport durante el desplazamiento, preservando el flujo natural del DOM sin generar saltos abruptos (Layout Shifts).
+2. **Jerarquía de Capas (Z-Index Escalonado):** Se asignará un valor de elevación controlado (ej. `z-index: 50;`) al header para garantizar que flote sobre el contenido estándar (tarjetas, calendarios), pero garantizando que permanezca subordinado a la capa de superposición de modales y diálogos (`z-index: 100+`) para evitar colisiones visuales.

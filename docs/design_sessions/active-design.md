@@ -1,3 +1,60 @@
+## Implementación de Sticky Header TR-133
+
+### Fecha: 2026-05-27
+### Directiva: TR-133 — Navegación Continua (Reducción de Fricción de Navegación)
+### Archivo modificado: `css/styles.css`
+### Restricción: Solo CSS — cero cambios en `.html` ni `.js`
+
+---
+
+### Objetivo
+
+Implementar un header con anclaje elástico (`position: sticky`) que permanezca visible durante el scroll, garantizando acceso continuo a la navegación sin provocar saltos de layout (CLS — Cumulative Layout Shift).
+
+---
+
+### Cambios Aplicados en `css/styles.css`
+
+#### Bloque `.header` (TR-108 / TR-133)
+
+| Propiedad | Valor anterior | Valor TR-133 | Motivo |
+|---|---|---|---|
+| `position` | `sticky` ✅ | `sticky` ✅ | Ya cumplía — nunca `fixed` |
+| `top` | `0` ✅ | `0` ✅ | Ya cumplía |
+| `z-index` | `1000` | **`50`** | Rango medio per TR-133; todos los overlays de modal son ≥ 2000 |
+| `background-color` | `rgba(250, 252, 254, 0.95)` | **`var(--bg-main, #FAFCFE)`** | Fondo sólido puro — evita colisión visual de texto al hacer scroll |
+| `box-shadow` | `0 2px 8px rgba(0,0,0,0.04)` | **`0 2px 10px rgba(0,0,0,0.08)`** | Sombra inferior más visible para separar el header del contenido durante el scroll |
+
+---
+
+### Verificación de Jerarquía Z-Index (Protección de Modales)
+
+| Elemento | z-index | ¿Supera al header (50)? |
+|---|---|---|
+| `.header` | **50** | — |
+| `.perfil-overlay` | 2000 | ✅ |
+| `.modal-overlay` (UI Kit global, TR-47) | 2100 | ✅ |
+| `.reg-modal-overlay` (Registro) | 9000 | ✅ |
+| `.skip-link` | 10000 | ✅ |
+| `.bottom-nav` (fixed bottom) | 1000 | ✅ No colisiona (posición opuesta) |
+| `.header__nav-wrapper.active` (dropdown móvil) | 999 dentro del stacking context del header | ✅ Visible sobre contenido; bajo modales |
+
+**Garantía:** El header anclado (z-index: 50) jamás atraviesa ningún modal activo del sistema.
+
+---
+
+### Garantías de Integridad
+
+- ✅ **Sin cambios en `.html`**: Cero modificaciones de estructura de etiquetas.
+- ✅ **Sin cambios en `.js`**: Cero modificaciones en lógica de JavaScript.
+- ✅ **`position: sticky` (nunca `fixed`)**: Elimina Cumulative Layout Shift (CLS) conforme a TR-133.
+- ✅ **Fondo sólido**: Contraste garantizado — el texto del contenido no colisiona visualmente con el header al desplazarse.
+- ✅ **Dropdown móvil funcional**: El menú `.header__nav-wrapper.active` opera correctamente dentro del stacking context del header.
+
+### Estado: ✅ CERRADO — TR-133 implementado exclusivamente en `css/styles.css`.
+
+---
+
 # Sesión de Diseño: Corrección de Feedback de Cierre de Sesión (Static Injection)
 
 ## 1. Objetivo
