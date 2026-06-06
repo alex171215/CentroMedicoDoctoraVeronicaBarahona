@@ -940,16 +940,20 @@ export function createCitas() {
             }
             const nMed = this._contarMedicosParaProgreso();
             const multiMedico = nMed > 1;
+            // En el paso 0 aún no se ha elegido especialidad (nMed === 0): mostrar el paso
+            // "Médico" como paso potencial para mantener coherencia visual. Solo se omite
+            // cuando ya sabemos que la especialidad activa tiene exactamente 1 médico (nMed === 1).
+            const mostrarPasoMedico = multiMedico || nMed === 0;
             const omitirDatos = this._omitirDatosEnFlujo();
             const phases = [];
             phases.push({ label: 'Especialidad', domSteps: [0] });
-            if (multiMedico) phases.push({ label: 'Médico', domSteps: [1] });
+            if (mostrarPasoMedico) phases.push({ label: 'Médico', domSteps: [1] });
             phases.push({ label: 'Calendario', domSteps: [2] });
             if (!omitirDatos) phases.push({ label: 'Datos', domSteps: [3] });
             phases.push({ label: 'Revisión', domSteps: [4] });
             const bookingCount = phases.length;
             phases.push({ label: 'Confirmación', domSteps: [5] });
-            return { phases, bookingCount, multiMedico, omitirDatos, tunelReagendamiento: false };
+            return { phases, bookingCount, multiMedico: mostrarPasoMedico, omitirDatos, tunelReagendamiento: false };
         },
 
         _sincronizarEtiquetaVolverPaso4() {
