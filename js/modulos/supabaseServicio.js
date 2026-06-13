@@ -138,15 +138,11 @@ export async function logActividadUsabilidad(payload) {
     }
 }
 
-export async function fetchCitasMiSaludPorCedula(cedula) {
-    if (!cedula) return [];
+export async function garantizarCitasBaseUsabilidad(cedula) {
+    if (!cedula) return { data: [], necesitaRefetch: true };
 
-    let citasTotalesData = [];
-    let necesitaRefetch = true;
-
-    // --- INICIO JIT SEEDING (APROVISIONAMIENTO DINÁMICO) ---
     try {
-        // 1. Primero traemos TODAS las citas actuales del usuario en una sola petición
+        // 1. Traemos TODAS las citas actuales en una sola petición
         const { data: citasExistentes, error: errorLectura } = await supabase
             .from('citas')
             .select(SELECT_CITAS)
@@ -154,7 +150,7 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
 
         if (errorLectura) throw errorLectura;
         
-        citasTotalesData = citasExistentes || [];
+        let citasTotalesData = citasExistentes || [];
         const motivosExistentes = citasTotalesData.map(r => r.motivo);
         const inserciones = [];
 
@@ -184,7 +180,7 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
         }
 
         if (inserciones.length > 0) {
-            // 2. Bloqueo de Ejecución (Await Estricto) con captura explícita de errores
+            // 2. Bloqueo de Ejecución con captura explícita
             const { data: insertadas, error: insertError } = await supabase
                 .from('citas')
                 .insert(inserciones)
@@ -193,17 +189,27 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
             if (insertError) throw insertError;
 
             // 3. Optimización del Retorno Directo
-            // Combinamos la lectura inicial con los nuevos objetos retornados por la BD
             citasTotalesData = [...citasTotalesData, ...(insertadas || [])];
-            necesitaRefetch = false; 
+            return { data: citasTotalesData, necesitaRefetch: false };
         } else {
-            // Si no hubo inserciones, la lectura inicial de arriba es la definitiva
-            necesitaRefetch = false;
+            return { data: citasTotalesData, necesitaRefetch: false };
         }
     } catch (e) {
         console.warn('[JIT Seeding] No se pudo aprovisionar citas base de forma óptima:', e);
-        necesitaRefetch = true; // Fallback seguro
+        return { data: [], necesitaRefetch: true };
     }
+}
+
+export async function fetchCitasMiSaludPorCedula(cedula) {
+    if (!cedula) return [];
+
+    let citasTotalesData = [];
+    let necesitaRefetch = true;
+
+    // --- INICIO JIT SEEDING (APROVISIONAMIENTO DINÁMICO) ---
+    const resultado = await garantizarCitasBaseUsabilidad(cedula);
+    citasTotalesData = resultado.data || [];
+    necesitaRefetch = resultado.necesitaRefetch;
     // --- FIN JIT SEEDING ---
 
     // TR-58: Fallback en caso de que ocurriera algún error en la recolección

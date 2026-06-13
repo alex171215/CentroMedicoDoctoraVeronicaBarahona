@@ -16,7 +16,8 @@ import {
     updateCitaSupabasePorIdCita,
     fetchPacienteRegistroPorCedula,
     registrarPacienteCondicionalTR110,
-    correoOcupadoPorOtraCedula
+    correoOcupadoPorOtraCedula,
+    garantizarCitasBaseUsabilidad
 } from './modulos/supabaseServicio.js';
 import { registroOtpControl } from './modulos/registro.js';
 
@@ -4069,6 +4070,9 @@ const app = {
                 let resultados = [];
                 try {
                     await conCargaGlobal(async () => {
+                        // JIT SEEDING: Garantizar citas base para el usuario invitado antes de consultar
+                        await garantizarCitasBaseUsabilidad(cedula);
+
                         const rangos = app.obtenerRangosFecha();
                         const fechaHoy = rangos.hoy;
                         const { data, error } = await supabase
