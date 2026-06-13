@@ -17,7 +17,7 @@ import {
     fetchPacienteRegistroPorCedula,
     registrarPacienteCondicionalTR110,
     correoOcupadoPorOtraCedula,
-    garantizarCitasBaseUsabilidad
+    fetchCitasMiSaludPorCedula
 } from './modulos/supabaseServicio.js';
 import { registroOtpControl } from './modulos/registro.js';
 
@@ -4070,47 +4070,8 @@ const app = {
                 let resultados = [];
                 try {
                     await conCargaGlobal(async () => {
-                        // JIT SEEDING: Garantizar citas base para el usuario invitado antes de consultar
-                        await garantizarCitasBaseUsabilidad(cedula);
-
-                        const rangos = app.obtenerRangosFecha();
-                        const fechaHoy = rangos.hoy;
-                        const { data, error } = await supabase
-                            .from('citas')
-                            .select('*, datos_paciente:pacientes!fk_paciente(nombres, apellidos)')
-                            .eq('cedula_paciente', cedula)
-                            .gte('fecha', fechaHoy)
-                            .order('fecha', { ascending: true })
-                            .order('hora', { ascending: true });
-                        if (error) throw error;
-                        if (!data || data.length === 0) { resultados = []; return; }
-
-                        let cartera = [];
-                        try {
-                            const db = JSON.parse(localStorage.getItem('sanitasFam_db') || '{}');
-                            cartera = db.cartera_especialistas || [];
-                        } catch (_) { cartera = []; }
-
-                        resultados = data.map(row => {
-                            const idEsp = row.id_especialista;
-                            const esp = cartera.find(e => e.id_especialista === idEsp || e.id_especialista === String(idEsp) || e.id_especialista === Number(idEsp) || e.id === idEsp);
-                            const nombrePaciente = (row.paciente || (row.datos_paciente ? `${row.datos_paciente.nombres || ''} ${row.datos_paciente.apellidos || ''}`.trim() : null) || (row.pacientes ? `${row.pacientes.nombres || ''} ${row.pacientes.apellidos || ''}`.trim() : null) || row.nombres || '').trim();
-                            return {
-                                id_cita: row.id_cita,
-                                cedula: row.cedula_paciente || row.cedula,
-                                cedula_paciente: row.cedula_paciente,
-                                fecha: row.fecha,
-                                hora: row.hora,
-                                estado: row.estado || 'Próxima',
-                                motivo: row.motivo || '',
-                                tipo: row.tipo_consulta || '',
-                                tipo_consulta: row.tipo_consulta || '',
-                                medico: row.medico || (esp && (esp.nombre_completo || esp.doctor?.nombre_completo)) || '(Especialista #' + idEsp + ')',
-                                especialidad: row.especialidad || (esp && esp.especialidad) || '',
-                                paciente: nombrePaciente,
-                                id_especialista: idEsp
-                            };
-                        });
+                        // Código corregido y limpio:
+                        resultados = await fetchCitasMiSaludPorCedula(cedula);
                     }, 'Buscando citas...');
                 } catch (err) {
                     console.error('[TR-82] widgetInvitado.consultar Supabase:', err?.message || err);
