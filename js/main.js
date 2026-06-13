@@ -544,8 +544,8 @@ const app = {
                 // TR-13 – Titular de cuenta: 18 años mínimo, 120 años máximo
                 input.setAttribute('min', rangos.hace120Anios);
                 input.setAttribute('max', rangos.hace18Anios);
-                // UX: abrir el selector por defecto en el año que cumple exactamente 18
-                input.setAttribute('value', rangos.hace18Anios);
+                // UX: no forzar valor por defecto
+                // input.setAttribute('value', rangos.hace18Anios);
             } else {
                 // Bloque B: Agendamiento y Buscador (hoy a en 2 meses)
                 input.setAttribute('min', rangos.hoy);
