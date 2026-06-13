@@ -149,7 +149,7 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
             .select('motivo')
             .eq('cedula_paciente', cedula)
             .in('motivo', ['Control Usabilidad - Odonto', 'Chequeo Usabilidad - Oftalmo']);
-            
+
         const motivosExistentes = (existentes || []).map(r => r.motivo);
         const inserciones = [];
 
@@ -191,7 +191,7 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
         .select(SELECT_CITAS)
         .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
     if (error) throw error;
-    
+
     return (data || []).map(mapCitaDesdeDb);
 }
 
@@ -206,12 +206,12 @@ export async function fetchCitaPorIdCliente(idCliente) {
 export async function insertCitaSupabase(payload) {
     const flatPayload = transformarParaSupabase(payload);
     const { data, error } = await supabase.from('citas').insert([flatPayload]).select(SELECT_CITAS).maybeSingle();
-    
+
     // TAREA 1: Agendamiento Exitoso en Medicina General
     if (flatPayload.especialidad === 'MEDICINA GENERAL') {
         logActividadUsabilidad({
             tarea: 'TAREA_1',
-            accion: 'AGENDAMIENTO',
+            operacion: 'AGENDAMIENTO',
             detalles: 'Usuario Invitado agendó cita en Medicina General'
         });
     }
@@ -222,12 +222,12 @@ export async function insertCitaSupabase(payload) {
 
 export async function updateCitaSupabasePorIdCita(idCita, patch) {
     const flatPatch = transformarParaSupabase(patch);
-    
+
     // Recuperar la cita ANTES de actualizarla para leer su motivo y disparar la auditoría
     const { data: citaAnterior } = await supabase.from('citas').select('motivo').eq('id_cita', idCita).maybeSingle();
 
     const { error } = await supabase.from('citas').update(flatPatch).eq('id_cita', idCita);
-    
+
     if (citaAnterior) {
         // TAREA 2: Reagendamiento Odontología
         if (citaAnterior.motivo === 'Control Usabilidad - Odonto' && patch.estado !== 'Cancelada') {
@@ -237,7 +237,7 @@ export async function updateCitaSupabasePorIdCita(idCita, patch) {
                 detalles: 'Se modificó el horario de la cita de Odontología'
             });
         }
-        
+
         // TAREA 4: Cancelación Oftalmología
         if (citaAnterior.motivo === 'Chequeo Usabilidad - Oftalmo' && patch.estado === 'Cancelada') {
             logActividadUsabilidad({
