@@ -156,8 +156,10 @@ export async function garantizarCitasBaseUsabilidad(cedula) {
 
         if (!motivosExistentes.includes('Control Usabilidad - Odonto')) {
             inserciones.push({
+                id_cita: crypto.randomUUID(),
                 id_especialista: 'esp-009',
                 cedula_paciente: cedula,
+                cedula_titular: cedula,
                 fecha: '2026-06-18',
                 hora: '10:00 AM',
                 estado: 'Próxima',
@@ -171,6 +173,7 @@ export async function garantizarCitasBaseUsabilidad(cedula) {
                 id_cita: '8ae06f62-8826-49ca-927b-c7a2775aa581',
                 id_especialista: 'esp-030',
                 cedula_paciente: cedula,
+                cedula_titular: cedula,
                 fecha: '2026-06-18',
                 hora: '03:00 PM',
                 estado: 'Próxima',
