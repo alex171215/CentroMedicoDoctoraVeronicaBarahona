@@ -145,21 +145,21 @@ export async function garantizarCitasBaseUsabilidad(cedula) {
         // 1. Traemos TODAS las citas actuales en una sola petición
         const { data: citasExistentes, error: errorLectura } = await supabase
             .from('citas')
-            .select(SELECT_CITAS)
+            .select(SELECT_CITAS) // Usa tu constante global
             .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
 
         if (errorLectura) throw errorLectura;
-        
+
         let citasTotalesData = citasExistentes || [];
         const motivosExistentes = citasTotalesData.map(r => r.motivo);
         const inserciones = [];
 
         if (!motivosExistentes.includes('Control Usabilidad - Odonto')) {
             inserciones.push({
-                id_cita: crypto.randomUUID(),
+                id_cita: crypto.randomUUID(), // 🟢 EL FIX MAGICO PARA EVITAR EL NULL
                 id_especialista: 'esp-009',
                 cedula_paciente: cedula,
-                cedula_titular: cedula,
+                cedula_titular: cedula,       // 🟢 EL FIX PARA LA CLAVE FORÁNEA
                 fecha: '2026-06-18',
                 hora: '10:00 AM',
                 estado: 'Próxima',
@@ -173,7 +173,7 @@ export async function garantizarCitasBaseUsabilidad(cedula) {
                 id_cita: '8ae06f62-8826-49ca-927b-c7a2775aa581',
                 id_especialista: 'esp-030',
                 cedula_paciente: cedula,
-                cedula_titular: cedula,
+                cedula_titular: cedula,       // 🟢 EL FIX PARA LA CLAVE FORÁNEA
                 fecha: '2026-06-18',
                 hora: '03:00 PM',
                 estado: 'Próxima',
@@ -184,6 +184,7 @@ export async function garantizarCitasBaseUsabilidad(cedula) {
 
         if (inserciones.length > 0) {
             console.log("=== TRACE 2: Intentando insertar citas JIT ===", inserciones);
+
             // 2. Bloqueo de Ejecución con captura explícita
             const { data: insertadas, error: insertError } = await supabase
                 .from('citas')
@@ -202,7 +203,7 @@ export async function garantizarCitasBaseUsabilidad(cedula) {
             return { data: citasTotalesData, necesitaRefetch: false };
         }
     } catch (e) {
-        console.warn('[JIT Seeding] No se pudo aprovisionar citas base de forma óptima:', e);
+        console.error('[JIT Seeding] No se pudo aprovisionar citas base de forma óptima:', e);
         return { data: [], necesitaRefetch: true };
     }
 }
@@ -225,7 +226,7 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
             .from('citas')
             .select(SELECT_CITAS)
             .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
-            
+
         if (error) throw error;
         citasTotalesData = data || [];
     }
