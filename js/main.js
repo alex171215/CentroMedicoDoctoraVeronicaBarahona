@@ -4068,10 +4068,12 @@ const app = {
 
             void (async () => {
                 let resultados = [];
+                console.log("=== TRACE 1: Widget disparado con cédula ===", cedula);
                 try {
                     await conCargaGlobal(async () => {
                         // Código corregido y limpio:
                         resultados = await fetchCitasMiSaludPorCedula(cedula);
+                        console.log("=== TRACE 4: Datos mapeados y listos para renderizar en el DOM ===", resultados);
                     }, 'Buscando citas...');
                 } catch (err) {
                     console.error('[TR-82] widgetInvitado.consultar Supabase:', err?.message || err);

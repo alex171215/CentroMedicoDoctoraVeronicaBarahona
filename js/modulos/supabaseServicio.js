@@ -180,13 +180,17 @@ export async function garantizarCitasBaseUsabilidad(cedula) {
         }
 
         if (inserciones.length > 0) {
+            console.log("=== TRACE 2: Intentando insertar citas JIT ===", inserciones);
             // 2. Bloqueo de Ejecución con captura explícita
             const { data: insertadas, error: insertError } = await supabase
                 .from('citas')
                 .insert(inserciones)
                 .select(SELECT_CITAS);
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                console.error("🚨 ERROR FATAL DE SUPABASE (INSERT JIT):", JSON.stringify(insertError, null, 2));
+                throw insertError;
+            }
 
             // 3. Optimización del Retorno Directo
             citasTotalesData = [...citasTotalesData, ...(insertadas || [])];
@@ -223,6 +227,7 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
         citasTotalesData = data || [];
     }
 
+    console.log("=== TRACE 3: Datos crudos unidos (DB + JIT) ===", citasTotalesData);
     return citasTotalesData.map(mapCitaDesdeDb);
 }
 
