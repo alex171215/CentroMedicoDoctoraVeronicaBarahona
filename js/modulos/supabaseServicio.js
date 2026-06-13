@@ -163,7 +163,7 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
                 id_especialista: 'esp-009',
                 cedula_paciente: cedula,
                 fecha: '2026-06-18',
-                hora: '10:00:00',
+                hora: '10:00 AM',
                 estado: 'Próxima',
                 motivo: 'Control Usabilidad - Odonto',
                 tipo_consulta: 'Consulta Externa'
@@ -172,10 +172,11 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
 
         if (!motivosExistentes.includes('Chequeo Usabilidad - Oftalmo')) {
             inserciones.push({
+                id_cita: '8ae06f62-8826-49ca-927b-c7a2775aa581',
                 id_especialista: 'esp-030',
                 cedula_paciente: cedula,
                 fecha: '2026-06-18',
-                hora: '15:00:00',
+                hora: '03:00 PM',
                 estado: 'Próxima',
                 motivo: 'Chequeo Usabilidad - Oftalmo',
                 tipo_consulta: 'Consulta Externa'
@@ -183,21 +184,18 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
         }
 
         if (inserciones.length > 0) {
-            // 2. Bloqueo de Ejecución (Await Estricto) con solicitud de retorno explícito
-            const { data: insertadas, error: errorInsert } = await supabase
+            // 2. Bloqueo de Ejecución (Await Estricto) con captura explícita de errores
+            const { data: insertadas, error: insertError } = await supabase
                 .from('citas')
                 .insert(inserciones)
                 .select(SELECT_CITAS);
 
-            if (errorInsert) {
-                console.error('[JIT Seeding] Error al insertar citas base:', errorInsert);
-                necesitaRefetch = true; // Forzamos refetch si la inserción con retorno falló por algún motivo
-            } else {
-                // 3. Optimización del Retorno Directo
-                // Combinamos la lectura inicial con los nuevos objetos retornados por la BD
-                citasTotalesData = [...citasTotalesData, ...(insertadas || [])];
-                necesitaRefetch = false; 
-            }
+            if (insertError) throw insertError;
+
+            // 3. Optimización del Retorno Directo
+            // Combinamos la lectura inicial con los nuevos objetos retornados por la BD
+            citasTotalesData = [...citasTotalesData, ...(insertadas || [])];
+            necesitaRefetch = false; 
         } else {
             // Si no hubo inserciones, la lectura inicial de arriba es la definitiva
             necesitaRefetch = false;
