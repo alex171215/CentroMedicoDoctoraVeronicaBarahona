@@ -1,7 +1,7 @@
 import { utilidades } from './utilidades.js';
 import { estado } from '../estado.js';
 
-import { conCargaGlobal, fetchCitasMiSaludPorCedula, fetchCitaPorIdCliente } from './supabaseServicio.js';
+import { conCargaGlobal, fetchCitasMiSaludPorCedula, fetchCitaPorIdCliente, logActividadUsabilidad } from './supabaseServicio.js';
 
 function escapeHtml(s) {
     return String(s ?? '')
@@ -696,6 +696,14 @@ export const salud = {
             console.warn('[app.salud] descargarRecetaActiva: receta no encontrada con ID', id);
             return;
         }
+
+        // TAREA 3: Descarga PDF
+        logActividadUsabilidad({
+            tarea: 'TAREA_3',
+            accion: 'DESCARGA_PDF',
+            detalles: 'Usuario registrado descargó receta dermatológica en formato PDF'
+        });
+
         utilidades.descargarPDFReceta(receta);
     },
 

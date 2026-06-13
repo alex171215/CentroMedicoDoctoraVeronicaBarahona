@@ -435,7 +435,7 @@ const datosIniciales = {
                 "id_especialista": "esp-029"
             },
             {
-                "especialidad": "UROLOGÍA",
+                "especialidad": "OFTALMOLOGÍA",
                 "duracion_minutos": 30,
                 "horarios_atencion": {
                     "dias": [
@@ -447,16 +447,16 @@ const datosIniciales = {
                     "hora_fin": "16:00"
                 },
                 "actividades": [
-                    "Consulta Medica",
-                    "Diagnóstico de Enfermedades Urología",
-                    "Tratamiento de Enfermedades Urología",
-                    "Prevención de Enfermedades Urológicas"
+                    "Examen de Refracción",
+                    "Control de Presión Intraocular",
+                    "Fondo de Ojo",
+                    "Consulta Oftalmológica"
                 ],
                 "nombre_completo": "Dr. Gabriel Roberto Delgado Vega",
                 "id_especialista": "esp-030"
             },
             {
-                "especialidad": "UROLOGÍA",
+                "especialidad": "OFTALMOLOGÍA",
                 "duracion_minutos": 30,
                 "horarios_atencion": {
                     "dias": [
@@ -468,16 +468,16 @@ const datosIniciales = {
                     "hora_fin": "16:00"
                 },
                 "actividades": [
-                    "Consulta Medica",
-                    "Diagnóstico de Enfermedades Urología",
-                    "Tratamiento de Enfermedades Urología",
-                    "Prevención de Enfermedades Urológicas"
+                    "Examen de Refracción",
+                    "Control de Presión Intraocular",
+                    "Fondo de Ojo",
+                    "Consulta Oftalmológica"
                 ],
                 "nombre_completo": "Dra. Lucía Diego Vega Silva",
                 "id_especialista": "esp-031"
             },
             {
-                "especialidad": "UROLOGÍA",
+                "especialidad": "OFTALMOLOGÍA",
                 "duracion_minutos": 30,
                 "horarios_atencion": {
                     "dias": [
@@ -489,16 +489,16 @@ const datosIniciales = {
                     "hora_fin": "16:00"
                 },
                 "actividades": [
-                    "Consulta Medica",
-                    "Diagnóstico de Enfermedades Urología",
-                    "Tratamiento de Enfermedades Urología",
-                    "Prevención de Enfermedades Urológicas"
+                    "Examen de Refracción",
+                    "Control de Presión Intraocular",
+                    "Fondo de Ojo",
+                    "Consulta Oftalmológica"
                 ],
                 "nombre_completo": "Dr. Alejandro Susana Navarro Vega",
                 "id_especialista": "esp-032"
             },
             {
-                "especialidad": "UROLOGÍA",
+                "especialidad": "OFTALMOLOGÍA",
                 "duracion_minutos": 30,
                 "horarios_atencion": {
                     "dias": [
@@ -510,10 +510,10 @@ const datosIniciales = {
                     "hora_fin": "16:00"
                 },
                 "actividades": [
-                    "Consulta Medica",
-                    "Diagnóstico de Enfermedades Urología",
-                    "Tratamiento de Enfermedades Urología",
-                    "Prevención de Enfermedades Urológicas"
+                    "Examen de Refracción",
+                    "Control de Presión Intraocular",
+                    "Fondo de Ojo",
+                    "Consulta Oftalmológica"
                 ],
                 "nombre_completo": "Dr. Ramiro Miguel Sánchez Villanueva",
                 "id_especialista": "esp-033"

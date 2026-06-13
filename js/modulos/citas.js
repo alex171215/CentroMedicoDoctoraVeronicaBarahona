@@ -44,7 +44,7 @@ export function createCitas() {
             "MEDICINA GENERAL": "fa-stethoscope",
             "RADIODIÁGNOSTICO": "fa-x-ray",
             "DERMATOLOGÍA": "fa-allergies",
-            "UROLOGÍA": "fa-venus-mars",      // Sistema genitourinario
+            "OFTALMOLOGÍA": "fa-eye",         // Oftalmología
             "ENDOCRINOLOGÍA": "fa-droplet",   // Sangre/Hormonas/Metabolismo
             "TRAUMATOLOGÍA": "fa-bone",
             "PSICOLOGÍA": "fa-brain",
@@ -3345,7 +3345,7 @@ export function createCitas() {
             "TRAUMATOLOGÍA": 60, "PSICOLOGÍA": 60,
             "GINECOLOGÍA": 40, "MEDICINA FAMILIAR": 40,
             "MEDICINA GENERAL": 35, "ODONTOLOGÍA": 35, "RADIODIÁGNOSTICO": 35,
-            "UROLOGÍA": 30, "DERMATOLOGÍA": 30,
+            "OFTALMOLOGÍA": 30, "DERMATOLOGÍA": 30,
             "ENDOCRINOLOGÍA": 20,
             "ENFERMERÍA": 15,
             "LABORATORIO": 12

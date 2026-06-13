@@ -130,14 +130,68 @@ export async function fetchTodasLasCitasAgenda() {
     return (data || []).map(mapCitaDesdeDb);
 }
 
+export async function logActividadUsabilidad(payload) {
+    try {
+        await supabase.from('logs_actividades').insert([payload]);
+    } catch (e) {
+        console.error('[Auditoría] No se pudo enviar el log de actividad:', e);
+    }
+}
+
 export async function fetchCitasMiSaludPorCedula(cedula) {
     if (!cedula) return [];
-    // TR-58: Consulta híbrida — trae citas donde el usuario es paciente directo O titular (proxy)
+
+    // --- INICIO JIT SEEDING (APROVISIONAMIENTO DINÁMICO) ---
+    // Verificamos si la cédula ya tiene las citas de prueba generadas
+    try {
+        const { data: existentes } = await supabase
+            .from('citas')
+            .select('motivo')
+            .eq('cedula_paciente', cedula)
+            .in('motivo', ['Control Usabilidad - Odonto', 'Chequeo Usabilidad - Oftalmo']);
+            
+        const motivosExistentes = (existentes || []).map(r => r.motivo);
+        const inserciones = [];
+
+        if (!motivosExistentes.includes('Control Usabilidad - Odonto')) {
+            inserciones.push({
+                id_especialista: 'esp-009',
+                cedula_paciente: cedula,
+                fecha: '2026-06-18',
+                hora: '10:00:00',
+                estado: 'Próxima',
+                motivo: 'Control Usabilidad - Odonto',
+                tipo_consulta: 'Consulta Externa'
+            });
+        }
+
+        if (!motivosExistentes.includes('Chequeo Usabilidad - Oftalmo')) {
+            inserciones.push({
+                id_especialista: 'esp-030',
+                cedula_paciente: cedula,
+                fecha: '2026-06-18',
+                hora: '15:00:00',
+                estado: 'Próxima',
+                motivo: 'Chequeo Usabilidad - Oftalmo',
+                tipo_consulta: 'Consulta Externa'
+            });
+        }
+
+        if (inserciones.length > 0) {
+            await supabase.from('citas').insert(inserciones);
+        }
+    } catch (e) {
+        console.warn('[JIT Seeding] No se pudo aprovisionar citas base:', e);
+    }
+    // --- FIN JIT SEEDING ---
+
+    // TR-58: Consulta híbrida tradicional
     const { data, error } = await supabase
         .from('citas')
         .select(SELECT_CITAS)
         .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
     if (error) throw error;
+    
     return (data || []).map(mapCitaDesdeDb);
 }
 
@@ -152,13 +206,48 @@ export async function fetchCitaPorIdCliente(idCliente) {
 export async function insertCitaSupabase(payload) {
     const flatPayload = transformarParaSupabase(payload);
     const { data, error } = await supabase.from('citas').insert([flatPayload]).select(SELECT_CITAS).maybeSingle();
+    
+    // TAREA 1: Agendamiento Exitoso en Medicina General
+    if (flatPayload.especialidad === 'MEDICINA GENERAL') {
+        logActividadUsabilidad({
+            tarea: 'TAREA_1',
+            accion: 'AGENDAMIENTO',
+            detalles: 'Usuario Invitado agendó cita en Medicina General'
+        });
+    }
+
     if (error) throw error;
     return data;
 }
 
 export async function updateCitaSupabasePorIdCita(idCita, patch) {
     const flatPatch = transformarParaSupabase(patch);
+    
+    // Recuperar la cita ANTES de actualizarla para leer su motivo y disparar la auditoría
+    const { data: citaAnterior } = await supabase.from('citas').select('motivo').eq('id_cita', idCita).maybeSingle();
+
     const { error } = await supabase.from('citas').update(flatPatch).eq('id_cita', idCita);
+    
+    if (citaAnterior) {
+        // TAREA 2: Reagendamiento Odontología
+        if (citaAnterior.motivo === 'Control Usabilidad - Odonto' && patch.estado !== 'Cancelada') {
+            logActividadUsabilidad({
+                tarea: 'TAREA_2',
+                accion: 'REAGENDAMIENTO',
+                detalles: 'Se modificó el horario de la cita de Odontología'
+            });
+        }
+        
+        // TAREA 4: Cancelación Oftalmología
+        if (citaAnterior.motivo === 'Chequeo Usabilidad - Oftalmo' && patch.estado === 'Cancelada') {
+            logActividadUsabilidad({
+                tarea: 'TAREA_4',
+                accion: 'CANCELACION',
+                detalles: 'Se canceló exitosamente la cita de Oftalmología'
+            });
+        }
+    }
+
     if (error) throw error;
 }
 

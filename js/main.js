@@ -1439,7 +1439,7 @@ const app = {
             "MEDICINA GENERAL":   "assets/img/carrusel/webp/medicina-general.webp",
             "RADIODIÁGNOSTICO":   "assets/img/carrusel/webp/radiodiagnostico.webp",
             "DERMATOLOGÍA":       "assets/img/carrusel/webp/dermatologia.webp",
-            "UROLOGÍA":           "assets/img/carrusel/webp/urologia.webp",
+            "OFTALMOLOGÍA":       "assets/img/carrusel/webp/oftalmologia.webp",
             "ENDOCRINOLOGÍA":     "assets/img/carrusel/webp/endocrinologia.webp",
             "TRAUMATOLOGÍA":      "assets/img/carrusel/webp/traumatologia.webp",
             "PSICOLOGÍA":         "assets/img/carrusel/webp/psicologia.webp",
