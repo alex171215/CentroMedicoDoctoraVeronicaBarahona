@@ -141,16 +141,21 @@ export async function logActividadUsabilidad(payload) {
 export async function fetchCitasMiSaludPorCedula(cedula) {
     if (!cedula) return [];
 
-    // --- INICIO JIT SEEDING (APROVISIONAMIENTO DINÁMICO) ---
-    // Verificamos si la cédula ya tiene las citas de prueba generadas
-    try {
-        const { data: existentes } = await supabase
-            .from('citas')
-            .select('motivo')
-            .eq('cedula_paciente', cedula)
-            .in('motivo', ['Control Usabilidad - Odonto', 'Chequeo Usabilidad - Oftalmo']);
+    let citasTotalesData = [];
+    let necesitaRefetch = true;
 
-        const motivosExistentes = (existentes || []).map(r => r.motivo);
+    // --- INICIO JIT SEEDING (APROVISIONAMIENTO DINÁMICO) ---
+    try {
+        // 1. Primero traemos TODAS las citas actuales del usuario en una sola petición
+        const { data: citasExistentes, error: errorLectura } = await supabase
+            .from('citas')
+            .select(SELECT_CITAS)
+            .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
+
+        if (errorLectura) throw errorLectura;
+        
+        citasTotalesData = citasExistentes || [];
+        const motivosExistentes = citasTotalesData.map(r => r.motivo);
         const inserciones = [];
 
         if (!motivosExistentes.includes('Control Usabilidad - Odonto')) {
@@ -178,21 +183,43 @@ export async function fetchCitasMiSaludPorCedula(cedula) {
         }
 
         if (inserciones.length > 0) {
-            await supabase.from('citas').insert(inserciones);
+            // 2. Bloqueo de Ejecución (Await Estricto) con solicitud de retorno explícito
+            const { data: insertadas, error: errorInsert } = await supabase
+                .from('citas')
+                .insert(inserciones)
+                .select(SELECT_CITAS);
+
+            if (errorInsert) {
+                console.error('[JIT Seeding] Error al insertar citas base:', errorInsert);
+                necesitaRefetch = true; // Forzamos refetch si la inserción con retorno falló por algún motivo
+            } else {
+                // 3. Optimización del Retorno Directo
+                // Combinamos la lectura inicial con los nuevos objetos retornados por la BD
+                citasTotalesData = [...citasTotalesData, ...(insertadas || [])];
+                necesitaRefetch = false; 
+            }
+        } else {
+            // Si no hubo inserciones, la lectura inicial de arriba es la definitiva
+            necesitaRefetch = false;
         }
     } catch (e) {
-        console.warn('[JIT Seeding] No se pudo aprovisionar citas base:', e);
+        console.warn('[JIT Seeding] No se pudo aprovisionar citas base de forma óptima:', e);
+        necesitaRefetch = true; // Fallback seguro
     }
     // --- FIN JIT SEEDING ---
 
-    // TR-58: Consulta híbrida tradicional
-    const { data, error } = await supabase
-        .from('citas')
-        .select(SELECT_CITAS)
-        .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
-    if (error) throw error;
+    // TR-58: Fallback en caso de que ocurriera algún error en la recolección
+    if (necesitaRefetch) {
+        const { data, error } = await supabase
+            .from('citas')
+            .select(SELECT_CITAS)
+            .or(`cedula_paciente.eq.${cedula},cedula_titular.eq.${cedula}`);
+            
+        if (error) throw error;
+        citasTotalesData = data || [];
+    }
 
-    return (data || []).map(mapCitaDesdeDb);
+    return citasTotalesData.map(mapCitaDesdeDb);
 }
 
 export async function fetchCitaPorIdCliente(idCliente) {
