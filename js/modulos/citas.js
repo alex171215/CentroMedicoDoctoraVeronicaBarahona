@@ -3094,7 +3094,7 @@ export function createCitas() {
                     }
                 }, 'Guardando cita…');
             } catch (err) {
-                console.error('[Supabase] Error al guardar cita:', err);
+                console.error('[Supabase] Error DETALLADO al guardar cita:', JSON.stringify(err, null, 2), err);
                 alert('No se pudo guardar la cita en el servidor. Revisa la consola o intenta de nuevo.');
                 return;
             }
